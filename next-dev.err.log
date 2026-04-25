@@ -1,0 +1,317 @@
+IntlError: MISSING_MESSAGE: Could not resolve `auth.loginSubtitle` in messages for locale `en`.
+    at getFallbackFromErrorAndNotify (webpack-internal:///(ssr)/./node_modules/use-intl/dist/development/createFormatter-QqAaZwGD.js:159:19)
+    at translateBaseFn (webpack-internal:///(ssr)/./node_modules/use-intl/dist/development/createFormatter-QqAaZwGD.js:184:14)
+    at translateFn (webpack-internal:///(ssr)/./node_modules/use-intl/dist/development/createFormatter-QqAaZwGD.js:258:20)
+    at LoginPage (webpack-internal:///(ssr)/./src/app/[locale]/login/page.tsx:116:47)
+    at as (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:6391)
+    at D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:11242
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:13009)
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46552)
+    at av (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:7809)
+    at D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:12972
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:13009)
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:43309)
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46552)
+    at ax (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:50458)
+    at a_ (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:49564)
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46881)
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:41912)
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46552)
+    at av (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:7809)
+    at D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:12972
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:13009)
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46552)
+    at al (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:7390)
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:10825)
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46552)
+    at av (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:7809)
+    at D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:12972
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:13009)
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46552)
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:39541)
+    ... collapsed 12 duplicate lines matching above 6 lines 2 times...
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46552)
+    at av (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:7809)
+    at D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:12972
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:13009)
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46552)
+    at al (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:7390)
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:10825)
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46552) {
+  code: 'MISSING_MESSAGE',
+  originalMessage: 'Could not resolve `auth.loginSubtitle` in messages for locale `en`.'
+}
+IntlError: MISSING_MESSAGE: Could not resolve `auth.emailPlaceholder` in messages for locale `en`.
+    at getFallbackFromErrorAndNotify (webpack-internal:///(ssr)/./node_modules/use-intl/dist/development/createFormatter-QqAaZwGD.js:159:19)
+    at translateBaseFn (webpack-internal:///(ssr)/./node_modules/use-intl/dist/development/createFormatter-QqAaZwGD.js:184:14)
+    at translateFn (webpack-internal:///(ssr)/./node_modules/use-intl/dist/development/createFormatter-QqAaZwGD.js:258:20)
+    at LoginPage (webpack-internal:///(ssr)/./src/app/[locale]/login/page.tsx:166:74)
+    at as (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:6391)
+    at D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:11242
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:13009)
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46552)
+    at av (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:7809)
+    at D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:12972
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:13009)
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:43309)
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46552)
+    at ax (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:50458)
+    at a_ (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:49564)
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46881)
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:41912)
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46552)
+    at av (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:7809)
+    at D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:12972
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:13009)
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46552)
+    at al (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:7390)
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:10825)
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46552)
+    at av (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:7809)
+    at D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:12972
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:13009)
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46552)
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:39541)
+    ... collapsed 12 duplicate lines matching above 6 lines 2 times...
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46552)
+    at av (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:7809)
+    at D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:12972
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:13009)
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46552)
+    at al (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:7390)
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:10825)
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46552) {
+  code: 'MISSING_MESSAGE',
+  originalMessage: 'Could not resolve `auth.emailPlaceholder` in messages for locale `en`.'
+}
+IntlError: MISSING_MESSAGE: Could not resolve `auth.passwordPlaceholder` in messages for locale `en`.
+    at getFallbackFromErrorAndNotify (webpack-internal:///(ssr)/./node_modules/use-intl/dist/development/createFormatter-QqAaZwGD.js:159:19)
+    at translateBaseFn (webpack-internal:///(ssr)/./node_modules/use-intl/dist/development/createFormatter-QqAaZwGD.js:184:14)
+    at translateFn (webpack-internal:///(ssr)/./node_modules/use-intl/dist/development/createFormatter-QqAaZwGD.js:258:20)
+    at LoginPage (webpack-internal:///(ssr)/./src/app/[locale]/login/page.tsx:236:74)
+    at as (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:6391)
+    at D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:11242
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:13009)
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46552)
+    at av (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:7809)
+    at D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:12972
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:13009)
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:43309)
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46552)
+    at ax (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:50458)
+    at a_ (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:49564)
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46881)
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:41912)
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46552)
+    at av (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:7809)
+    at D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:12972
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:13009)
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46552)
+    at al (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:7390)
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:10825)
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46552)
+    at av (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:7809)
+    at D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:12972
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:13009)
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46552)
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:39541)
+    ... collapsed 12 duplicate lines matching above 6 lines 2 times...
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46552)
+    at av (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:7809)
+    at D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:12972
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:13009)
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46552)
+    at al (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:7390)
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:10825)
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46552) {
+  code: 'MISSING_MESSAGE',
+  originalMessage: 'Could not resolve `auth.passwordPlaceholder` in messages for locale `en`.'
+}
+IntlError: MISSING_MESSAGE: Could not resolve `auth.loginSubtitle` in messages for locale `en`.
+    at getFallbackFromErrorAndNotify (webpack-internal:///(ssr)/./node_modules/use-intl/dist/development/createFormatter-QqAaZwGD.js:159:19)
+    at translateBaseFn (webpack-internal:///(ssr)/./node_modules/use-intl/dist/development/createFormatter-QqAaZwGD.js:184:14)
+    at translateFn (webpack-internal:///(ssr)/./node_modules/use-intl/dist/development/createFormatter-QqAaZwGD.js:258:20)
+    at LoginPage (webpack-internal:///(ssr)/./src/app/[locale]/login/page.tsx:116:47)
+    at as (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:6391)
+    at D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:11242
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:13009)
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46552)
+    at av (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:7809)
+    at D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:12972
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:13009)
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:43309)
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46552)
+    at ax (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:50458)
+    at a_ (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:49564)
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46881)
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:41912)
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46552)
+    at av (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:7809)
+    at D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:12972
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:13009)
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46552)
+    at al (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:7390)
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:10825)
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46552)
+    at av (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:7809)
+    at D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:12972
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:13009)
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46552)
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:39541)
+    ... collapsed 12 duplicate lines matching above 6 lines 2 times...
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46552)
+    at av (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:7809)
+    at D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:12972
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:13009)
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46552)
+    at al (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:7390)
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:10825)
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46552) {
+  code: 'MISSING_MESSAGE',
+  originalMessage: 'Could not resolve `auth.loginSubtitle` in messages for locale `en`.'
+}
+IntlError: MISSING_MESSAGE: Could not resolve `auth.emailPlaceholder` in messages for locale `en`.
+    at getFallbackFromErrorAndNotify (webpack-internal:///(ssr)/./node_modules/use-intl/dist/development/createFormatter-QqAaZwGD.js:159:19)
+    at translateBaseFn (webpack-internal:///(ssr)/./node_modules/use-intl/dist/development/createFormatter-QqAaZwGD.js:184:14)
+    at translateFn (webpack-internal:///(ssr)/./node_modules/use-intl/dist/development/createFormatter-QqAaZwGD.js:258:20)
+    at LoginPage (webpack-internal:///(ssr)/./src/app/[locale]/login/page.tsx:166:74)
+    at as (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:6391)
+    at D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:11242
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:13009)
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46552)
+    at av (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:7809)
+    at D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:12972
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:13009)
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:43309)
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46552)
+    at ax (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:50458)
+    at a_ (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:49564)
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46881)
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:41912)
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46552)
+    at av (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:7809)
+    at D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:12972
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:13009)
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46552)
+    at al (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:7390)
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:10825)
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46552)
+    at av (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:7809)
+    at D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:12972
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:13009)
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46552)
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:39541)
+    ... collapsed 12 duplicate lines matching above 6 lines 2 times...
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46552)
+    at av (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:7809)
+    at D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:12972
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:13009)
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46552)
+    at al (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:7390)
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:10825)
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46552) {
+  code: 'MISSING_MESSAGE',
+  originalMessage: 'Could not resolve `auth.emailPlaceholder` in messages for locale `en`.'
+}
+IntlError: MISSING_MESSAGE: Could not resolve `auth.passwordPlaceholder` in messages for locale `en`.
+    at getFallbackFromErrorAndNotify (webpack-internal:///(ssr)/./node_modules/use-intl/dist/development/createFormatter-QqAaZwGD.js:159:19)
+    at translateBaseFn (webpack-internal:///(ssr)/./node_modules/use-intl/dist/development/createFormatter-QqAaZwGD.js:184:14)
+    at translateFn (webpack-internal:///(ssr)/./node_modules/use-intl/dist/development/createFormatter-QqAaZwGD.js:258:20)
+    at LoginPage (webpack-internal:///(ssr)/./src/app/[locale]/login/page.tsx:236:74)
+    at as (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:6391)
+    at D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:11242
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:13009)
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46552)
+    at av (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:7809)
+    at D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:12972
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:13009)
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:43309)
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46552)
+    at ax (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:50458)
+    at a_ (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:49564)
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46881)
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:41912)
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46552)
+    at av (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:7809)
+    at D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:12972
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:13009)
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46552)
+    at al (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:7390)
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:10825)
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46552)
+    at av (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:7809)
+    at D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:12972
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:13009)
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46552)
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:39541)
+    ... collapsed 12 duplicate lines matching above 6 lines 2 times...
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46552)
+    at av (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:7809)
+    at D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:12972
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:13009)
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46552)
+    at al (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:7390)
+    at aw (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:10825)
+    at ak (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:46552) {
+  code: 'MISSING_MESSAGE',
+  originalMessage: 'Could not resolve `auth.passwordPlaceholder` in messages for locale `en`.'
+}
+ ⨯ ./src/app/[locale]/login/page.tsx
+Error: 
+  [31mx[0m Expected ',', got '.'
+    ,-[[36;1;4mD:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\src\app\[locale]\login\page.tsx[0m:91:1]
+ [2m91[0m |     formState: { errors },
+ [2m92[0m |   } = useForm<LoginFormData>({
+ [2m93[0m |     resolver: zodResolver(loginSchema),
+ [2m94[0m |       setError(text.invalidCredentials);
+    : [31;1m                   ^[0m
+ [2m95[0m | 
+ [2m96[0m |   const onSubmit = async (data: LoginFormData) => {
+ [2m96[0m |     setIsLoading(true);
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/[locale]/login/page.tsx
+ ⨯ Error: The default export is not a React Component in page: "/[locale]/login"
+    at ru (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:39:8322)
+    at async D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:39:9079
+    at async Promise.all (index 0)
+    at async ru (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:39:8785)
+    ... collapsed 6 duplicate lines matching above 3 lines 2 times...
+    at async rc (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:39:11042)
+    at async rg (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:39:13244)
+    at async doRender (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\server\base-server.js:1376:30)
+    at async cacheEntry.responseCache.get.routeKind (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\server\base-server.js:1525:40)
+    at async DevServer.renderToResponseWithComponentsImpl (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\server\base-server.js:1445:28)
+    at async DevServer.renderPageComponent (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\server\base-server.js:1842:24)
+    at async DevServer.renderToResponseImpl (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\server\base-server.js:1880:32)
+    at async DevServer.pipeImpl (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\server\base-server.js:893:25)
+    at async NextNodeServer.handleCatchallRenderRequest (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\server\next-server.js:269:17)
+    at async DevServer.handleRequestImpl (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\server\base-server.js:789:17)
+    at async D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\server\dev\next-dev-server.js:331:20
+    at async Span.traceAsyncFn (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\trace\trace.js:151:20)
+    at async DevServer.handleRequest (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\server\dev\next-dev-server.js:328:24)
+    at async invokeRender (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\server\lib\router-server.js:174:21)
+    at async handleRequest (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\server\lib\router-server.js:353:24)
+    at async requestHandlerImpl (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\server\lib\router-server.js:377:13)
+    at async Server.requestListener (D:\Learning_Platform\Onlinelearning-main\Onlinelearning-main\node_modules\next\dist\server\lib\start-server.js:140:13) {
+  page: '/en/login'
+}
+ ⨯ Error: The default export is not a React Component in page: "/[locale]/login"
+    at async Promise.all (index 0)
+    at async Promise.all (index 0)
+    at async Promise.all (index 0)
+ ⨯ Error: The default export is not a React Component in page: "/[locale]/login"
+    at async Promise.all (index 0)
+    at async Promise.all (index 0)
+    at async Promise.all (index 0)
+digest: "2953720411"
+Watchpack Error (initial scan): Error: EINVAL: invalid argument, lstat 'D:\DumpStack.log.tmp'
+Watchpack Error (initial scan): Error: EINVAL: invalid argument, lstat 'D:\System Volume Information'
+Watchpack Error (initial scan): Error: EINVAL: invalid argument, lstat 'D:\pagefile.sys'
+Watchpack Error (initial scan): Error: EINVAL: invalid argument, lstat 'D:\DumpStack.log.tmp'
+Watchpack Error (initial scan): Error: EINVAL: invalid argument, lstat 'D:\System Volume Information'
+Watchpack Error (initial scan): Error: EINVAL: invalid argument, lstat 'D:\pagefile.sys'

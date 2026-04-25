@@ -1,0 +1,435 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 142.1 76.2% 36.3%;
+    --primary-foreground: 355.7 100% 97.3%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 142.1 76.2% 36.3%;
+    --radius: 0.75rem;
+    
+    /* Danesh brand colors */
+    --danesh-primary: 142 76% 36%;
+    --danesh-secondary: 213 74% 43%;
+    --danesh-accent: 45 100% 55%;
+    --danesh-success: 145 63% 42%;
+    --danesh-warning: 30 100% 50%;
+    --danesh-error: 4 90% 58%;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 142.1 70.6% 45.3%;
+    --primary-foreground: 144.9 80.4% 10%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 142.4 71.8% 29.2%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  /* RTL support */
+  [dir="rtl"] {
+    text-align: right;
+  }
+
+  [dir="ltr"] {
+    text-align: left;
+  }
+
+  /* Persian/Arabic font settings */
+  [lang="fa"],
+  [lang="ar"],
+  [dir="rtl"] {
+    font-family: var(--font-vazirmatn), 'Vazirmatn', 'IRANSans', 'Tahoma', sans-serif;
+    letter-spacing: 0;
+  }
+
+  /* Numbers in Persian */
+  [lang="fa"] .number-fa {
+    font-feature-settings: "ss01";
+  }
+
+  /* Improved focus styles for accessibility */
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-primary;
+  }
+
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  /* High contrast mode */
+  .high-contrast {
+    --primary: 142 100% 25%;
+    --foreground: 0 0% 0%;
+    --background: 0 0% 100%;
+  }
+
+  .dark.high-contrast {
+    --foreground: 0 0% 100%;
+    --background: 0 0% 0%;
+  }
+
+  html[data-font-size="small"] {
+    font-size: 14px;
+  }
+
+  html[data-font-size="medium"] {
+    font-size: 16px;
+  }
+
+  html[data-font-size="large"] {
+    font-size: 18px;
+  }
+
+  html.reduce-motion *,
+  html.reduce-motion *::before,
+  html.reduce-motion *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  html.focus-mode .card-hover {
+    transform: none !important;
+    box-shadow: none !important;
+  }
+}
+
+@layer components {
+  /* Card with hover effect */
+  .card-hover {
+    @apply transition-all duration-200 hover:shadow-lg hover:-translate-y-1;
+  }
+
+  /* Gradient text */
+  .gradient-text {
+    @apply bg-gradient-to-r from-danesh-primary to-danesh-secondary bg-clip-text text-transparent;
+  }
+
+  /* XP Progress bar */
+  .xp-bar {
+    @apply relative h-4 overflow-hidden rounded-full bg-muted;
+  }
+
+  .xp-bar-fill {
+    @apply absolute left-0 top-0 h-full bg-gradient-to-r from-danesh-accent to-yellow-400 transition-all duration-1000;
+  }
+
+  /* Streak flame effect */
+  .streak-flame {
+    @apply relative inline-flex items-center;
+  }
+
+  .streak-flame::before {
+    content: "🔥";
+    @apply absolute -top-2 -right-2 text-xl animate-pulse;
+  }
+
+  /* Badge styles */
+  .badge-common {
+    @apply border-gray-300 bg-gray-50;
+  }
+  
+  .badge-uncommon {
+    @apply border-green-400 bg-green-50;
+  }
+  
+  .badge-rare {
+    @apply border-blue-400 bg-blue-50;
+  }
+  
+  .badge-epic {
+    @apply border-purple-400 bg-purple-50;
+  }
+  
+  .badge-legendary {
+    @apply border-yellow-400 bg-gradient-to-br from-yellow-50 to-amber-100;
+  }
+
+  /* Age-appropriate themes */
+  .theme-early-years {
+    --primary: 14 100% 57%;
+    --primary-foreground: 0 0% 100%;
+    @apply font-rounded;
+  }
+
+  .theme-primary {
+    --primary: 207 90% 54%;
+    --primary-foreground: 0 0% 100%;
+  }
+
+  .theme-middle {
+    --primary: 262 52% 47%;
+    --primary-foreground: 0 0% 100%;
+  }
+
+  .theme-secondary {
+    --primary: 174 100% 29%;
+    --primary-foreground: 0 0% 100%;
+  }
+
+  /* ADHD-friendly mode */
+  .adhd-mode {
+    @apply max-w-3xl mx-auto;
+  }
+
+  .adhd-mode * {
+    @apply transition-none;
+  }
+
+  .adhd-mode .sidebar,
+  .adhd-mode .related-content,
+  .adhd-mode .advertisements {
+    @apply hidden;
+  }
+
+  /* Lesson phase indicators */
+  .phase-engage {
+    @apply border-l-4 border-orange-500;
+  }
+
+  .phase-explore {
+    @apply border-l-4 border-blue-500;
+  }
+
+  .phase-explain {
+    @apply border-l-4 border-green-500;
+  }
+
+  .phase-elaborate {
+    @apply border-l-4 border-purple-500;
+  }
+
+  .phase-evaluate {
+    @apply border-l-4 border-red-500;
+  }
+
+  /* Timer widget for ADHD */
+  .timer-widget {
+    @apply fixed bottom-4 right-4 z-50 rounded-full bg-primary p-4 text-primary-foreground shadow-lg;
+  }
+
+  [dir="rtl"] .timer-widget {
+    @apply right-auto left-4;
+  }
+
+  /* Content modality indicators */
+  .modality-text::before { content: "📝"; }
+  .modality-video::before { content: "🎬"; }
+  .modality-audio::before { content: "🎧"; }
+  .modality-interactive::before { content: "🎮"; }
+
+  /* Quest narrative box */
+  .quest-narrative {
+    @apply relative overflow-hidden rounded-xl bg-gradient-to-br from-indigo-900 to-purple-900 p-6 text-white;
+  }
+
+  .quest-narrative::before {
+    content: "";
+    @apply absolute inset-0 bg-[url('/images/stars-pattern.svg')] opacity-20;
+  }
+
+  /* Wellbeing mood selector */
+  .mood-option {
+    @apply flex flex-col items-center gap-2 rounded-xl border-2 border-transparent p-4 transition-all hover:border-primary hover:bg-primary/5;
+  }
+
+  .mood-option.selected {
+    @apply border-primary bg-primary/10;
+  }
+
+  .mood-emoji {
+    @apply text-4xl transition-transform hover:scale-110;
+  }
+
+  /* Certificate styling */
+  .certificate {
+    @apply relative overflow-hidden rounded-lg border-4 border-double border-amber-400 bg-gradient-to-br from-amber-50 to-white p-8;
+  }
+
+  .certificate::before {
+    content: "";
+    @apply absolute inset-0 bg-[url('/images/certificate-pattern.svg')] opacity-10;
+  }
+
+  /* Loading skeleton */
+  .skeleton {
+    @apply animate-pulse rounded bg-muted;
+  }
+
+  /* Forum thread styling */
+  .thread-accepted {
+    @apply border-l-4 border-green-500 bg-green-50/50;
+  }
+
+  [dir="rtl"] .thread-accepted {
+    @apply border-l-0 border-r-4;
+  }
+}
+
+@layer utilities {
+  /* RTL-aware spacing */
+  .ms-auto {
+    margin-inline-start: auto;
+  }
+
+  .me-auto {
+    margin-inline-end: auto;
+  }
+
+  .ps-4 {
+    padding-inline-start: 1rem;
+  }
+
+  .pe-4 {
+    padding-inline-end: 1rem;
+  }
+
+  /* RTL-aware positioning */
+  .start-0 {
+    inset-inline-start: 0;
+  }
+
+  .end-0 {
+    inset-inline-end: 0;
+  }
+
+  /* RTL-aware transforms */
+  [dir="rtl"] .flip-rtl {
+    transform: scaleX(-1);
+  }
+
+  /* Scrollbar styling */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted)) transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted));
+    border-radius: 4px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground));
+  }
+
+  /* Text balance */
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Container query support */
+  .container-type-inline {
+    container-type: inline-size;
+  }
+
+  /* Safe area insets for mobile */
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* Animation keyframes */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+@keyframes celebrate {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.2) rotate(5deg); }
+  100% { transform: scale(1); }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-shake {
+  animation: shake 0.5s ease-in-out;
+}
+
+.animate-celebrate {
+  animation: celebrate 0.5s ease-out;
+}
+
+/* Print styles for certificates */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  .certificate {
+    border-width: 2px;
+    page-break-inside: avoid;
+  }
+}

@@ -1,0 +1,18 @@
+[
+  {
+    "id": "local-1776452997058",
+    "userId": "dev-super-admin",
+    "moodScore": 4,
+    "energyLevel": 1,
+    "stressLevel": 1,
+    "createdAt": "2026-04-17T19:09:57.058Z"
+  },
+  {
+    "id": "local-1776537138386",
+    "userId": "dev-super-admin",
+    "moodScore": 5,
+    "energyLevel": 3,
+    "stressLevel": 1,
+    "createdAt": "2026-04-18T18:32:18.386Z"
+  }
+]

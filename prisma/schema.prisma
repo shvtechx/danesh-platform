@@ -1,0 +1,1456 @@
+// Danesh Learning Platform - Prisma Schema
+// Comprehensive schema for K-12 bilingual learning platform
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// IDENTITY & ROLES
+// ============================================
+
+model User {
+  id                String    @id @default(cuid())
+  email             String?   @unique
+  phone             String?   @unique
+  passwordHash      String?
+  emailVerified     DateTime?
+  phoneVerified     DateTime?
+  preferredLanguage Language  @default(EN)
+  status            UserStatus @default(ACTIVE)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  profile           UserProfile?
+  accounts          Account[]
+  sessions          Session[]
+  userRoles         UserRole[]
+  parentLinks       ParentStudentLink[] @relation("ParentLinks")
+  childLinks        ParentStudentLink[] @relation("StudentLinks")
+  xpLedger          XPLedger[]
+  badges            UserBadge[]
+  questProgress     UserQuestProgress[]
+  attempts          StudentAttempt[]
+  wellbeingCheckins WellbeingCheckin[]
+  forumThreads      ForumThread[]
+  forumPosts        ForumPost[]
+  postVotes         PostVote[]
+  studyGroupMemberships StudyGroupMember[]
+  tutorProfile      TutorProfile?
+  bookingsAsStudent Booking[] @relation("StudentBookings")
+  bookingsAsTutor   Booking[] @relation("TutorBookings")
+  subscriptions     Subscription[]
+  concernReports    ConcernReport[]
+  counselorSessions CounselorSession[] @relation("StudentSessions")
+  counselorSessionsAsProvider CounselorSession[] @relation("CounselorSessions")
+
+  @@index([email])
+  @@index([phone])
+  @@index([status])
+}
+
+model UserProfile {
+  id          String    @id @default(cuid())
+  userId      String    @unique
+  firstName   String
+  lastName    String
+  displayName String?
+  avatarUrl   String?
+  dateOfBirth DateTime?
+  gradeBand   GradeBand?
+  timezone    String    @default("UTC")
+  bio         String?
+  
+  // Accessibility preferences
+  fontScale       Float   @default(1.0)
+  reduceMotion    Boolean @default(false)
+  highContrast    Boolean @default(false)
+  screenReader    Boolean @default(false)
+  adhdMode        Boolean @default(false)  // Reduced distractions
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? 
+  access_token      String? 
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? 
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Role {
+  id          String     @id @default(cuid())
+  name        RoleName   @unique
+  description String?
+  permissions Json       // JSON array of permission strings
+  
+  userRoles   UserRole[]
+}
+
+model UserRole {
+  id        String   @id @default(cuid())
+  userId    String
+  roleId    String
+  scope     String?  // e.g., specific course or school
+  grantedAt DateTime @default(now())
+  grantedBy String?
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      Role     @relation(fields: [roleId], references: [id])
+
+  @@unique([userId, roleId, scope])
+}
+
+model ParentStudentLink {
+  id           String       @id @default(cuid())
+  parentId     String
+  studentId    String
+  relationship RelationType @default(PARENT)
+  status       LinkStatus   @default(PENDING)
+  createdAt    DateTime     @default(now())
+  confirmedAt  DateTime?
+
+  parent       User         @relation("ParentLinks", fields: [parentId], references: [id], onDelete: Cascade)
+  student      User         @relation("StudentLinks", fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([parentId, studentId])
+}
+
+// ============================================
+// CURRICULUM & LEARNING STRUCTURE
+// ============================================
+
+model CurriculumFramework {
+  id          String   @id @default(cuid())
+  code        String   @unique  // iran, ib, us_common_core, british
+  name        String
+  nameFA      String?  // Persian name
+  description String?
+  isActive    Boolean  @default(true)
+
+  courses     Course[]
+  standards   Standard[]
+  mappingsFrom CurriculumMapping[] @relation("SourceFramework")
+  mappingsTo   CurriculumMapping[] @relation("TargetFramework")
+}
+
+model GradeLevel {
+  id              String    @id @default(cuid())
+  code            String    @unique  // kg, g1, g2, ..., g12
+  name            String              // "Kindergarten", "Grade 1", etc.
+  nameFA          String?             // Persian names, e.g. "پیش‌دبستانی", "پایه اول", etc.
+  order           Int
+  gradeBand       GradeBand
+  streamMetadata  Json?     // Additional stream-specific info
+
+  courses         Course[]
+  questions       Question[]
+}
+
+model Subject {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  nameFA      String?
+  icon        String?
+  color       String?
+  description String?
+
+  courses     Course[]
+  strands     Strand[]
+}
+
+model Strand {
+  id          String   @id @default(cuid())
+  subjectId   String
+  code        String
+  name        String
+  nameFA      String?
+  order       Int
+
+  subject     Subject    @relation(fields: [subjectId], references: [id])
+  standards   Standard[]
+
+  @@unique([subjectId, code])
+}
+
+model Standard {
+  id            String   @id @default(cuid())
+  frameworkId   String
+  strandId      String?
+  code          String
+  description   String
+  descriptionFA String?
+  bloomLevel    BloomLevel?
+  order         Int
+
+  framework     CurriculumFramework @relation(fields: [frameworkId], references: [id])
+  strand        Strand?             @relation(fields: [strandId], references: [id])
+  
+  mappingsFrom  CurriculumMapping[] @relation("SourceStandard")
+  mappingsTo    CurriculumMapping[] @relation("TargetStandard")
+  contentTags   ContentTag[]
+  questions     Question[]
+
+  @@unique([frameworkId, code])
+}
+
+model CurriculumMapping {
+  id                    String    @id @default(cuid())
+  sourceFrameworkId     String
+  sourceStandardId      String
+  targetFrameworkId     String
+  targetStandardId      String
+  alignmentStrength     AlignmentStrength @default(MEDIUM)
+  notes                 String?
+
+  sourceFramework       CurriculumFramework @relation("SourceFramework", fields: [sourceFrameworkId], references: [id])
+  sourceStandard        Standard @relation("SourceStandard", fields: [sourceStandardId], references: [id])
+  targetFramework       CurriculumFramework @relation("TargetFramework", fields: [targetFrameworkId], references: [id])
+  targetStandard        Standard @relation("TargetStandard", fields: [targetStandardId], references: [id])
+
+  @@unique([sourceStandardId, targetStandardId])
+}
+
+model Course {
+  id            String   @id @default(cuid())
+  frameworkId   String
+  gradeLevelId  String
+  subjectId     String
+  code          String   @unique
+  title         String
+  titleFA       String?
+  description   String?
+  descriptionFA String?
+  coverImage    String?
+  isPublished   Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  framework     CurriculumFramework @relation(fields: [frameworkId], references: [id])
+  gradeLevel    GradeLevel @relation(fields: [gradeLevelId], references: [id])
+  subject       Subject @relation(fields: [subjectId], references: [id])
+  
+  units         Unit[]
+  enrollments   CourseEnrollment[]
+
+  @@index([frameworkId, gradeLevelId, subjectId])
+}
+
+model CourseEnrollment {
+  id          String   @id @default(cuid())
+  userId      String
+  courseId    String
+  enrolledAt  DateTime @default(now())
+  completedAt DateTime?
+  progress    Float    @default(0)  // 0-100
+
+  course      Course   @relation(fields: [courseId], references: [id])
+
+  @@unique([userId, courseId])
+}
+
+model Unit {
+  id            String   @id @default(cuid())
+  courseId      String
+  sequence      Int
+  title         String
+  titleFA       String?
+  description   String?
+  descriptionFA String?
+  coverImage    String?
+  estimatedTime Int?     // minutes
+  isPublished   Boolean  @default(false)
+
+  course        Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons       Lesson[]
+
+  @@unique([courseId, sequence])
+}
+
+model Lesson {
+  id            String    @id @default(cuid())
+  unitId        String
+  sequence      Int
+  title         String
+  titleFA       String?
+  phase         LessonPhase @default(ENGAGE)  // 5E Model
+  estimatedTime Int?      // minutes
+  isPublished   Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // SEL integration
+  selCompetency SELCompetency?
+  selBehavior   String?
+
+  unit          Unit      @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  contentItems  LessonContent[]
+  assessments   LessonAssessment[]
+  completions   LessonCompletion[]
+
+  @@unique([unitId, sequence])
+}
+
+model LessonCompletion {
+  id          String   @id @default(cuid())
+  userId      String
+  lessonId    String
+  startedAt   DateTime @default(now())
+  completedAt DateTime?
+  timeSpent   Int?     // seconds
+  masteryScore Float?  // 0-100
+
+  lesson      Lesson   @relation(fields: [lessonId], references: [id])
+
+  @@unique([userId, lessonId])
+}
+
+// ============================================
+// CONTENT & CMS
+// ============================================
+
+model ContentItem {
+  id            String        @id @default(cuid())
+  type          ContentType
+  title         String
+  titleFA       String?
+  language      Language      @default(EN)
+  modality      ContentModality @default(TEXT)
+  body          String?       
+  bodyFA        String?       
+  metadata      Json?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  versions      ContentVersion[]
+  tags          ContentTag[]
+  assets        ContentAsset[]
+  lessonContent LessonContent[]
+}
+
+model ContentVersion {
+  id            String        @id @default(cuid())
+  contentItemId String
+  versionNo     Int
+  status        ContentStatus @default(DRAFT)
+  body          String?       
+  bodyFA        String?       
+  createdAt     DateTime      @default(now())
+  createdBy     String
+  publishedAt   DateTime?
+  publishedBy   String?
+
+  contentItem   ContentItem   @relation(fields: [contentItemId], references: [id], onDelete: Cascade)
+  reviews       ContentReview[]
+
+  @@unique([contentItemId, versionNo])
+}
+
+model ContentReview {
+  id              String    @id @default(cuid())
+  contentVersionId String
+  reviewerId      String
+  decision        ReviewDecision
+  notes           String?   
+  reviewedAt      DateTime  @default(now())
+
+  contentVersion  ContentVersion @relation(fields: [contentVersionId], references: [id])
+}
+
+model ContentTag {
+  id            String    @id @default(cuid())
+  contentItemId String
+  standardId    String?
+  topic         String?
+  bloomLevel    BloomLevel?
+  difficulty    Difficulty?
+  learningStyle LearningStyle?
+
+  contentItem   ContentItem @relation(fields: [contentItemId], references: [id], onDelete: Cascade)
+  standard      Standard?   @relation(fields: [standardId], references: [id])
+}
+
+model ContentAsset {
+  id            String    @id @default(cuid())
+  contentItemId String
+  type          AssetType
+  url           String
+  filename      String
+  mimeType      String?
+  size          Int?
+  altText       String?
+  altTextFA     String?
+  createdAt     DateTime  @default(now())
+
+  contentItem   ContentItem @relation(fields: [contentItemId], references: [id], onDelete: Cascade)
+}
+
+model LessonContent {
+  id            String    @id @default(cuid())
+  lessonId      String
+  contentItemId String
+  sequence      Int
+
+  lesson        Lesson      @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  contentItem   ContentItem @relation(fields: [contentItemId], references: [id])
+
+  @@unique([lessonId, sequence])
+}
+
+// ============================================
+// ASSESSMENTS
+// ============================================
+
+model Assessment {
+  id            String          @id @default(cuid())
+  type          AssessmentType
+  title         String
+  titleFA       String?
+  description   String?
+  rubricId      String?
+  timeLimit     Int?            // minutes
+  passingScore  Float           @default(70)
+  maxAttempts   Int?
+  shuffleQuestions Boolean      @default(false)
+  showFeedback  Boolean         @default(true)
+  isPublished   Boolean         @default(false)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  rubric        Rubric?         @relation(fields: [rubricId], references: [id])
+  questions     AssessmentQuestion[]
+  lessonAssessments LessonAssessment[]
+  attempts      StudentAttempt[]
+}
+
+model LessonAssessment {
+  id           String     @id @default(cuid())
+  lessonId     String
+  assessmentId String
+  sequence     Int
+
+  lesson       Lesson     @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  assessment   Assessment @relation(fields: [assessmentId], references: [id])
+
+  @@unique([lessonId, sequence])
+}
+
+model Question {
+  id            String        @id @default(cuid())
+  type          QuestionType
+  stem          String        
+  stemFA        String?       
+  explanation   String?       
+  explanationFA String?       
+  difficulty    Difficulty    @default(MEDIUM)
+  bloomLevel    BloomLevel    @default(UNDERSTAND)
+  points        Int           @default(1)
+  gradeLevelId  String?
+  standardId    String?
+  metadata      Json?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  gradeLevel    GradeLevel?   @relation(fields: [gradeLevelId], references: [id])
+  standard      Standard?     @relation(fields: [standardId], references: [id])
+  options       QuestionOption[]
+  assessmentQuestions AssessmentQuestion[]
+  attemptAnswers AttemptAnswer[]
+
+  @@index([difficulty, bloomLevel])
+}
+
+model QuestionOption {
+  id          String    @id @default(cuid())
+  questionId  String
+  text        String
+  textFA      String?
+  isCorrect   Boolean   @default(false)
+  feedback    String?
+  feedbackFA  String?
+  order       Int
+
+  question    Question  @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([questionId, order])
+}
+
+model QuestionBankCollection {
+  id          String   @id @default(cuid())
+  name        String
+  nameFA      String?
+  description String?
+  createdAt   DateTime @default(now())
+
+  questions   AssessmentQuestion[]
+}
+
+model AssessmentQuestion {
+  id            String    @id @default(cuid())
+  assessmentId  String
+  questionId    String
+  collectionId  String?
+  sequence      Int
+
+  assessment    Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  question      Question   @relation(fields: [questionId], references: [id])
+  collection    QuestionBankCollection? @relation(fields: [collectionId], references: [id])
+
+  @@unique([assessmentId, sequence])
+}
+
+model Rubric {
+  id          String   @id @default(cuid())
+  name        String
+  nameFA      String?
+  criteria    Json     // Array of criteria with levels
+  createdAt   DateTime @default(now())
+
+  assessments Assessment[]
+}
+
+model StudentAttempt {
+  id           String        @id @default(cuid())
+  userId       String
+  assessmentId String
+  startedAt    DateTime      @default(now())
+  submittedAt  DateTime?
+  score        Float?
+  maxScore     Float?
+  percentage   Float?
+  status       AttemptStatus @default(IN_PROGRESS)
+  timeSpent    Int?          // seconds
+
+  user         User          @relation(fields: [userId], references: [id])
+  assessment   Assessment    @relation(fields: [assessmentId], references: [id])
+  answers      AttemptAnswer[]
+  feedback     FeedbackRecord?
+
+  @@index([userId, assessmentId])
+}
+
+model AttemptAnswer {
+  id          String   @id @default(cuid())
+  attemptId   String
+  questionId  String
+  response    Json     // Flexible response format
+  isCorrect   Boolean?
+  score       Float?
+  answeredAt  DateTime @default(now())
+
+  attempt     StudentAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question    Question       @relation(fields: [questionId], references: [id])
+
+  @@unique([attemptId, questionId])
+}
+
+model FeedbackRecord {
+  id          String   @id @default(cuid())
+  attemptId   String   @unique
+  strengths   String?  
+  strengthsFA String?  
+  weaknesses  String?  
+  weaknessesFA String? 
+  nextSteps   String?  
+  nextStepsFA String?  
+  aiGenerated Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  attempt     StudentAttempt @relation(fields: [attemptId], references: [id])
+}
+
+// ============================================
+// GAMIFICATION
+// ============================================
+
+model XPLedger {
+  id          String    @id @default(cuid())
+  userId      String
+  eventType   XPEventType
+  points      Int
+  sourceId    String?   // Reference to what earned the XP
+  sourceType  String?   // lesson, assessment, forum, etc.
+  multiplier  Float     @default(1.0)
+  createdAt   DateTime  @default(now())
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model Level {
+  id          String   @id @default(cuid())
+  levelNo     Int      @unique
+  name        String
+  nameFA      String?
+  minXP       Int
+  icon        String?
+  rewards     Json?    // Unlockable items
+
+  @@index([minXP])
+}
+
+model Badge {
+  id            String   @id @default(cuid())
+  code          String   @unique
+  name          String
+  nameFA        String?
+  description   String?
+  descriptionFA String?
+  icon          String?
+  category      BadgeCategory
+  criteria      Json     // Conditions to earn
+  rarity        BadgeRarity @default(COMMON)
+  xpReward      Int      @default(0)
+  isActive      Boolean  @default(true)
+
+  userBadges    UserBadge[]
+}
+
+model UserBadge {
+  id          String   @id @default(cuid())
+  userId      String
+  badgeId     String
+  earnedAt    DateTime @default(now())
+  progress    Float?   // For progressive badges
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge       Badge    @relation(fields: [badgeId], references: [id])
+
+  @@unique([userId, badgeId])
+}
+
+model Quest {
+  id            String   @id @default(cuid())
+  code          String   @unique
+  title         String
+  titleFA       String?
+  description   String?
+  descriptionFA String?
+  narrative     String?    // Story intro
+  narrativeFA   String?  
+  category      QuestCategory
+  xpReward      Int
+  coinReward    Int      @default(0)
+  isActive      Boolean  @default(true)
+  startDate     DateTime?
+  endDate       DateTime?
+
+  steps         QuestStep[]
+  userProgress  UserQuestProgress[]
+}
+
+model QuestStep {
+  id            String   @id @default(cuid())
+  questId       String
+  sequence      Int
+  title         String
+  titleFA       String?
+  description   String?
+  descriptionFA String?
+  criteria      Json     // Completion conditions
+  xpReward      Int      @default(0)
+
+  quest         Quest    @relation(fields: [questId], references: [id], onDelete: Cascade)
+
+  @@unique([questId, sequence])
+}
+
+model UserQuestProgress {
+  id              String   @id @default(cuid())
+  userId          String
+  questId         String
+  currentStep     Int      @default(0)
+  status          QuestStatus @default(NOT_STARTED)
+  startedAt       DateTime?
+  completedAt     DateTime?
+  stepProgress    Json?    // Progress within current step
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quest           Quest    @relation(fields: [questId], references: [id])
+
+  @@unique([userId, questId])
+}
+
+model VirtualWallet {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  coins       Int      @default(0)
+  gems        Int      @default(0)
+  updatedAt   DateTime @updatedAt
+
+  transactions VirtualTransaction[]
+}
+
+model VirtualTransaction {
+  id          String          @id @default(cuid())
+  walletId    String
+  type        TransactionType
+  currency    VirtualCurrency
+  amount      Int
+  description String?
+  itemId      String?
+  createdAt   DateTime        @default(now())
+
+  wallet      VirtualWallet   @relation(fields: [walletId], references: [id])
+
+  @@index([walletId, createdAt])
+}
+
+model Milestone {
+  id            String   @id @default(cuid())
+  code          String   @unique
+  name          String
+  nameFA        String?
+  description   String?
+  descriptionFA String?
+  criteria      Json     // Trigger conditions
+  celebrationType String? // animation type
+
+  certificates  Certificate[]
+}
+
+model Certificate {
+  id              String   @id @default(cuid())
+  milestoneId     String?
+  userId          String
+  title           String
+  titleFA         String?
+  description     String?
+  verificationCode String  @unique
+  verificationUrl  String?
+  issuedAt        DateTime @default(now())
+  pdfUrl          String?
+
+  milestone       Milestone? @relation(fields: [milestoneId], references: [id])
+
+  @@index([verificationCode])
+}
+
+// ============================================
+// COMMUNITY & COLLABORATION
+// ============================================
+
+model ForumCategory {
+  id          String   @id @default(cuid())
+  name        String
+  nameFA      String?
+  description String?
+  icon        String?
+  order       Int
+  isActive    Boolean  @default(true)
+
+  threads     ForumThread[]
+}
+
+model ForumThread {
+  id          String       @id @default(cuid())
+  categoryId  String
+  authorId    String
+  title       String
+  titleFA     String?
+  isPinned    Boolean      @default(false)
+  isLocked    Boolean      @default(false)
+  status      ThreadStatus @default(OPEN)
+  viewCount   Int          @default(0)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  category    ForumCategory @relation(fields: [categoryId], references: [id])
+  author      User          @relation(fields: [authorId], references: [id])
+  posts       ForumPost[]
+
+  @@index([categoryId, createdAt])
+}
+
+model ForumPost {
+  id          String   @id @default(cuid())
+  threadId    String
+  authorId    String
+  parentId    String?  // For nested replies
+  content     String   
+  contentFA   String?  
+  isAccepted  Boolean  @default(false)  // For Q&A
+  isFlagged   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  thread      ForumThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  author      User        @relation(fields: [authorId], references: [id])
+  parent      ForumPost?  @relation("PostReplies", fields: [parentId], references: [id])
+  replies     ForumPost[] @relation("PostReplies")
+  votes       PostVote[]
+
+  @@index([threadId, createdAt])
+}
+
+model PostVote {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String
+  value     Int      // 1 or -1
+  createdAt DateTime @default(now())
+
+  post      ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id])
+
+  @@unique([postId, userId])
+}
+
+model StudyGroup {
+  id          String   @id @default(cuid())
+  name        String
+  nameFA      String?
+  description String?
+  subjectId   String?
+  gradeBand   GradeBand?
+  language    Language @default(EN)
+  maxMembers  Int      @default(10)
+  isPublic    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  members     StudyGroupMember[]
+}
+
+model StudyGroupMember {
+  id        String   @id @default(cuid())
+  groupId   String
+  userId    String
+  role      GroupRole @default(MEMBER)
+  joinedAt  DateTime @default(now())
+
+  group     StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user      User       @relation(fields: [userId], references: [id])
+
+  @@unique([groupId, userId])
+}
+
+model CollaborativeProject {
+  id          String   @id @default(cuid())
+  title       String
+  titleFA     String?
+  description String?  
+  rubricId    String?
+  dueDate     DateTime?
+  createdAt   DateTime @default(now())
+
+  submissions ProjectSubmission[]
+}
+
+model ProjectSubmission {
+  id          String   @id @default(cuid())
+  projectId   String
+  userId      String
+  teamId      String?
+  content     String?  
+  attachments Json?
+  submittedAt DateTime @default(now())
+  score       Float?
+
+  project     CollaborativeProject @relation(fields: [projectId], references: [id])
+  reviews     PeerReview[]
+}
+
+model PeerReview {
+  id            String   @id @default(cuid())
+  submissionId  String
+  reviewerId    String
+  feedback      String?  
+  feedbackFA    String?  
+  score         Float?
+  rubricScores  Json?
+  createdAt     DateTime @default(now())
+
+  submission    ProjectSubmission @relation(fields: [submissionId], references: [id])
+}
+
+// ============================================
+// WELLBEING & SEL
+// ============================================
+
+model WellbeingCheckin {
+  id            String   @id @default(cuid())
+  userId        String
+  moodScore     Int      // 1-5
+  energyLevel   Int?     // 1-5
+  stressLevel   Int?     // 1-5
+  belongingScore Int?    // 1-5
+  confidenceScore Int?   // 1-5
+  notes         String?  
+  voiceNoteUrl  String?
+  riskFlag      Boolean  @default(false)
+  riskLevel     RiskLevel?
+  createdAt     DateTime @default(now())
+
+  user          User     @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+}
+
+model SELActivity {
+  id            String        @id @default(cuid())
+  title         String
+  titleFA       String?
+  description   String?       
+  descriptionFA String?       
+  competency    SELCompetency
+  gradeBand     GradeBand
+  duration      Int?          // minutes
+  materials     Json?
+  isActive      Boolean       @default(true)
+}
+
+model ConcernReport {
+  id            String       @id @default(cuid())
+  reporterId    String?      // null if anonymous
+  concernType   ConcernType
+  description   String       
+  targetUserId  String?
+  status        ConcernStatus @default(NEW)
+  priority      Priority     @default(MEDIUM)
+  createdAt     DateTime     @default(now())
+  resolvedAt    DateTime?
+  resolvedBy    String?
+  resolution    String?      
+
+  reporter      User?        @relation(fields: [reporterId], references: [id])
+
+  @@index([status, createdAt])
+}
+
+model CounselorSession {
+  id          String        @id @default(cuid())
+  studentId   String
+  counselorId String
+  scheduledAt DateTime
+  duration    Int           // minutes
+  type        SessionType
+  status      SessionStatus @default(SCHEDULED)
+  notes       String?         // Encrypted
+  followUp    String?
+  createdAt   DateTime      @default(now())
+
+  student     User          @relation("StudentSessions", fields: [studentId], references: [id])
+  counselor   User          @relation("CounselorSessions", fields: [counselorId], references: [id])
+
+  @@index([studentId, scheduledAt])
+}
+
+// ============================================
+// TUTORING & SCHEDULING
+// ============================================
+
+model TutorProfile {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  bio           String?  
+  bioFA         String?  
+  qualifications Json?
+  subjects      Json?    // Array of subject IDs
+  gradeLevels   Json?    // Array of grade level IDs
+  languages     Json?    // Array of languages
+  hourlyRate    Float?
+  rating        Float?
+  reviewCount   Int      @default(0)
+  isVerified    Boolean  @default(false)
+  isActive      Boolean  @default(true)
+
+  user          User     @relation(fields: [userId], references: [id])
+  availability  AvailabilitySlot[]
+}
+
+model AvailabilitySlot {
+  id          String   @id @default(cuid())
+  tutorId     String
+  dayOfWeek   Int      // 0-6
+  startTime   String   // HH:mm
+  endTime     String   // HH:mm
+  isRecurring Boolean  @default(true)
+  specificDate DateTime?
+
+  tutor       TutorProfile @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+}
+
+model Booking {
+  id            String        @id @default(cuid())
+  studentId     String
+  tutorId       String
+  scheduledAt   DateTime
+  duration      Int           // minutes
+  status        BookingStatus @default(PENDING)
+  meetingUrl    String?
+  notes         String?       
+  sessionNotes  String?       
+  rating        Int?
+  feedback      String?
+  createdAt     DateTime      @default(now())
+  confirmedAt   DateTime?
+  completedAt   DateTime?
+
+  student       User          @relation("StudentBookings", fields: [studentId], references: [id])
+  tutor         User          @relation("TutorBookings", fields: [tutorId], references: [id])
+
+  @@index([studentId, scheduledAt])
+  @@index([tutorId, scheduledAt])
+}
+
+// ============================================
+// SUBSCRIPTION & PAYMENTS
+// ============================================
+
+model Plan {
+  id            String   @id @default(cuid())
+  code          String   @unique  // free, standard, premium
+  name          String
+  nameFA        String?
+  description   String?
+  descriptionFA String?
+  tier          ServiceTier
+  monthlyPrice  Float?
+  yearlyPrice   Float?
+  features      Json
+  isActive      Boolean  @default(true)
+
+  subscriptions Subscription[]
+}
+
+model Subscription {
+  id            String            @id @default(cuid())
+  userId        String
+  planId        String
+  status        SubscriptionStatus @default(ACTIVE)
+  startDate     DateTime          @default(now())
+  endDate       DateTime?
+  billingCycle  BillingCycle      @default(MONTHLY)
+  autoRenew     Boolean           @default(true)
+  createdAt     DateTime          @default(now())
+  cancelledAt   DateTime?
+
+  user          User              @relation(fields: [userId], references: [id])
+  plan          Plan              @relation(fields: [planId], references: [id])
+  invoices      Invoice[]
+
+  @@index([userId, status])
+}
+
+model Invoice {
+  id              String        @id @default(cuid())
+  subscriptionId  String
+  amount          Float
+  currency        String        @default("USD")
+  status          InvoiceStatus @default(PENDING)
+  dueDate         DateTime
+  paidAt          DateTime?
+  createdAt       DateTime      @default(now())
+
+  subscription    Subscription  @relation(fields: [subscriptionId], references: [id])
+  transactions    PaymentTransaction[]
+}
+
+model PaymentTransaction {
+  id            String          @id @default(cuid())
+  invoiceId     String
+  amount        Float
+  currency      String
+  method        PaymentMethod
+  status        PaymentStatus
+  providerRef   String?
+  metadata      Json?
+  createdAt     DateTime        @default(now())
+
+  invoice       Invoice         @relation(fields: [invoiceId], references: [id])
+}
+
+// ============================================
+// ANALYTICS
+// ============================================
+
+model EventLog {
+  id          String   @id @default(cuid())
+  eventName   String
+  actorId     String?
+  entityType  String?
+  entityId    String?
+  payload     Json?
+  timestamp   DateTime @default(now())
+  sessionId   String?
+  deviceInfo  Json?
+
+  @@index([eventName, timestamp])
+  @@index([actorId, timestamp])
+}
+
+model DailyLearningMetrics {
+  id              String   @id @default(cuid())
+  userId          String
+  date            DateTime @db.Date
+  lessonsCompleted Int     @default(0)
+  timeSpentMinutes Int     @default(0)
+  xpEarned        Int      @default(0)
+  questionsAnswered Int    @default(0)
+  correctAnswers  Int      @default(0)
+  streakDay       Int      @default(0)
+
+  @@unique([userId, date])
+  @@index([date])
+}
+
+// ============================================
+// ENUMS
+// ============================================
+
+enum Language {
+  EN
+  FA
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  PENDING_VERIFICATION
+}
+
+enum RoleName {
+  SUPER_ADMIN
+  STUDENT
+  PARENT
+  SUPPORT_TEACHER
+  TUTOR
+  COUNSELOR
+  ADMIN
+  REVIEWER
+  CURRICULUM_DESIGNER
+}
+
+enum RelationType {
+  PARENT
+  GUARDIAN
+  RELATIVE
+}
+
+enum LinkStatus {
+  PENDING
+  CONFIRMED
+  REJECTED
+}
+
+enum GradeBand {
+  EARLY_YEARS    // KG-2
+  PRIMARY        // 3-6
+  MIDDLE         // 7-9
+  SECONDARY      // 10-12
+}
+
+enum AlignmentStrength {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum BloomLevel {
+  REMEMBER
+  UNDERSTAND
+  APPLY
+  ANALYZE
+  EVALUATE
+  CREATE
+}
+
+enum LessonPhase {
+  ENGAGE
+  EXPLORE
+  EXPLAIN
+  ELABORATE
+  EVALUATE
+}
+
+enum SELCompetency {
+  SELF_AWARENESS
+  SELF_MANAGEMENT
+  SOCIAL_AWARENESS
+  RELATIONSHIP_SKILLS
+  RESPONSIBLE_DECISION_MAKING
+}
+
+enum ContentType {
+  TEXT
+  VIDEO
+  INTERACTIVE
+  SIMULATION
+  QUIZ
+  DISCUSSION
+  PROJECT
+}
+
+enum ContentModality {
+  TEXT
+  AUDIO
+  VIDEO
+  INTERACTIVE
+  MULTIMODAL
+}
+
+enum ContentStatus {
+  DRAFT
+  IN_REVIEW
+  APPROVED
+  PUBLISHED
+  ARCHIVED
+}
+
+enum ReviewDecision {
+  APPROVED
+  REJECTED
+  NEEDS_REVISION
+}
+
+enum AssetType {
+  IMAGE
+  VIDEO
+  AUDIO
+  DOCUMENT
+  LINK
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum LearningStyle {
+  VISUAL
+  AUDITORY
+  KINESTHETIC
+  READING_WRITING
+}
+
+enum AssessmentType {
+  FORMATIVE
+  SUMMATIVE
+  DIAGNOSTIC
+  SELF_ASSESSMENT
+}
+
+enum QuestionType {
+  MULTIPLE_CHOICE
+  MULTIPLE_SELECT
+  TRUE_FALSE
+  SHORT_ANSWER
+  LONG_ANSWER
+  MATCHING
+  ORDERING
+  FILL_BLANK
+  NUMERIC
+}
+
+enum AttemptStatus {
+  IN_PROGRESS
+  SUBMITTED
+  GRADED
+  REVIEWED
+}
+
+enum XPEventType {
+  LESSON_COMPLETE
+  QUIZ_PASS
+  PRACTICE_SET
+  PROJECT_SUBMIT
+  PEER_HELP
+  DAILY_CHECKIN
+  STREAK_BONUS
+  BADGE_EARNED
+  QUEST_STEP
+  QUEST_COMPLETE
+  CHALLENGE_WIN
+}
+
+enum BadgeCategory {
+  MASTERY
+  HELPER
+  CREATIVITY
+  PERSEVERANCE
+  COLLABORATION
+  WELLBEING
+  SPECIAL
+}
+
+enum BadgeRarity {
+  COMMON
+  UNCOMMON
+  RARE
+  EPIC
+  LEGENDARY
+}
+
+enum QuestCategory {
+  PERSIAN_MYTHOLOGY
+  ISLAMIC_SCHOLARS
+  GLOBAL_SCIENCE
+  CITIZENSHIP
+  SEASONAL
+}
+
+enum QuestStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  EXPIRED
+}
+
+enum TransactionType {
+  EARN
+  SPEND
+  BONUS
+  REFUND
+}
+
+enum VirtualCurrency {
+  COINS
+  GEMS
+}
+
+enum ThreadStatus {
+  OPEN
+  CLOSED
+  RESOLVED
+}
+
+enum GroupRole {
+  OWNER
+  MODERATOR
+  MEMBER
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum ConcernType {
+  BULLYING
+  HARASSMENT
+  SELF_HARM
+  ACADEMIC
+  TECHNICAL
+  OTHER
+}
+
+enum ConcernStatus {
+  NEW
+  IN_PROGRESS
+  ESCALATED
+  RESOLVED
+  CLOSED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum SessionType {
+  VIDEO
+  CHAT
+  PHONE
+}
+
+enum SessionStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum ServiceTier {
+  FREE
+  STANDARD
+  PREMIUM
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAUSED
+  CANCELLED
+  EXPIRED
+}
+
+enum BillingCycle {
+  MONTHLY
+  YEARLY
+}
+
+enum InvoiceStatus {
+  PENDING
+  PAID
+  OVERDUE
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  CARD
+  PAYPAL
+  BANK_TRANSFER
+  CRYPTO
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}

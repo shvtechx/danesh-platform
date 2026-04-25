@@ -1,0 +1,15 @@
+   ▲ Next.js 14.1.3
+   - Local:        http://localhost:3000
+   - Network:      http://0.0.0.0:3000
+   - Environments: .env
+
+ ✓ Ready in 1959ms
+ ○ Compiling /[locale] ...
+ ✓ Compiled /[locale] in 544ms (501 modules)
+ ○ Compiling /[locale]/login ...
+ ✓ Compiled /[locale]/login in 828ms (676 modules)
+ ✓ Compiled in 67ms (287 modules)
+ ✓ Compiled /not-found in 134ms (506 modules)
+ ✓ Compiled /[locale]/login in 164ms (508 modules)
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 1286ms (781 modules)
