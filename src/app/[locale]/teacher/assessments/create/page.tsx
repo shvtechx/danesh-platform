@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useLocale } from 'next-intl';
 import { FeedbackBanner } from '@/components/ui/feedback-banner';
+import { createUserHeaders, getStoredUserId } from '@/lib/auth/demo-auth-shared';
 import {
   Plus,
   X,
@@ -48,6 +49,14 @@ interface AssessmentQuestion {
   sequence: number;
 }
 
+interface TeacherCourseOption {
+  id: string;
+  title: string;
+  gradeCode: string;
+  subjectCode: string;
+  subject: string;
+}
+
 type FeedbackState = {
   variant: 'success' | 'error' | 'info';
   message: string;
@@ -56,6 +65,7 @@ type FeedbackState = {
 export default function CreateAssessmentPage() {
   const locale = useLocale();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const isRTL = locale === 'fa';
 
   // Assessment form data
@@ -73,10 +83,11 @@ export default function CreateAssessmentPage() {
   const [loadingQuestions, setLoadingQuestions] = useState(false);
   const [savingAssessment, setSavingAssessment] = useState(false);
   const [feedback, setFeedback] = useState<FeedbackState>(null);
+  const [teacherCourses, setTeacherCourses] = useState<TeacherCourseOption[]>([]);
+  const [selectedCourseId, setSelectedCourseId] = useState('');
 
   // Filters for question browser
   const [filters, setFilters] = useState({
-    subject: '',
     grade: '',
     phase: '',
     difficulty: '',
@@ -91,13 +102,60 @@ export default function CreateAssessmentPage() {
     if (showQuestionBrowser) {
       loadAvailableQuestions();
     }
-  }, [showQuestionBrowser, filters]);
+  }, [showQuestionBrowser, filters, selectedCourseId]);
+
+  useEffect(() => {
+    const loadTeacherCourses = async () => {
+      try {
+        const res = await fetch(`/api/v1/teacher/courses?locale=${locale}`, {
+          headers: createUserHeaders(getStoredUserId()),
+        });
+
+        if (!res.ok) throw new Error('Failed to load teacher courses');
+
+        const data = await res.json();
+        const nextCourses = (data.courses || []).map((course: any) => ({
+          id: course.id,
+          title: course.title,
+          gradeCode: course.gradeCode,
+          subjectCode: course.subjectCode,
+          subject: course.subject,
+        }));
+
+        setTeacherCourses(nextCourses);
+
+        const requestedCourseId = searchParams.get('courseId');
+        if (requestedCourseId && nextCourses.some((course: TeacherCourseOption) => course.id === requestedCourseId)) {
+          setSelectedCourseId(requestedCourseId);
+        }
+      } catch (error) {
+        console.error('Error loading teacher courses:', error);
+      }
+    };
+
+    void loadTeacherCourses();
+  }, [locale, searchParams]);
+
+  useEffect(() => {
+    if (!selectedCourseId) return;
+
+    const selectedCourse = teacherCourses.find((course) => course.id === selectedCourseId);
+    if (!selectedCourse) return;
+
+    setFilters((prev) => ({
+      ...prev,
+      grade: selectedCourse.gradeCode,
+    }));
+
+    setTitle((prev) => prev || `${selectedCourse.title} ${isRTL ? 'ارزیابی' : 'Assessment'}`);
+    setTitleFA((prev) => prev || (isRTL ? `${selectedCourse.title} - ارزیابی` : prev));
+  }, [isRTL, selectedCourseId, teacherCourses]);
 
   const loadAvailableQuestions = async () => {
     setLoadingQuestions(true);
     try {
       const params = new URLSearchParams();
-      if (filters.subject) params.set('subject', filters.subject);
+      if (selectedCourseId) params.set('courseId', selectedCourseId);
       if (filters.grade) params.set('grade', filters.grade);
       if (filters.phase) params.set('phase', filters.phase);
       if (filters.difficulty) params.set('difficulty', filters.difficulty);
@@ -245,19 +303,19 @@ export default function CreateAssessmentPage() {
   };
 
   const phaseColors: Record<string, string> = {
-    engage: 'bg-purple-100 text-purple-800',
-    explore: 'bg-blue-100 text-blue-800',
-    explain: 'bg-green-100 text-green-800',
-    elaborate: 'bg-orange-100 text-orange-800',
-    evaluate: 'bg-red-100 text-red-800'
+    '5E_ENGAGE': 'bg-purple-100 text-purple-800',
+    '5E_EXPLORE': 'bg-blue-100 text-blue-800',
+    '5E_EXPLAIN': 'bg-green-100 text-green-800',
+    '5E_ELABORATE': 'bg-orange-100 text-orange-800',
+    '5E_EVALUATE': 'bg-red-100 text-red-800'
   };
 
   const phaseNames: Record<string, { en: string; fa: string }> = {
-    engage: { en: 'Engage', fa: 'تأثیر' },
-    explore: { en: 'Explore', fa: 'تحقیق' },
-    explain: { en: 'Explain', fa: 'توضیح' },
-    elaborate: { en: 'Elaborate', fa: 'تعمیم' },
-    evaluate: { en: 'Evaluate', fa: 'تعیین' }
+    '5E_ENGAGE': { en: 'Engage', fa: 'تأثیر' },
+    '5E_EXPLORE': { en: 'Explore', fa: 'تحقیق' },
+    '5E_EXPLAIN': { en: 'Explain', fa: 'توضیح' },
+    '5E_ELABORATE': { en: 'Elaborate', fa: 'تعمیم' },
+    '5E_EVALUATE': { en: 'Evaluate', fa: 'تعیین' }
   };
 
   return (
@@ -288,6 +346,29 @@ export default function CreateAssessmentPage() {
             </h2>
 
             <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  {isRTL ? 'دوره مرتبط' : 'Course Context'}
+                </label>
+                <select
+                  value={selectedCourseId}
+                  onChange={(e) => setSelectedCourseId(e.target.value)}
+                  className="w-full border rounded px-3 py-2"
+                >
+                  <option value="">{isRTL ? 'بدون دوره مشخص' : 'No specific course'}</option>
+                  {teacherCourses.map((course) => (
+                    <option key={course.id} value={course.id}>
+                      {course.title} • {course.subjectCode} • {course.gradeCode}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-gray-500">
+                  {isRTL
+                    ? 'با انتخاب دوره، بانک سوالات به‌صورت خودکار به سوالات مرتبط با موضوع و پایه همان دوره محدود می‌شود.'
+                    : 'Selecting a course automatically narrows the question bank to that course’s subject and grade.'}
+                </p>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium mb-1">
                   {isRTL ? 'عنوان (انگلیسی)' : 'Title (English)'}
@@ -395,13 +476,9 @@ export default function CreateAssessmentPage() {
                 {isRTL ? 'افزودن سوال' : 'Add Question'}
               </button>
             </div>
-                    disabled={savingAssessment}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+
             {selectedQuestions.length === 0 ? (
               <div className="text-center py-12 text-gray-500">
-                    {savingAssessment
-                      ? (isRTL ? 'در حال ذخیره...' : 'Saving...')
-                      : (isRTL ? 'ذخیره ارزیابی' : 'Save Assessment')}
                 <p>{isRTL ? 'هنوز سوالی اضافه نشده است' : 'No questions added yet'}</p>
                 <p className="text-sm">
                   {isRTL
@@ -556,7 +633,19 @@ export default function CreateAssessmentPage() {
 
             {/* Filters */}
             <div className="p-4 border-b bg-gray-50">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+                <select
+                  value={selectedCourseId}
+                  onChange={(e) => setSelectedCourseId(e.target.value)}
+                  className="border rounded px-3 py-2 text-sm"
+                >
+                  <option value="">{isRTL ? 'همه دوره‌ها' : 'All Courses'}</option>
+                  {teacherCourses.map((course) => (
+                    <option key={course.id} value={course.id}>
+                      {course.title} • {course.gradeCode}
+                    </option>
+                  ))}
+                </select>
                 <input
                   type="text"
                   placeholder={isRTL ? 'جستجو...' : 'Search...'}
@@ -601,13 +690,20 @@ export default function CreateAssessmentPage() {
                   className="border rounded px-3 py-2 text-sm"
                 >
                   <option value="">{isRTL ? 'همه فازها' : 'All Phases'}</option>
-                  <option value="engage">{isRTL ? 'تأثیر' : 'Engage'}</option>
-                  <option value="explore">{isRTL ? 'تحقیق' : 'Explore'}</option>
-                  <option value="explain">{isRTL ? 'توضیح' : 'Explain'}</option>
-                  <option value="elaborate">{isRTL ? 'تعمیم' : 'Elaborate'}</option>
-                  <option value="evaluate">{isRTL ? 'تعیین' : 'Evaluate'}</option>
+                  <option value="5E_ENGAGE">{isRTL ? 'تأثیر' : 'Engage'}</option>
+                  <option value="5E_EXPLORE">{isRTL ? 'تحقیق' : 'Explore'}</option>
+                  <option value="5E_EXPLAIN">{isRTL ? 'توضیح' : 'Explain'}</option>
+                  <option value="5E_ELABORATE">{isRTL ? 'تعمیم' : 'Elaborate'}</option>
+                  <option value="5E_EVALUATE">{isRTL ? 'تعیین' : 'Evaluate'}</option>
                 </select>
               </div>
+              {selectedCourseId ? (
+                <p className="mt-3 text-xs text-gray-500">
+                  {isRTL
+                    ? 'فهرست سوالات بر اساس دوره انتخاب‌شده به شکل خودکار محدود شده است.'
+                    : 'The list is automatically narrowed to the selected course context.'}
+                </p>
+              ) : null}
             </div>
 
             {/* Questions List */}

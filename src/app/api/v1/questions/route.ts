@@ -22,6 +22,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     
     // Parse query parameters
+    const courseId = searchParams.get('courseId');
     const subject = searchParams.get('subject');
     const grade = searchParams.get('grade');
     const phase = searchParams.get('phase');
@@ -31,46 +32,104 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search');
     const page = parseInt(searchParams.get('page') || '1');
     const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100);
-    
-    // Build where clause
-    const where: any = {};
-    
-    // Filter by grade level
-    if (grade) {
-      where.gradeLevel = {
-        code: grade
-      };
+
+    let resolvedSubject = subject;
+    let resolvedGrade = grade;
+    let courseContext: {
+      id: string;
+      title: string;
+      titleFA: string | null;
+      subjectCode: string;
+      gradeCode: string;
+    } | null = null;
+
+    if (courseId) {
+      const course = await prisma.course.findUnique({
+        where: { id: courseId },
+        select: {
+          id: true,
+          title: true,
+          titleFA: true,
+          subject: {
+            select: {
+              code: true,
+            },
+          },
+          gradeLevel: {
+            select: {
+              code: true,
+            },
+          },
+        },
+      });
+
+      if (course) {
+        resolvedSubject = resolvedSubject || course.subject.code;
+        resolvedGrade = resolvedGrade || course.gradeLevel.code;
+        courseContext = {
+          id: course.id,
+          title: course.title,
+          titleFA: course.titleFA,
+          subjectCode: course.subject.code,
+          gradeCode: course.gradeLevel.code,
+        };
+      }
     }
     
-    // Filter by metadata (subject and phase stored in JSON)
-    if (subject || phase) {
-      where.metadata = {
+    // Build where clause
+    const andConditions: any[] = [];
+    
+    // Filter by grade level
+    if (resolvedGrade) {
+      andConditions.push({
+        gradeLevel: {
+          code: resolvedGrade
+        },
+      });
+    }
+    
+    if (resolvedSubject) {
+      andConditions.push({
+        metadata: {
+          path: [],
+          string_contains: `"subjectCode":"${resolvedSubject}"`
+        }
+      });
+    }
+
+    if (phase) {
+      andConditions.push({
+        metadata: {
         path: [],
-        ...(subject && { string_contains: `"subjectCode":"${subject}"` }),
-        ...(phase && { string_contains: `"phase5E":"${phase}"` })
-      };
+          string_contains: `"phase5E":"${phase}"`
+        }
+      });
     }
     
     // Filter by question properties
     if (difficulty) {
-      where.difficulty = difficulty;
+      andConditions.push({ difficulty });
     }
     
     if (bloomLevel) {
-      where.bloomLevel = bloomLevel;
+      andConditions.push({ bloomLevel });
     }
     
     if (type) {
-      where.type = type;
+      andConditions.push({ type });
     }
     
     // Full-text search
     if (search) {
-      where.OR = [
-        { stem: { contains: search, mode: 'insensitive' } },
-        { stemFA: { contains: search, mode: 'insensitive' } }
-      ];
+      andConditions.push({
+        OR: [
+          { stem: { contains: search, mode: 'insensitive' } },
+          { stemFA: { contains: search, mode: 'insensitive' } }
+        ]
+      });
     }
+
+    const where: any = andConditions.length > 0 ? { AND: andConditions } : {};
     
     // Calculate pagination
     const skip = (page - 1) * limit;
@@ -118,6 +177,7 @@ export async function GET(request: NextRequest) {
         hasPrev
       },
       filters: {
+        courseId,
         subject,
         grade,
         phase,
@@ -125,7 +185,12 @@ export async function GET(request: NextRequest) {
         bloomLevel,
         type,
         search
-      }
+      },
+      resolvedFilters: {
+        subject: resolvedSubject,
+        grade: resolvedGrade,
+      },
+      courseContext,
     });
     
   } catch (error) {

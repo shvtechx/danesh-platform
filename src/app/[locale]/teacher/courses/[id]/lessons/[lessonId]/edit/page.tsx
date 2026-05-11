@@ -34,6 +34,35 @@ interface QuizQuestion {
   explanation: string;
 }
 
+interface BankQuestionOption {
+  id: string;
+  text: string;
+  textFA?: string | null;
+  isCorrect: boolean;
+}
+
+interface BankQuestion {
+  id: string;
+  type: string;
+  stem: string;
+  stemFA?: string | null;
+  explanation?: string | null;
+  explanationFA?: string | null;
+  difficulty: string;
+  metadata?: {
+    phase5E?: string;
+    subjectCode?: string;
+  };
+  options?: BankQuestionOption[];
+}
+
+interface CourseContext {
+  id: string;
+  title: string;
+  subjectCode?: string;
+  gradeCode?: string;
+}
+
 const TEACHER_LESSON_EDITOR_STORAGE_KEY = 'danesh.teacher.lesson-editor';
 
 export default function LessonEditor({ params }: { params: { locale: string; id: string; lessonId: string } }) {
@@ -58,6 +87,15 @@ export default function LessonEditor({ params }: { params: { locale: string; id:
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [feedback, setFeedback] = useState<{ variant: 'success' | 'error' | 'info'; message: string } | null>(null);
   const [showPublishDialog, setShowPublishDialog] = useState(false);
+  const [courseContext, setCourseContext] = useState<CourseContext | null>(null);
+  const [showQuestionBank, setShowQuestionBank] = useState(false);
+  const [bankQuestions, setBankQuestions] = useState<BankQuestion[]>([]);
+  const [bankLoading, setBankLoading] = useState(false);
+  const [bankFilters, setBankFilters] = useState({
+    search: '',
+    phase: '',
+    difficulty: '',
+  });
   
   const [contentBlocks, setContentBlocks] = useState<ContentBlock[]>([
     { id: '1', type: 'text', content: '' },
@@ -125,6 +163,59 @@ export default function LessonEditor({ params }: { params: { locale: string; id:
       });
     }
   }, [isRTL, storageKey]);
+
+  useEffect(() => {
+    const loadCourseContext = async () => {
+      try {
+        const response = await fetch(`/api/v1/courses/${courseId}?locale=${locale}`);
+        if (!response.ok) return;
+
+        const data = await response.json();
+        setCourseContext({
+          id: data.id,
+          title: data.title,
+          subjectCode: data.subject?.code,
+          gradeCode: data.gradeLevel?.code,
+        });
+      } catch {
+        setCourseContext(null);
+      }
+    };
+
+    void loadCourseContext();
+  }, [courseId, locale]);
+
+  useEffect(() => {
+    if (!showQuestionBank) return;
+
+    const loadQuestionBank = async () => {
+      try {
+        setBankLoading(true);
+        const params = new URLSearchParams();
+        params.set('courseId', courseId);
+        params.set('limit', '40');
+        if (bankFilters.search) params.set('search', bankFilters.search);
+        if (bankFilters.phase) params.set('phase', bankFilters.phase);
+        if (bankFilters.difficulty) params.set('difficulty', bankFilters.difficulty);
+
+        const response = await fetch(`/api/v1/questions?${params.toString()}`);
+        if (!response.ok) throw new Error('Failed to load question bank');
+
+        const data = await response.json();
+        setBankQuestions(data.questions || []);
+      } catch {
+        setBankQuestions([]);
+        setFeedback({
+          variant: 'error',
+          message: isRTL ? 'بارگذاری بانک سوالات ممکن نبود.' : 'Question bank could not be loaded.',
+        });
+      } finally {
+        setBankLoading(false);
+      }
+    };
+
+    void loadQuestionBank();
+  }, [bankFilters, courseId, isRTL, showQuestionBank]);
 
   const persistLessonDraft = (status: 'draft' | 'published') => {
     window.localStorage.setItem(
@@ -273,6 +364,32 @@ export default function LessonEditor({ params }: { params: { locale: string; id:
       explanation: '',
     };
     setQuizQuestions([...quizQuestions, newQuestion]);
+  };
+
+  const handleImportBankQuestion = (question: BankQuestion) => {
+    const optionTexts = (question.options || []).map((option) => (isRTL ? option.textFA || option.text : option.text));
+    const paddedOptions = [...optionTexts];
+    while (paddedOptions.length < 4) {
+      paddedOptions.push('');
+    }
+
+    const correctAnswer = Math.max(0, (question.options || []).findIndex((option) => option.isCorrect));
+
+    setQuizQuestions((current) => [
+      ...current,
+      {
+        id: `${question.id}-${Date.now()}`,
+        question: isRTL ? question.stemFA || question.stem : question.stem,
+        options: paddedOptions,
+        correctAnswer,
+        explanation: isRTL ? question.explanationFA || question.explanation || '' : question.explanation || question.explanationFA || '',
+      },
+    ]);
+
+    setFeedback({
+      variant: 'success',
+      message: isRTL ? 'سوال از بانک سوالات به آزمون درس اضافه شد.' : 'Question imported from the bank into the lesson quiz.',
+    });
   };
 
   const handleUpdateOption = (questionId: string, optionIndex: number, value: string) => {
@@ -553,6 +670,35 @@ export default function LessonEditor({ params }: { params: { locale: string; id:
           {/* Quiz Tab */}
           {activeTab === 'quiz' && (
             <div className="max-w-3xl mx-auto space-y-4">
+              <div className="bg-card border rounded-xl p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h3 className="font-medium">{isRTL ? 'بانک سوالات درس' : 'Lesson Question Bank'}</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {courseContext
+                      ? (isRTL
+                          ? `سوالات مرتبط با ${courseContext.title} به‌صورت خودکار بر اساس موضوع و پایه این دوره نمایش داده می‌شوند.`
+                          : `Questions are automatically narrowed to ${courseContext.title} based on the course subject and grade.`)
+                      : (isRTL ? 'سوالات مرتبط با این درس را از بانک سوالات وارد کنید.' : 'Import course-related questions directly from the bank.')} 
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => setShowQuestionBank(true)}
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg border hover:bg-muted text-sm"
+                  >
+                    <List className="h-4 w-4" />
+                    {isRTL ? 'ورود از بانک سوالات' : 'Import from Question Bank'}
+                  </button>
+                  <Link
+                    href={`/${locale}/teacher/assessments/create?courseId=${courseId}`}
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-sm"
+                  >
+                    <HelpCircle className="h-4 w-4" />
+                    {isRTL ? 'ساخت آزمون کامل' : 'Build Full Assessment'}
+                  </Link>
+                </div>
+              </div>
+
               {/* AI Quiz Generator */}
               <div className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 border rounded-xl p-4">
                 <div className="flex items-center justify-between mb-3">
@@ -831,6 +977,111 @@ export default function LessonEditor({ params }: { params: { locale: string; id:
             </button>
             <button type="button" onClick={confirmPublish} disabled={isPublishing} className="rounded-lg bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90 disabled:opacity-50">
               {isPublishing ? (isRTL ? 'در حال انتشار...' : 'Publishing...') : (isRTL ? 'تأیید انتشار' : 'Confirm publish')}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showQuestionBank} onOpenChange={setShowQuestionBank}>
+        <DialogContent className="max-w-5xl">
+          <DialogHeader>
+            <DialogTitle>{isRTL ? 'بانک سوالات مرتبط با درس' : 'Course-Aligned Question Bank'}</DialogTitle>
+            <DialogDescription>
+              {isRTL
+                ? 'سوالات بر اساس دوره انتخاب‌شده فیلتر شده‌اند. سوال‌های مناسب را مستقیماً به آزمون این درس اضافه کنید.'
+                : 'Questions are filtered for the current course. Add suitable items directly into this lesson quiz.'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="grid gap-3 md:grid-cols-4">
+              <input
+                type="text"
+                value={bankFilters.search}
+                onChange={(e) => setBankFilters((current) => ({ ...current, search: e.target.value }))}
+                placeholder={isRTL ? 'جستجوی سوال...' : 'Search questions...'}
+                className="rounded-lg border bg-background px-3 py-2 text-sm"
+              />
+              <select
+                value={bankFilters.phase}
+                onChange={(e) => setBankFilters((current) => ({ ...current, phase: e.target.value }))}
+                className="rounded-lg border bg-background px-3 py-2 text-sm"
+              >
+                <option value="">{isRTL ? 'همه فازهای ۵ت' : 'All 5E phases'}</option>
+                <option value="5E_ENGAGE">{isRTL ? 'تأثیر' : 'Engage'}</option>
+                <option value="5E_EXPLORE">{isRTL ? 'تحقیق' : 'Explore'}</option>
+                <option value="5E_EXPLAIN">{isRTL ? 'توضیح' : 'Explain'}</option>
+                <option value="5E_ELABORATE">{isRTL ? 'تعمیم' : 'Elaborate'}</option>
+                <option value="5E_EVALUATE">{isRTL ? 'تعیین' : 'Evaluate'}</option>
+              </select>
+              <select
+                value={bankFilters.difficulty}
+                onChange={(e) => setBankFilters((current) => ({ ...current, difficulty: e.target.value }))}
+                className="rounded-lg border bg-background px-3 py-2 text-sm"
+              >
+                <option value="">{isRTL ? 'همه سطوح' : 'All difficulties'}</option>
+                <option value="EASY">{isRTL ? 'آسان' : 'Easy'}</option>
+                <option value="MEDIUM">{isRTL ? 'متوسط' : 'Medium'}</option>
+                <option value="HARD">{isRTL ? 'سخت' : 'Hard'}</option>
+                <option value="EXPERT">{isRTL ? 'خبره' : 'Expert'}</option>
+              </select>
+              <div className="rounded-lg border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+                {courseContext
+                  ? `${courseContext.subjectCode || '—'} • ${courseContext.gradeCode || '—'}`
+                  : (isRTL ? 'در حال بارگذاری دوره...' : 'Loading course context...')}
+              </div>
+            </div>
+
+            <div className="max-h-[50vh] overflow-y-auto space-y-3 pr-1">
+              {bankLoading ? (
+                <div className="py-12 text-center text-muted-foreground">
+                  <Loader2 className="mx-auto mb-3 h-6 w-6 animate-spin" />
+                  {isRTL ? 'در حال بارگذاری سوالات...' : 'Loading questions...'}
+                </div>
+              ) : bankQuestions.length === 0 ? (
+                <div className="py-12 text-center text-muted-foreground">
+                  {isRTL ? 'سوالی برای این دوره پیدا نشد.' : 'No questions were found for this course.'}
+                </div>
+              ) : (
+                bankQuestions.map((question) => (
+                  <div key={question.id} className="rounded-xl border bg-card p-4">
+                    <div className="mb-2 flex flex-wrap items-center gap-2 text-xs">
+                      {question.metadata?.phase5E ? (
+                        <span className="rounded-full bg-purple-100 px-2 py-1 text-purple-700">
+                          {question.metadata.phase5E}
+                        </span>
+                      ) : null}
+                      <span className="rounded-full bg-muted px-2 py-1 text-muted-foreground">{question.difficulty}</span>
+                    </div>
+                    <p className="mb-3 text-sm font-medium">{isRTL ? question.stemFA || question.stem : question.stem}</p>
+                    {question.options?.length ? (
+                      <div className="mb-3 space-y-1 text-xs text-muted-foreground">
+                        {question.options.slice(0, 4).map((option) => (
+                          <div key={option.id} className="flex items-start gap-2">
+                            <span>{option.isCorrect ? '✓' : '○'}</span>
+                            <span>{isRTL ? option.textFA || option.text : option.text}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                    <div className="flex justify-end">
+                      <button
+                        onClick={() => handleImportBankQuestion(question)}
+                        className="flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm text-primary-foreground hover:bg-primary/90"
+                      >
+                        <Plus className="h-4 w-4" />
+                        {isRTL ? 'افزودن به آزمون' : 'Add to Quiz'}
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <button type="button" onClick={() => setShowQuestionBank(false)} className="rounded-lg border px-4 py-2 hover:bg-muted">
+              {isRTL ? 'بستن' : 'Close'}
             </button>
           </DialogFooter>
         </DialogContent>

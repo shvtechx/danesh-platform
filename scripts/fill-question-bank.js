@@ -51,20 +51,34 @@ const SUBJECTS = [
   { code: 'MATH', name: 'Mathematics', nameFA: 'ریاضیات', icon: '🔢', color: '#3B82F6', description: 'Mathematical reasoning and problem solving' },
   { code: 'SCI', name: 'Science', nameFA: 'علوم', icon: '🔬', color: '#10B981', description: 'Scientific inquiry and understanding of natural phenomena' },
   { code: 'ENG', name: 'English Language', nameFA: 'زبان انگلیسی', icon: '📖', color: '#8B5CF6', description: 'English literacy and communication' },
+  { code: 'PER_LIT', name: 'Persian Literature', nameFA: 'ادبیات فارسی', icon: '📜', color: '#EC4899', description: 'Persian language, poetry, and literary appreciation' },
   { code: 'CS', name: 'Computer Science', nameFA: 'علوم کامپیوتر', icon: '💻', color: '#06B6D4', description: 'Algorithms and computational thinking' },
   { code: 'AI', name: 'Artificial Intelligence', nameFA: 'هوش مصنوعی', icon: '🧠', color: '#8B5CF6', description: 'AI literacy and ethics' },
   { code: 'ROBOT', name: 'Robotics', nameFA: 'رباتیک', icon: '🤖', color: '#6366F1', description: 'Robotics design and control systems' },
   { code: 'SOC', name: 'Social Studies', nameFA: 'مطالعات اجتماعی', icon: '🌍', color: '#F59E0B', description: 'Civics, geography, and culture' },
+  { code: 'ENTREP', name: 'Entrepreneurship', nameFA: 'کارآفرینی', icon: '💡', color: '#F97316', description: 'Innovation, business models, and value creation' },
+  { code: 'ART', name: 'Visual Arts', nameFA: 'هنرهای تجسمی', icon: '🎨', color: '#EF4444', description: 'Visual design, composition, and artistic expression' },
+  { code: 'MUS', name: 'Music', nameFA: 'موسیقی', icon: '🎵', color: '#A855F7', description: 'Rhythm, melody, and music understanding' },
+  { code: 'PE', name: 'Physical Education', nameFA: 'تربیت بدنی', icon: '⚽', color: '#14B8A6', description: 'Health, fitness, and movement skills' },
+  { code: 'SEL', name: 'Social-Emotional Learning', nameFA: 'یادگیری اجتماعی-عاطفی', icon: '❤️', color: '#F43F5E', description: 'Self-awareness, self-management, and relationships' },
+  { code: 'ETHICS', name: 'Ethics & Philosophy', nameFA: 'اخلاق و فلسفه', icon: '⚖️', color: '#6B7280', description: 'Ethical reasoning and reflective thinking' },
 ];
 
 const STRANDS = [
   { subjectCode: 'MATH', code: 'FOUNDATIONS', name: 'Math Foundations', nameFA: 'مبانی ریاضی', order: 1 },
   { subjectCode: 'SCI', code: 'INQUIRY', name: 'Scientific Inquiry', nameFA: 'کاوش علمی', order: 1 },
   { subjectCode: 'ENG', code: 'LITERACY', name: 'Literacy', nameFA: 'سواد زبانی', order: 1 },
+  { subjectCode: 'PER_LIT', code: 'LANG_AND_POETRY', name: 'Language and Poetry', nameFA: 'زبان و شعر', order: 1 },
   { subjectCode: 'CS', code: 'COMP_THINK', name: 'Computational Thinking', nameFA: 'تفکر محاسباتی', order: 1 },
   { subjectCode: 'AI', code: 'AI_LITERACY', name: 'AI Literacy', nameFA: 'سواد هوش مصنوعی', order: 1 },
   { subjectCode: 'ROBOT', code: 'ROBOT_SYSTEMS', name: 'Robot Systems', nameFA: 'سامانه‌های رباتیک', order: 1 },
   { subjectCode: 'SOC', code: 'CIVICS_GEO', name: 'Civics and Geography', nameFA: 'مدنی و جغرافیا', order: 1 },
+  { subjectCode: 'ENTREP', code: 'INNOVATION', name: 'Innovation and Enterprise', nameFA: 'نوآوری و کسب‌وکار', order: 1 },
+  { subjectCode: 'ART', code: 'VISUAL_DESIGN', name: 'Visual Design', nameFA: 'طراحی بصری', order: 1 },
+  { subjectCode: 'MUS', code: 'RHYTHM_MELODY', name: 'Rhythm and Melody', nameFA: 'ریتم و ملودی', order: 1 },
+  { subjectCode: 'PE', code: 'HEALTH_FITNESS', name: 'Health and Fitness', nameFA: 'سلامت و آمادگی جسمانی', order: 1 },
+  { subjectCode: 'SEL', code: 'SELF_RELATIONSHIP', name: 'Self and Relationship Skills', nameFA: 'خودآگاهی و رابطه', order: 1 },
+  { subjectCode: 'ETHICS', code: 'REASONING', name: 'Ethical Reasoning', nameFA: 'استدلال اخلاقی', order: 1 },
 ];
 
 const GRADE_LEVELS = [
@@ -103,6 +117,13 @@ const SKILL_DEFINITIONS = [
   { code: 'ROBOT_SENSOR_CONTROL', subjectCode: 'ROBOT', strandCode: 'ROBOT_SYSTEMS', gradeCode: 'G8', name: 'Robot Sensors and Control', nameFA: 'حسگرها و کنترل ربات', description: 'Select sensors and control logic for robot tasks', descriptionFA: 'انتخاب حسگرها و منطق کنترل برای کارهای ربات', order: 17 },
   { code: 'SOC_CITIZENSHIP', subjectCode: 'SOC', strandCode: 'CIVICS_GEO', gradeCode: 'G5', name: 'Citizenship and Community', nameFA: 'شهروندی و جامعه', description: 'Understand rights, responsibilities, and civic participation', descriptionFA: 'درک حقوق، مسئولیت‌ها و مشارکت مدنی', order: 18 },
   { code: 'SOC_MAP_SKILLS', subjectCode: 'SOC', strandCode: 'CIVICS_GEO', gradeCode: 'G6', name: 'Map Skills and Geography', nameFA: 'مهارت‌های نقشه و جغرافیا', description: 'Use map keys, scale, and coordinates to interpret place', descriptionFA: 'استفاده از راهنمای نقشه، مقیاس و مختصات برای تفسیر مکان', order: 19 },
+  { code: 'PER_LIT_POETRY_DEVICES', subjectCode: 'PER_LIT', strandCode: 'LANG_AND_POETRY', gradeCode: 'G8', name: 'Poetry Devices', nameFA: 'آرایه‌های ادبی و شعری', description: 'Recognize imagery, simile, metaphor, and tone in Persian poetry', descriptionFA: 'تشخیص تصویرسازی، تشبیه، استعاره و لحن در شعر فارسی', order: 20 },
+  { code: 'ENTREP_VALUE_PROPOSITION', subjectCode: 'ENTREP', strandCode: 'INNOVATION', gradeCode: 'G11', name: 'Value Proposition and Customers', nameFA: 'ارزش پیشنهادی و مشتری', description: 'Connect customer needs to product value and business decisions', descriptionFA: 'پیوند دادن نیاز مشتری به ارزش محصول و تصمیم‌های کسب‌وکار', order: 21 },
+  { code: 'ART_ELEMENTS_OF_DESIGN', subjectCode: 'ART', strandCode: 'VISUAL_DESIGN', gradeCode: 'G6', name: 'Elements of Design', nameFA: 'عناصر طراحی', description: 'Identify line, shape, color, texture, space, and balance in artworks', descriptionFA: 'تشخیص خط، شکل، رنگ، بافت، فضا و تعادل در آثار هنری', order: 22 },
+  { code: 'MUS_RHYTHM_PATTERN', subjectCode: 'MUS', strandCode: 'RHYTHM_MELODY', gradeCode: 'G5', name: 'Rhythm and Pattern', nameFA: 'ریتم و الگو', description: 'Recognize rhythmic patterns, beat, tempo, and repetition in music', descriptionFA: 'تشخیص الگوهای ریتمی، ضرب، تمپو و تکرار در موسیقی', order: 23 },
+  { code: 'PE_HEALTH_FITNESS', subjectCode: 'PE', strandCode: 'HEALTH_FITNESS', gradeCode: 'G4', name: 'Healthy Fitness Habits', nameFA: 'عادت‌های آمادگی جسمانی سالم', description: 'Understand exercise, warm-up, hydration, and safe movement habits', descriptionFA: 'درک ورزش، گرم‌کردن، آب‌رسانی و عادت‌های ایمن حرکتی', order: 24 },
+  { code: 'SEL_SELF_MANAGEMENT', subjectCode: 'SEL', strandCode: 'SELF_RELATIONSHIP', gradeCode: 'G5', name: 'Self-Management Strategies', nameFA: 'راهبردهای خودمدیریتی', description: 'Use emotional regulation, planning, and reflection strategies', descriptionFA: 'استفاده از راهبردهای تنظیم هیجان، برنامه‌ریزی و بازتاب', order: 25 },
+  { code: 'ETHICS_DECISION_MAKING', subjectCode: 'ETHICS', strandCode: 'REASONING', gradeCode: 'G10', name: 'Ethical Decision Making', nameFA: 'تصمیم‌گیری اخلاقی', description: 'Evaluate actions using fairness, consequences, and responsibility', descriptionFA: 'ارزیابی عمل‌ها با توجه به انصاف، پیامدها و مسئولیت', order: 26 },
 ];
 
 function toFaDigits(value) {
@@ -694,6 +715,83 @@ function mapSkillQuestions() {
   ];
 }
 
+function persianPoetryQuestions() {
+  return [
+    explicitQuestion('In Persian poetry, what is a simile?', 'در شعر فارسی، تشبیه چیست؟', [['A comparison using a word such as “like” or “as”', 'مقایسه‌ای با استفاده از واژه‌هایی مانند «مثل» یا «چون»'], ['A direct command', 'یک دستور مستقیم'], ['A rhyme pattern only', 'فقط یک الگوی قافیه'], ['A paragraph of prose', 'یک بند نثر']], 0, 'A simile compares two things explicitly.', 'تشبیه دو چیز را به‌صورت آشکار با هم مقایسه می‌کند.'),
+    explicitQuestion('Which line shows imagery?', 'کدام مصراع تصویرسازی را نشان می‌دهد؟', [['The silver moon poured light on the quiet garden.', 'ماه نقره‌ای نور را بر باغ آرام فرو ریخت.'], ['Please open your notebook.', 'لطفاً دفترت را باز کن.'], ['The test is tomorrow.', 'آزمون فرداست.'], ['He walked to school.', 'او به مدرسه رفت.']], 0, 'Imagery helps the reader see, hear, or feel a scene.', 'تصویرسازی به خواننده کمک می‌کند صحنه را ببیند، بشنود یا حس کند.'),
+    explicitQuestion('A metaphor is different from a simile because it:', 'استعاره با تشبیه فرق دارد زیرا:', [['makes a direct comparison without using comparison words', 'بدون واژه‌های مقایسه، مقایسه مستقیم می‌سازد'], ['always has rhyme', 'همیشه قافیه دارد'], ['must include an animal', 'باید شامل حیوان باشد'], ['can only appear in prose', 'فقط در نثر می‌آید']], 0, 'A metaphor presents one thing as another directly.', 'استعاره چیزی را مستقیماً چیز دیگری نشان می‌دهد.'),
+    explicitQuestion('Why does a poet choose strong imagery?', 'چرا شاعر تصویرسازی قوی را انتخاب می‌کند؟', [['To help the reader imagine and feel the poem more deeply', 'برای اینکه خواننده شعر را عمیق‌تر تصور و احساس کند'], ['To remove meaning from the poem', 'برای حذف معنا از شعر'], ['To avoid all emotion', 'برای پرهیز از هر احساس'], ['To make the poem longer only', 'فقط برای بلندتر کردن شعر']], 0, 'Imagery deepens meaning and emotional response.', 'تصویرسازی معنا و واکنش عاطفی را عمیق‌تر می‌کند.'),
+    explicitQuestion('If a poem sounds hopeful and calm, its tone is best described as:', 'اگر شعر امیدوار و آرام به نظر برسد، لحن آن چگونه توصیف می‌شود؟', [['Hopeful and peaceful', 'امیدوار و آرام'], ['Angry and harsh', 'خشمگین و تند'], ['Confused and empty', 'سردرگم و تهی'], ['Cold and mechanical', 'سرد و ماشینی']], 0, 'Tone describes the attitude or feeling expressed in the poem.', 'لحن احساس یا نگرش بیان‌شده در شعر را نشان می‌دهد.'),
+    explicitQuestion('Which question helps a reader analyze a poem well?', 'کدام پرسش به تحلیل خوب شعر کمک می‌کند؟', [['What images and comparisons shape the poem’s meaning?', 'چه تصویرها و مقایسه‌هایی معنای شعر را می‌سازند؟'], ['How many chairs are in the room?', 'چند صندلی در اتاق است؟'], ['What color is the notebook cover?', 'رنگ جلد دفتر چیست؟'], ['How fast can the poet run?', 'شاعر چقدر سریع می‌دود؟']], 0, 'Analyzing poetry means looking closely at craft and meaning.', 'تحلیل شعر یعنی دقیق شدن در شیوه بیان و معنا.'),
+  ];
+}
+
+function entrepreneurshipQuestions() {
+  return [
+    explicitQuestion('What is a value proposition?', 'ارزش پیشنهادی چیست؟', [['A clear statement of why a product helps a customer', 'بیانی روشن از اینکه چرا یک محصول به مشتری کمک می‌کند'], ['A list of office rules', 'فهرستی از قوانین دفتر'], ['A company logo only', 'فقط لوگوی شرکت'], ['A tax bill', 'قبض مالیات']], 0, 'A value proposition explains the problem solved and the benefit offered.', 'ارزش پیشنهادی توضیح می‌دهد چه مسئله‌ای حل می‌شود و چه فایده‌ای ارائه می‌شود.'),
+    explicitQuestion('Why do entrepreneurs study customer needs?', 'چرا کارآفرینان نیازهای مشتری را مطالعه می‌کنند؟', [['To design products that solve real problems', 'برای طراحی محصولاتی که مسئله‌های واقعی را حل می‌کنند'], ['To avoid feedback completely', 'برای پرهیز کامل از بازخورد'], ['To make random decisions', 'برای تصمیم‌گیری تصادفی'], ['To copy every competitor', 'برای کپی کردن همه رقبا']], 0, 'Successful ventures connect value to real customer needs.', 'کسب‌وکارهای موفق ارزش را به نیاز واقعی مشتری پیوند می‌دهند.'),
+    explicitQuestion('Which is the best example of customer feedback?', 'بهترین نمونه بازخورد مشتری کدام است؟', [['Users explain what works and what problems remain', 'کاربران توضیح می‌دهند چه چیز خوب کار می‌کند و چه مسئله‌هایی باقی مانده است'], ['A business ignores buyers', 'کسب‌وکار خریداران را نادیده می‌گیرد'], ['A company guesses what people want', 'شرکت حدس می‌زند مردم چه می‌خواهند'], ['A product is never tested', 'محصول هرگز آزمایش نمی‌شود']], 0, 'Feedback provides evidence for improvement.', 'بازخورد برای بهبود، شواهد فراهم می‌کند.'),
+    explicitQuestion('If two products solve the same problem, which one usually has the stronger value proposition?', 'اگر دو محصول یک مسئله را حل کنند، معمولاً کدام‌یک ارزش پیشنهادی قوی‌تری دارد؟', [['The one that solves the problem more clearly or efficiently for the customer', 'آن‌که مسئله را برای مشتری روشن‌تر یا کارآمدتر حل می‌کند'], ['The one with the longest name', 'آن‌که نام طولانی‌تری دارد'], ['The one with no users', 'آن‌که هیچ کاربری ندارد'], ['The one with the largest box', 'آن‌که جعبه بزرگ‌تری دارد']], 0, 'Customers compare usefulness, clarity, convenience, and fit.', 'مشتری‌ها سودمندی، شفافیت، سهولت و تناسب را مقایسه می‌کنند.'),
+    explicitQuestion('What is a simple reason to build a prototype early?', 'یک دلیل ساده برای ساخت نمونه اولیه در ابتدا چیست؟', [['To test ideas before spending too many resources', 'برای آزمودن ایده‌ها پیش از خرج کردن منابع زیاد'], ['To make planning impossible', 'برای غیرممکن کردن برنامه‌ریزی'], ['To hide the idea from everyone', 'برای پنهان کردن ایده از همه'], ['To avoid customer learning', 'برای پرهیز از یادگیری درباره مشتری']], 0, 'Prototypes help teams learn quickly and revise wisely.', 'نمونه‌های اولیه به تیم‌ها کمک می‌کنند سریع یاد بگیرند و هوشمندانه بازنگری کنند.'),
+    explicitQuestion('Which question best checks product-market fit?', 'کدام پرسش بهترین بررسی برای تناسب محصول و بازار است؟', [['Do target users truly need this solution and choose it repeatedly?', 'آیا کاربران هدف واقعاً به این راه‌حل نیاز دارند و بارها آن را انتخاب می‌کنند؟'], ['Is the logo blue or red?', 'لوگو آبی است یا قرمز؟'], ['How heavy is the office desk?', 'میز دفتر چقدر سنگین است؟'], ['How many windows are in the building?', 'چند پنجره در ساختمان است؟']], 0, 'Product-market fit is about repeated value for a real audience.', 'تناسب محصول و بازار درباره ارزش تکرارشونده برای یک مخاطب واقعی است.'),
+  ];
+}
+
+function artDesignQuestions() {
+  return [
+    explicitQuestion('Which element of art refers to how a surface feels or looks as if it feels?', 'کدام عنصر هنر به احساسی که سطح دارد یا به‌نظر می‌رسد دارد اشاره می‌کند؟', [['Texture', 'بافت'], ['Line', 'خط'], ['Space', 'فضا'], ['Balance', 'تعادل']], 0, 'Texture describes the surface quality of an artwork.', 'بافت کیفیت سطحی یک اثر هنری را توصیف می‌کند.'),
+    explicitQuestion('What is balance in a composition?', 'تعادل در ترکیب‌بندی چیست؟', [['The visual distribution of elements so the artwork feels stable', 'توزیع بصری عناصر به‌گونه‌ای که اثر پایدار به نظر برسد'], ['Using only one color', 'استفاده از فقط یک رنگ'], ['Making every shape identical', 'یکسان کردن همه شکل‌ها'], ['Erasing the background', 'پاک کردن پس‌زمینه']], 0, 'Balance helps viewers experience stability or intentional tension.', 'تعادل به بیننده احساس پایداری یا تنش هدفمند می‌دهد.'),
+    explicitQuestion('Which choice creates strong contrast?', 'کدام انتخاب تضاد قوی ایجاد می‌کند؟', [['Dark shapes against a very light background', 'شکل‌های تیره روی پس‌زمینه بسیار روشن'], ['Two very similar grays', 'دو خاکستری بسیار شبیه'], ['Equal spacing only', 'فقط فاصله‌گذاری برابر'], ['One small pencil line', 'یک خط کوچک مدادی']], 0, 'Contrast often comes from noticeable differences in color, value, or size.', 'تضاد معمولاً از تفاوت محسوس در رنگ، ارزش نوری یا اندازه ایجاد می‌شود.'),
+    explicitQuestion('Why might an artist use repeated shapes?', 'چرا ممکن است هنرمند از شکل‌های تکراری استفاده کند؟', [['To create pattern and rhythm', 'برای ساختن الگو و ریتم'], ['To remove all meaning', 'برای حذف همه معنا'], ['To make the artwork invisible', 'برای نامرئی کردن اثر'], ['To avoid composition', 'برای پرهیز از ترکیب‌بندی']], 0, 'Repetition can guide the eye and build unity.', 'تکرار می‌تواند نگاه را هدایت کند و یکپارچگی بسازد.'),
+    explicitQuestion('Which statement best describes negative space?', 'کدام عبارت بهترین توصیف برای فضای منفی است؟', [['The empty area around or between objects', 'فضای خالی اطراف یا میان اشیا'], ['The darkest part of a painting only', 'فقط تیره‌ترین بخش نقاشی'], ['A mistake in the artwork', 'یک اشتباه در اثر هنری'], ['A hidden signature', 'یک امضای پنهان']], 0, 'Negative space is an important part of composition.', 'فضای منفی بخش مهمی از ترکیب‌بندی است.'),
+    explicitQuestion('If a poster needs to emphasize one important message, what should the designer do?', 'اگر پوستر باید یک پیام مهم را برجسته کند، طراح چه کاری باید انجام دهد؟', [['Use size, color, or placement to make that part stand out', 'با اندازه، رنگ یا جای‌گذاری آن بخش را برجسته کند'], ['Hide the message in the corner', 'پیام را در گوشه پنهان کند'], ['Make every element exactly equal', 'همه عناصر را دقیقاً مساوی کند'], ['Remove all text', 'همه متن را حذف کند']], 0, 'Emphasis helps viewers identify the most important information first.', 'تأکید به بیننده کمک می‌کند مهم‌ترین اطلاعات را اول ببیند.'),
+  ];
+}
+
+function musicRhythmQuestions() {
+  return [
+    explicitQuestion('What is the beat in music?', 'ضرب در موسیقی چیست؟', [['The steady pulse you can clap along with', 'تپش منظم که می‌توان با آن دست زد'], ['The instrument case', 'جعبه ساز'], ['A song title only', 'فقط عنوان آهنگ'], ['Any random loud sound', 'هر صدای بلند تصادفی']], 0, 'The beat is the underlying pulse of the music.', 'ضرب تپش زیربنایی موسیقی است.'),
+    explicitQuestion('Tempo tells a musician:', 'تمپو به نوازنده می‌گوید:', [['How fast or slow the music should go', 'موسیقی چقدر تند یا کند اجرا شود'], ['What color to wear', 'چه رنگی بپوشد'], ['How many chairs are in the room', 'چند صندلی در اتاق است'], ['Where the song was written', 'آهنگ کجا نوشته شده']], 0, 'Tempo describes speed in music.', 'تمپو سرعت در موسیقی را توصیف می‌کند.'),
+    explicitQuestion('Which pattern best shows rhythm?', 'کدام الگو بهترین نمایش برای ریتم است؟', [['Long-short-short-long repeated over time', 'کشیده-کوتاه-کوتاه-کشیده که در زمان تکرار می‌شود'], ['A still painting', 'یک نقاشی ثابت'], ['A silent page', 'یک صفحه خاموش'], ['A map scale', 'مقیاس نقشه']], 0, 'Rhythm comes from organized patterns of sound and silence over time.', 'ریتم از الگوهای سازمان‌یافته صدا و سکوت در زمان ساخته می‌شود.'),
+    explicitQuestion('Why do repeated rhythmic patterns help listeners?', 'چرا الگوهای ریتمی تکراری به شنونده کمک می‌کنند؟', [['They make structure easier to hear and remember', 'ساختار را آسان‌تر می‌کنند که شنیده و به‌خاطر سپرده شود'], ['They remove all musical feeling', 'همه احساس موسیقایی را حذف می‌کنند'], ['They stop tempo completely', 'تمپو را کاملاً متوقف می‌کنند'], ['They make every song identical', 'همه آهنگ‌ها را یکسان می‌کنند']], 0, 'Repetition builds recognition, structure, and memory.', 'تکرار تشخیص، ساختار و حافظه را می‌سازد.'),
+    explicitQuestion('If a drummer plays more quickly but keeps the same pattern, what changed?', 'اگر نوازندهٔ درام همان الگو را سریع‌تر بزند، چه چیزی تغییر کرده است؟', [['Tempo', 'تمپو'], ['Pitch', 'زیر و بمی'], ['Instrument shape', 'شکل ساز'], ['Song language', 'زبان آهنگ']], 0, 'The pattern stays, but the speed changes.', 'الگو ثابت می‌ماند اما سرعت تغییر می‌کند.'),
+    explicitQuestion('A class claps once on every beat while a shaker fills the spaces between beats. What does this show?', 'کلاس روی هر ضرب یک بار دست می‌زند و یک شیکر فاصله‌های بین ضرب‌ها را پر می‌کند. این چه چیزی را نشان می‌دهد؟', [['Layered rhythm over a steady beat', 'ریتم لایه‌لایه روی یک ضرب ثابت'], ['No rhythm at all', 'اصلاً ریتمی وجود ندارد'], ['Silence only', 'فقط سکوت'], ['A map key', 'راهنمای نقشه']], 0, 'Music can have a steady beat with additional rhythmic layers around it.', 'موسیقی می‌تواند یک ضرب ثابت و لایه‌های ریتمی دیگری پیرامون آن داشته باشد.'),
+  ];
+}
+
+function peHealthQuestions() {
+  return [
+    explicitQuestion('Why is a warm-up important before exercise?', 'چرا گرم‌کردن پیش از ورزش مهم است؟', [['It prepares the body gradually for movement', 'بدن را به‌تدریج برای حرکت آماده می‌کند'], ['It replaces sleep', 'جای خواب را می‌گیرد'], ['It removes the need for water', 'نیاز به آب را از بین می‌برد'], ['It guarantees winning', 'برد را تضمین می‌کند']], 0, 'Warm-ups increase readiness and can reduce injury risk.', 'گرم‌کردن آمادگی را افزایش می‌دهد و می‌تواند خطر آسیب را کمتر کند.'),
+    explicitQuestion('Which habit best supports hydration during active play?', 'کدام عادت بیشترین کمک را به آب‌رسانی هنگام فعالیت بدنی می‌کند؟', [['Drinking water before, during, and after exercise as needed', 'نوشیدن آب پیش، حین و پس از ورزش در صورت نیاز'], ['Never taking breaks', 'هرگز استراحت نکردن'], ['Wearing heavy clothes in heat', 'پوشیدن لباس سنگین در گرما'], ['Skipping all fluids', 'حذف همه مایعات']], 0, 'Hydration helps the body function safely during activity.', 'آب‌رسانی به بدن کمک می‌کند هنگام فعالیت به‌صورت ایمن عمل کند.'),
+    explicitQuestion('What is a sign that an activity is improving cardiovascular fitness?', 'کدام نشانه نشان می‌دهد یک فعالیت آمادگی قلبی-عروقی را بهتر می‌کند؟', [['It raises the heart rate for sustained movement', 'برای حرکت پایدار ضربان قلب را بالا می‌برد'], ['It requires no breathing', 'نیازی به تنفس ندارد'], ['It happens only while sleeping', 'فقط هنگام خواب رخ می‌دهد'], ['It avoids all movement', 'از هر حرکتی پرهیز می‌کند']], 0, 'Aerobic activity challenges the heart and lungs over time.', 'فعالیت هوازی در طول زمان قلب و شُش‌ها را به چالش می‌کشد.'),
+    explicitQuestion('Why should students pay attention to safe form when exercising?', 'چرا دانش‌آموزان باید هنگام ورزش به فرم صحیح توجه کنند؟', [['It helps movement stay effective and lowers injury risk', 'باعث مؤثرتر شدن حرکت و کاهش خطر آسیب می‌شود'], ['It makes water unnecessary', 'آب را غیرضروری می‌کند'], ['It replaces all practice', 'جای همه تمرین را می‌گیرد'], ['It slows learning every time', 'همیشه یادگیری را کند می‌کند']], 0, 'Safe form supports healthy movement habits.', 'فرم صحیح از عادت‌های حرکتی سالم پشتیبانی می‌کند.'),
+    explicitQuestion('Which choice is the best recovery habit after vigorous activity?', 'کدام انتخاب بهترین عادت بازیابی پس از فعالیت شدید است؟', [['Cool down, breathe steadily, and drink water', 'سرد کردن بدن، تنفس منظم و نوشیدن آب'], ['Start sprinting again immediately', 'بلافاصله دوباره با سرعت دویدن را شروع کردن'], ['Ignore how the body feels', 'نادیده گرفتن احساس بدن'], ['Skip all rest forever', 'همیشه از هر استراحتی صرف‌نظر کردن']], 0, 'Recovery supports safer transition after exertion.', 'بازیابی از انتقال ایمن‌تر پس از فعالیت شدید پشتیبانی می‌کند.'),
+    explicitQuestion('Why do movement games often include teamwork rules?', 'چرا بازی‌های حرکتی اغلب شامل قوانین کار تیمی هستند؟', [['They help students practice cooperation and respect while active', 'به دانش‌آموزان کمک می‌کنند هنگام فعالیت همکاری و احترام را تمرین کنند'], ['They remove the need for movement', 'نیاز به حرکت را از بین می‌برند'], ['They make safety impossible', 'ایمنی را غیرممکن می‌کنند'], ['They stop everyone from learning', 'همه را از یادگیری بازمی‌دارند']], 0, 'Physical education includes social responsibility as well as movement skills.', 'تربیت بدنی علاوه بر مهارت‌های حرکتی، مسئولیت اجتماعی را نیز در بر می‌گیرد.'),
+  ];
+}
+
+function selQuestions() {
+  return [
+    explicitQuestion('What is self-management?', 'خودمدیریتی چیست؟', [['Using strategies to manage emotions, behavior, and goals', 'استفاده از راهبردها برای مدیریت هیجان، رفتار و هدف‌ها'], ['Ignoring all feelings', 'نادیده گرفتن همه احساس‌ها'], ['Controlling other people', 'کنترل کردن دیگران'], ['Avoiding every challenge', 'پرهیز از هر چالش']], 0, 'Self-management includes emotional regulation, planning, and persistence.', 'خودمدیریتی شامل تنظیم هیجان، برنامه‌ریزی و پشتکار است.'),
+    explicitQuestion('A student feels frustrated during homework. What is the best first strategy?', 'دانش‌آموزی هنگام انجام تکلیف احساس ناکامی می‌کند. بهترین راهبرد اولیه چیست؟', [['Pause, breathe, and choose the next small step', 'مکث کردن، نفس کشیدن و انتخاب گام کوچک بعدی'], ['Tear up the work immediately', 'فوراً پاره کردن تکلیف'], ['Blame everyone else', 'سرزنش کردن همه دیگران'], ['Stay upset without doing anything', 'ناراحت ماندن بدون انجام کاری']], 0, 'A pause and a manageable next step can reduce overwhelm.', 'مکث و یک گام قابل مدیریت می‌تواند فشار روانی را کمتر کند.'),
+    explicitQuestion('Why does goal setting help learning?', 'چرا هدف‌گذاری به یادگیری کمک می‌کند؟', [['It gives direction and makes progress easier to monitor', 'جهت می‌دهد و پیگیری پیشرفت را آسان‌تر می‌کند'], ['It removes all effort', 'همه تلاش را حذف می‌کند'], ['It guarantees perfect results', 'نتیجه کامل را تضمین می‌کند'], ['It stops reflection', 'بازتاب را متوقف می‌کند']], 0, 'Clear goals support focus and reflection.', 'هدف‌های روشن از تمرکز و بازتاب پشتیبانی می‌کنند.'),
+    explicitQuestion('Which reflection question is most helpful after a difficult task?', 'پس از یک کار دشوار، کدام پرسش بازتابی مفیدتر است؟', [['What strategy worked, and what could I try next time?', 'چه راهبردی کار کرد و دفعه بعد چه چیزی را می‌توانم امتحان کنم؟'], ['Why am I bad at everything?', 'چرا در همه چیز بد هستم؟'], ['Who can I blame?', 'چه کسی را می‌توانم سرزنش کنم؟'], ['Should I stop trying forever?', 'آیا باید برای همیشه تلاش را متوقف کنم؟']], 0, 'Helpful reflection looks for learning, not shame.', 'بازتاب مفید به‌دنبال یادگیری است، نه شرمساری.'),
+    explicitQuestion('What does it mean to regulate an emotion?', 'تنظیم یک هیجان یعنی چه؟', [['Notice it and respond in a healthy, thoughtful way', 'آن را تشخیص دهیم و به شکلی سالم و سنجیده پاسخ دهیم'], ['Pretend it never exists', 'وانمود کنیم اصلاً وجود ندارد'], ['Always act on it immediately', 'همیشه فوراً بر اساس آن عمل کنیم'], ['Give it to someone else', 'آن را به دیگری بدهیم']], 0, 'Regulation means managing emotions, not denying them.', 'تنظیم یعنی مدیریت هیجان، نه انکار آن.'),
+    explicitQuestion('A planner or checklist mainly helps with:', 'دفتر برنامه‌ریزی یا فهرست کارها بیشتر به چه چیزی کمک می‌کند؟', [['Organization and follow-through', 'سازمان‌دهی و پیگیری'], ['Making problems disappear magically', 'ناپدید شدن جادویی مشکلات'], ['Avoiding all deadlines', 'پرهیز از همه مهلت‌ها'], ['Reading thoughts', 'خواندن ذهن']], 0, 'Planning tools break big tasks into manageable steps.', 'ابزارهای برنامه‌ریزی کارهای بزرگ را به گام‌های قابل مدیریت می‌شکنند.'),
+  ];
+}
+
+function ethicsQuestions() {
+  return [
+    explicitQuestion('What makes a decision ethical?', 'چه چیزی یک تصمیم را اخلاقی می‌کند؟', [['It considers fairness, harm, responsibility, and respect', 'اینکه انصاف، آسیب، مسئولیت و احترام را در نظر بگیرد'], ['It helps only one person no matter the cost', 'فقط به یک نفر کمک کند، هر بهایی که داشته باشد'], ['It ignores consequences', 'پیامدها را نادیده بگیرد'], ['It is chosen at random', 'تصادفی انتخاب شود']], 0, 'Ethical decisions weigh values, impacts, and duties.', 'تصمیم‌های اخلاقی ارزش‌ها، پیامدها و وظیفه‌ها را می‌سنجند.'),
+    explicitQuestion('If an action benefits you but unfairly harms others, what is the best ethical concern?', 'اگر کاری به شما سود برساند اما به‌طور ناعادلانه به دیگران آسیب بزند، مهم‌ترین نگرانی اخلاقی چیست؟', [['It lacks fairness and causes harm', 'فاقد انصاف است و آسیب ایجاد می‌کند'], ['It is always acceptable', 'همیشه قابل قبول است'], ['It does not matter if no one talks about it', 'اگر کسی درباره‌اش حرف نزند مهم نیست'], ['It becomes ethical over time automatically', 'به‌مرور زمان خودبه‌خود اخلاقی می‌شود']], 0, 'Ethics asks whether benefits and harms are distributed justly.', 'اخلاق می‌پرسد آیا سودها و آسیب‌ها به‌صورت عادلانه توزیع شده‌اند یا نه.'),
+    explicitQuestion('Why is it useful to consider consequences before acting?', 'چرا پیش از عمل، در نظر گرفتن پیامدها مفید است؟', [['It helps you predict possible benefits and harms', 'کمک می‌کند سودها و آسیب‌های ممکن را پیش‌بینی کنیم'], ['It removes responsibility', 'مسئولیت را حذف می‌کند'], ['It guarantees that no one disagrees', 'تضمین می‌کند هیچ‌کس مخالفت نکند'], ['It makes every choice easy', 'هر انتخابی را آسان می‌کند']], 0, 'Consequences are one important lens in ethical reasoning.', 'پیامدها یکی از منظرهای مهم در استدلال اخلاقی هستند.'),
+    explicitQuestion('Which action best shows integrity?', 'کدام عمل بهترین نمونه درستکاری است؟', [['Telling the truth even when it is difficult', 'راست گفتن حتی وقتی دشوار است'], ['Changing the rules secretly for yourself', 'پنهانی به نفع خودت قانون را عوض کردن'], ['Taking credit for another person’s work', 'اعتبار کار دیگری را به نام خود زدن'], ['Ignoring a promise without explanation', 'نادیده گرفتن قول بدون توضیح']], 0, 'Integrity means acting consistently with moral principles.', 'درستکاری یعنی هماهنگ با اصول اخلاقی عمل کردن.'),
+    explicitQuestion('When two values conflict, what is a good next step?', 'وقتی دو ارزش با هم تعارض دارند، گام بعدی خوب چیست؟', [['Clarify the values, gather facts, and reason carefully', 'ارزش‌ها را روشن کنیم، واقعیت‌ها را جمع کنیم و با دقت استدلال کنیم'], ['Choose immediately without thinking', 'فوراً و بدون فکر انتخاب کنیم'], ['Ignore the conflict completely', 'تعارض را کاملاً نادیده بگیریم'], ['Let chance decide', 'تصادف تصمیم بگیرد']], 0, 'Ethical reasoning is thoughtful and evidence-aware.', 'استدلال اخلاقی سنجیده و آگاه از شواهد است.'),
+    explicitQuestion('Why should people explain the reasons for an ethical choice?', 'چرا افراد باید دلیل‌های یک انتخاب اخلاقی را توضیح دهند؟', [['Because reasons make the decision more transparent and open to review', 'چون دلیل‌ها تصمیم را شفاف‌تر و قابل بررسی می‌کنند'], ['Because reasons are never needed', 'چون هرگز به دلیل نیاز نیست'], ['Because only feelings matter', 'چون فقط احساس‌ها مهم‌اند'], ['Because explanation weakens responsibility', 'چون توضیح مسئولیت را ضعیف می‌کند']], 0, 'Good ethical choices can be justified with reasons others can examine.', 'انتخاب‌های اخلاقی خوب را می‌توان با دلیل‌هایی که دیگران بررسی کنند توجیه کرد.'),
+  ];
+}
+
 function buildQuestionSet(skillDef) {
   switch (skillDef.code) {
     case 'MATH_ADD_WITHIN_20':
@@ -734,6 +832,20 @@ function buildQuestionSet(skillDef) {
       return withAdaptiveFields(skillDef, citizenshipQuestions());
     case 'SOC_MAP_SKILLS':
       return withAdaptiveFields(skillDef, mapSkillQuestions());
+    case 'PER_LIT_POETRY_DEVICES':
+      return withAdaptiveFields(skillDef, persianPoetryQuestions());
+    case 'ENTREP_VALUE_PROPOSITION':
+      return withAdaptiveFields(skillDef, entrepreneurshipQuestions());
+    case 'ART_ELEMENTS_OF_DESIGN':
+      return withAdaptiveFields(skillDef, artDesignQuestions());
+    case 'MUS_RHYTHM_PATTERN':
+      return withAdaptiveFields(skillDef, musicRhythmQuestions());
+    case 'PE_HEALTH_FITNESS':
+      return withAdaptiveFields(skillDef, peHealthQuestions());
+    case 'SEL_SELF_MANAGEMENT':
+      return withAdaptiveFields(skillDef, selQuestions());
+    case 'ETHICS_DECISION_MAKING':
+      return withAdaptiveFields(skillDef, ethicsQuestions());
     default:
       return [];
   }
@@ -967,7 +1079,7 @@ async function main() {
   console.log(`   New questions created: ${createdQuestions}`);
   console.log(`   Total questions in bank: ${totalQuestions}`);
   console.log(`   Total active skills: ${totalSkills}`);
-  console.log('   Coverage: Math, Science, English, CS, AI, Robotics, Social Studies');
+  console.log('   Coverage: Math, Science, English, Persian Literature, CS, AI, Robotics, Social Studies, Entrepreneurship, Visual Arts, Music, Physical Education, SEL, and Ethics');
   console.log('   Design note: all new items are original, bilingual, skill-linked, and tagged for adaptive use.');
 }
 
