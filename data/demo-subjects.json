@@ -1,0 +1,20 @@
+[
+  {
+    "id": "subject-math",
+    "code": "MATH",
+    "name": "Mathematics",
+    "teachers": [
+      "demo-teacher-math"
+    ],
+    "students": [
+      "demo-student-ali"
+    ]
+  },
+  {
+    "id": "subject-physics",
+    "code": "PHYS",
+    "name": "Physics",
+    "teachers": [],
+    "students": []
+  }
+]

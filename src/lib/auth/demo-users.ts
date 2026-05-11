@@ -1,28 +1,15 @@
-export type DemoRole = 'SUPER_ADMIN' | 'SUBJECT_ADMIN' | 'TEACHER' | 'STUDENT';
-
-export type DemoPermission =
-  | 'users.create'
-  | 'users.read'
-  | 'users.update'
-  | 'users.delete'
-  | 'roles.manage'
-  | 'subjects.create'
-  | 'subjects.read'
-  | 'subjects.update'
-  | 'subjects.delete'
-  | 'subjects.assign'
-  | 'teachers.read'
-  | 'teachers.assignSubjects'
-  | 'teachers.manage'
-  | 'students.read'
-  | 'students.assign'
-  | 'courses.read'
-  | 'courses.update.assigned'
-  | 'lessons.update.assigned'
-  | 'system.settings'
-  | 'impersonate.all'
-  | 'wellbeing.submit'
-  | 'profile.read';
+import fs from 'fs';
+import path from 'path';
+import {
+  AUTH_STORAGE_KEY,
+  ORIGINAL_USER_STORAGE_KEY,
+  USER_ID_STORAGE_KEY,
+  getHomeRouteForRoles,
+  getPrimaryRole,
+  hasPermission,
+  type DemoPermission,
+  type DemoRole,
+} from '@/lib/auth/demo-auth-shared';
 
 export interface DemoUserRecord {
   id: string;
@@ -95,6 +82,7 @@ const permissionMatrix: Record<DemoRole, DemoPermission[]> = {
     'profile.read',
   ],
   STUDENT: ['courses.read', 'wellbeing.submit', 'profile.read'],
+  PARENT: ['courses.read', 'profile.read'],
 };
 
 const mergePermissions = (roles: DemoRole[]) => Array.from(new Set(roles.flatMap((role) => permissionMatrix[role])));
@@ -180,12 +168,87 @@ const initialDemoSubjects: DemoSubjectRecord[] = [
   },
 ];
 
-let demoUsersState: DemoUserRecord[] = [...initialDemoUsers];
-let demoSubjectsState: DemoSubjectRecord[] = [...initialDemoSubjects];
+// Path to persist users across server restarts
+const DATA_DIR = path.join(process.cwd(), 'data');
+const USERS_FILE = path.join(DATA_DIR, 'demo-users.json');
+const SUBJECTS_FILE = path.join(DATA_DIR, 'demo-subjects.json');
 
-export const AUTH_STORAGE_KEY = 'danesh.auth.user';
-export const USER_ID_STORAGE_KEY = 'danesh.userId';
-export const ORIGINAL_USER_STORAGE_KEY = 'danesh.auth.originalUser';
+// Ensure data directory exists
+if (!fs.existsSync(DATA_DIR)) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+}
+
+// Load persisted users or use initial state
+function loadUsers(): DemoUserRecord[] {
+  const reconcileUsers = (users: DemoUserRecord[]) => {
+    const byId = new Map(users.map((user) => [user.id, user]));
+
+    for (const initialUser of initialDemoUsers) {
+      if (!byId.has(initialUser.id)) {
+        byId.set(initialUser.id, initialUser);
+      }
+    }
+
+    return Array.from(byId.values());
+  };
+
+  if (fs.existsSync(USERS_FILE)) {
+    try {
+      const data = fs.readFileSync(USERS_FILE, 'utf-8');
+      const reconciledUsers = reconcileUsers(JSON.parse(data));
+      fs.writeFileSync(USERS_FILE, JSON.stringify(reconciledUsers, null, 2), 'utf-8');
+      return reconciledUsers;
+    } catch (error) {
+      console.error('Failed to load persisted users, using initial state:', error);
+      return [...initialDemoUsers];
+    }
+  }
+  return [...initialDemoUsers];
+}
+
+// Load persisted subjects or use initial state
+function loadSubjects(): DemoSubjectRecord[] {
+  if (fs.existsSync(SUBJECTS_FILE)) {
+    try {
+      const data = fs.readFileSync(SUBJECTS_FILE, 'utf-8');
+      return JSON.parse(data);
+    } catch (error) {
+      console.error('Failed to load persisted subjects, using initial state:', error);
+      return [...initialDemoSubjects];
+    }
+  }
+  return [...initialDemoSubjects];
+}
+
+// Save users to disk
+function saveUsers(users: DemoUserRecord[]) {
+  try {
+    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), 'utf-8');
+  } catch (error) {
+    console.error('Failed to persist users:', error);
+  }
+}
+
+// Save subjects to disk
+function saveSubjects(subjects: DemoSubjectRecord[]) {
+  try {
+    fs.writeFileSync(SUBJECTS_FILE, JSON.stringify(subjects, null, 2), 'utf-8');
+  } catch (error) {
+    console.error('Failed to persist subjects:', error);
+  }
+}
+
+let demoUsersState: DemoUserRecord[] = loadUsers();
+let demoSubjectsState: DemoSubjectRecord[] = loadSubjects();
+
+export {
+  AUTH_STORAGE_KEY,
+  ORIGINAL_USER_STORAGE_KEY,
+  USER_ID_STORAGE_KEY,
+  getHomeRouteForRoles,
+  getPrimaryRole,
+  hasPermission,
+};
 
 export function sanitizeDemoUser(user: DemoUserRecord) {
   const { password, ...safeUser } = user;
@@ -222,16 +285,20 @@ export function createDemoUser(input: Omit<DemoUserRecord, 'permissions'>) {
   };
 
   demoUsersState = [...demoUsersState, createdUser];
+  saveUsers(demoUsersState); // Persist to disk
   return sanitizeDemoUser(createdUser);
 }
 
 export function removeDemoUser(id: string) {
   demoUsersState = demoUsersState.filter((user) => user.id !== id && user.roles[0] !== 'SUPER_ADMIN');
+  saveUsers(demoUsersState); // Persist to disk
+  
   demoSubjectsState = demoSubjectsState.map((subject) => ({
     ...subject,
     teachers: subject.teachers.filter((teacherId) => teacherId !== id),
     students: subject.students.filter((studentId) => studentId !== id),
   }));
+  saveSubjects(demoSubjectsState); // Persist to disk
 }
 
 export function listDemoSubjects() {
@@ -240,38 +307,20 @@ export function listDemoSubjects() {
 
 export function createDemoSubject(subject: DemoSubjectRecord) {
   demoSubjectsState = [...demoSubjectsState, subject];
+  saveSubjects(demoSubjectsState); // Persist to disk
   return subject;
 }
 
 export function removeDemoSubject(id: string) {
   demoSubjectsState = demoSubjectsState.filter((subject) => subject.id !== id);
+  saveSubjects(demoSubjectsState); // Persist to disk
 }
 
 export function updateSubjectAssignments(subjectId: string, teachers: string[], students: string[]) {
   demoSubjectsState = demoSubjectsState.map((subject) =>
     subject.id === subjectId ? { ...subject, teachers, students } : subject,
   );
+  saveSubjects(demoSubjectsState); // Persist to disk
   return demoSubjectsState.find((subject) => subject.id === subjectId) || null;
 }
 
-export function getPrimaryRole(roles: string[] = []) {
-  if (roles.includes('SUPER_ADMIN')) return 'SUPER_ADMIN';
-  if (roles.includes('SUBJECT_ADMIN')) return 'SUBJECT_ADMIN';
-  if (roles.includes('TEACHER')) return 'TEACHER';
-  return 'STUDENT';
-}
-
-export function getHomeRouteForRoles(locale: string, roles: string[] = []) {
-  const primaryRole = getPrimaryRole(roles);
-  if (primaryRole === 'SUPER_ADMIN' || primaryRole === 'SUBJECT_ADMIN') {
-    return `/${locale}/admin`;
-  }
-  if (primaryRole === 'TEACHER') {
-    return `/${locale}/teacher`;
-  }
-  return `/${locale}/dashboard`;
-}
-
-export function hasPermission(user: { permissions?: string[] } | null | undefined, permission: DemoPermission) {
-  return Boolean(user?.permissions?.includes(permission));
-}

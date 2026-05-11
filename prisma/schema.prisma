@@ -49,6 +49,15 @@ model User {
   concernReports    ConcernReport[]
   counselorSessions CounselorSession[] @relation("StudentSessions")
   counselorSessionsAsProvider CounselorSession[] @relation("CounselorSessions")
+  
+  // Adaptive assessment relations
+  skillMasteries    SkillMastery[]
+  questionAttempts  QuestionAttempt[]
+  practiceSessions  PracticeSession[]
+  reviewSchedules   ReviewSchedule[]
+  
+  // Content review relations
+  reviewedContent   ScrapedContent[] @relation("ContentReviewer")
 
   @@index([email])
   @@index([phone])
@@ -195,6 +204,7 @@ model Subject {
 
   courses     Course[]
   strands     Strand[]
+  skills      Skill[]
 }
 
 model Strand {
@@ -485,17 +495,32 @@ model Question {
   points        Int           @default(1)
   gradeLevelId  String?
   standardId    String?
+  skillId       String?
+  
+  // IRT (Item Response Theory) parameters
+  irtDifficulty Float?        // -3.0 to +3.0 (b parameter)
+  irtDiscrimination Float?     // 0.5 to 2.5 (a parameter) 
+  irtGuessing   Float?        // 0.0 to 0.25 (c parameter)
+  
+  // Additional metadata
+  timeEstimate  Int?          // Seconds
+  hints         Json?         // Array of hint strings
+  commonMisconceptions Json?  // Array of misconception objects
   metadata      Json?
+  
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
   gradeLevel    GradeLevel?   @relation(fields: [gradeLevelId], references: [id])
   standard      Standard?     @relation(fields: [standardId], references: [id])
+  skill         Skill?        @relation(fields: [skillId], references: [id])
   options       QuestionOption[]
   assessmentQuestions AssessmentQuestion[]
   attemptAnswers AttemptAnswer[]
+  questionAttempts QuestionAttempt[]
 
   @@index([difficulty, bloomLevel])
+  @@index([skillId, irtDifficulty])
 }
 
 model QuestionOption {
@@ -1398,6 +1423,167 @@ enum SessionType {
   PHONE
 }
 
+// ============================================
+// ADAPTIVE ASSESSMENT & MASTERY TRACKING
+// ============================================
+
+model Skill {
+  id            String   @id @default(cuid())
+  subjectId     String
+  strandId      String?
+  code          String   @unique
+  name          String
+  nameFA        String?
+  description   String?
+  descriptionFA String?
+  gradeBandMin  GradeBand
+  gradeBandMax  GradeBand
+  order         Int
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  subject       Subject  @relation(fields: [subjectId], references: [id])
+  
+  questions     Question[]
+  prerequisites SkillPrerequisite[] @relation("PrerequisiteSkill")
+  dependents    SkillPrerequisite[] @relation("DependentSkill")
+  masteryRecords SkillMastery[]
+  practiceSessionsessions PracticeSession[]
+  reviewSchedules ReviewSchedule[]
+}
+
+model SkillPrerequisite {
+  id              String   @id @default(cuid())
+  skillId         String
+  prerequisiteId  String
+  isRequired      Boolean  @default(true)  // true = must master, false = recommended
+  
+  skill           Skill    @relation("DependentSkill", fields: [skillId], references: [id], onDelete: Cascade)
+  prerequisite    Skill    @relation("PrerequisiteSkill", fields: [prerequisiteId], references: [id], onDelete: Cascade)
+  
+  @@unique([skillId, prerequisiteId])
+}
+
+model SkillMastery {
+  id                  String    @id @default(cuid())
+  userId              String
+  skillId             String
+  abilityEstimate     Float     @default(0.0)  // IRT theta parameter (-3 to +3)
+  masteryScore        Int       @default(0)    // 0-100 scale
+  questionsAttempted  Int       @default(0)
+  questionsCorrect    Int       @default(0)
+  averageTimeSeconds  Int?
+  lastPracticedAt     DateTime?
+  firstMasteredAt     DateTime?
+  status              MasteryStatus @default(NOT_STARTED)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skill               Skill     @relation(fields: [skillId], references: [id])
+  
+  @@unique([userId, skillId])
+  @@index([userId, status])
+  @@index([skillId, status])
+}
+
+model QuestionAttempt {
+  id                    String    @id @default(cuid())
+  userId                String
+  questionId            String
+  skillId               String
+  sessionId             String?
+  isCorrect             Boolean
+  timeSpentSeconds      Int
+  attemptNumber         Int       @default(1)
+  hintsUsed             Int       @default(0)
+  studentAnswer         String?
+  abilityBeforeAttempt  Float
+  abilityAfterAttempt   Float
+  questionDifficulty    Float
+  createdAt             DateTime  @default(now())
+  
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  question              Question  @relation(fields: [questionId], references: [id])
+  session               PracticeSession? @relation(fields: [sessionId], references: [id])
+  
+  @@index([userId, skillId, createdAt])
+  @@index([questionId])
+  @@index([sessionId])
+}
+
+model PracticeSession {
+  id                  String    @id @default(cuid())
+  userId              String
+  skillId             String
+  questionsAttempted  Int       @default(0)
+  questionsCorrect    Int       @default(0)
+  durationSeconds     Int       @default(0)
+  startedAt           DateTime  @default(now())
+  completedAt         DateTime?
+  sessionType         PracticeSessionType @default(PRACTICE)
+  exitReason          ExitReason?
+  masteryBefore       Int
+  masteryAfter        Int?
+  xpEarned            Int       @default(0)
+  
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skill               Skill     @relation(fields: [skillId], references: [id])
+  attempts            QuestionAttempt[]
+  
+  @@index([userId, completedAt])
+  @@index([skillId])
+}
+
+model ReviewSchedule {
+  id              String    @id @default(cuid())
+  userId          String
+  skillId         String
+  nextReviewDate  DateTime
+  intervalDays    Int       @default(1)
+  easeFactor      Float     @default(2.5)  // Spaced repetition ease factor
+  reviewCount     Int       @default(0)
+  lastReviewedAt  DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skill           Skill     @relation(fields: [skillId], references: [id])
+  
+  @@unique([userId, skillId])
+  @@index([userId, nextReviewDate])
+}
+
+// ============================================
+// ENUMS FOR ADAPTIVE ASSESSMENT
+// ============================================
+
+enum MasteryStatus {
+  NOT_STARTED
+  STRUGGLING    // 0-49%
+  DEVELOPING    // 50-69%
+  PROFICIENT    // 70-84%
+  MASTERED      // 85-94%
+  EXPERT        // 95-100%
+}
+
+enum PracticeSessionType {
+  INITIAL       // First assessment
+  PRACTICE      // Regular practice
+  REMEDIATION   // Targeted intervention
+  ENRICHMENT    // Challenge problems
+  REVIEW        // Spaced repetition
+}
+
+enum ExitReason {
+  COMPLETED     // Finished planned questions
+  TIMEOUT       // Session time limit reached
+  QUIT          // Student chose to exit
+  MASTERED      // Achieved mastery threshold
+  FRUSTRATED    // Multiple consecutive errors
+}
+
 enum SessionStatus {
   SCHEDULED
   IN_PROGRESS
@@ -1453,4 +1639,145 @@ enum PaymentStatus {
   COMPLETED
   FAILED
   REFUNDED
+}
+
+// ============================================
+// CONTENT SCRAPING & IMPORT SYSTEM
+// ============================================
+
+model ContentSource {
+  id                String   @id @default(cuid())
+  name              String   // "Khan Academy", "OpenStax", etc.
+  nameFA            String?
+  url               String   @unique
+  description       String?
+  descriptionFA     String?
+  isActive          Boolean  @default(true)
+  respectsRobotsTxt Boolean  @default(true)
+  rateLimit         Int      @default(1000) // milliseconds between requests
+  lastScrapedAt     DateTime?
+  totalItemsScraped Int      @default(0)
+  successRate       Float    @default(0)
+  apiKey            String?  // For platforms with APIs
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  scrapedContent    ScrapedContent[]
+  
+  @@index([isActive, lastScrapedAt])
+}
+
+model ScrapedContent {
+  id                    String   @id @default(cuid())
+  sourceId              String
+  sourceUrl             String   // Original URL
+  contentType           ScrapedContentType
+  
+  // Subject/Skill mapping
+  subjectCode           String?  // e.g., "MATH", "SCIENCE"
+  strandCode            String?
+  skillCode             String?
+  gradeLevel            Int?
+  
+  // Question data (if contentType = QUESTION)
+  questionText          String?  @db.Text
+  questionTextFA        String?  @db.Text
+  questionType          QuestionType?
+  options               Json?    // Array of options with text and isCorrect
+  correctAnswer         String?
+  explanation           String?  @db.Text
+  explanationFA         String?  @db.Text
+  hints                 Json?    // Array of hint strings
+  difficultyEstimate    Float?   // Initial difficulty estimate -3 to +3
+  
+  // Skill/Topic data (if contentType = SKILL or TOPIC)
+  topicName             String?
+  topicNameFA           String?
+  topicDescription      String?  @db.Text
+  topicDescriptionFA    String?  @db.Text
+  
+  // Review workflow
+  reviewStatus          ContentReviewStatus @default(PENDING)
+  reviewedBy            String?
+  reviewedAt            DateTime?
+  rejectionReason       String?  @db.Text
+  
+  // Attribution
+  originalAuthor        String?
+  license               String?  // "CC BY", "Public Domain", etc.
+  attributionRequired   Boolean  @default(true)
+  
+  // Import metadata
+  rawData               Json?    // Original scraped data
+  scrapedAt             DateTime @default(now())
+  importedAt            DateTime?
+  
+  source                ContentSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  reviewer              User?         @relation("ContentReviewer", fields: [reviewedBy], references: [id])
+  
+  @@index([reviewStatus, contentType])
+  @@index([sourceId, scrapedAt])
+  @@index([subjectCode, gradeLevel])
+}
+
+model ContentImportJob {
+  id              String   @id @default(cuid())
+  sourceId        String
+  jobType         ImportJobType
+  status          JobStatus @default(PENDING)
+  
+  // Job parameters
+  targetUrl       String?
+  gradeRange      Json?    // { min: 1, max: 12 }
+  subjects        Json?    // Array of subject codes
+  maxItems        Int?     // Limit items to scrape
+  
+  // Progress tracking
+  itemsProcessed  Int      @default(0)
+  itemsSucceeded  Int      @default(0)
+  itemsFailed     Int      @default(0)
+  
+  // Results
+  startedAt       DateTime?
+  completedAt     DateTime?
+  errorMessage    String?  @db.Text
+  errorLog        Json?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([status, createdAt])
+}
+
+// ============================================
+// ENUMS FOR CONTENT SCRAPING
+// ============================================
+
+enum ScrapedContentType {
+  QUESTION       // Practice problem
+  SKILL          // Skill/learning objective
+  TOPIC          // Topic/unit
+  RESOURCE       // Article, video, etc.
+}
+
+enum ContentReviewStatus {
+  PENDING        // Awaiting review
+  APPROVED       // Approved and imported
+  REJECTED       // Rejected
+  NEEDS_EDIT     // Needs modification before approval
+}
+
+enum ImportJobType {
+  FULL_SCRAPE    // Complete site scrape
+  INCREMENTAL    // Only new content
+  SPECIFIC_TOPIC // Target specific topic/skill
+  MANUAL_IMPORT  // Manual file upload
+}
+
+enum JobStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
 }

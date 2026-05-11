@@ -1,0 +1,59 @@
+{
+  "startedAt": "2026-05-10T19:13:28.288Z",
+  "baseUrl": "http://127.0.0.1:3000",
+  "summary": {
+    "passedChecks": 2,
+    "failedChecks": 2,
+    "warnings": 3
+  },
+  "createdUsers": [
+    {
+      "id": "cmp05i27f00f27lyeh32i58gm",
+      "email": "audit.student.1778440408456@danesh.app",
+      "source": "api-seed"
+    }
+  ],
+  "createdCourses": [],
+  "routes": [],
+  "apiChecks": [
+    {
+      "status": "PASS",
+      "name": "Create disposable student",
+      "details": "audit.student.1778440408456@danesh.app"
+    },
+    {
+      "status": "PASS",
+      "name": "Cleanup disposable user",
+      "details": "cmp05i27f00f27lyeh32i58gm"
+    }
+  ],
+  "workflows": [
+    {
+      "status": "FAIL",
+      "name": "Public registration flow",
+      "details": "locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: /Iranian National Curriculum|Iranian/i })\u001b[22m\n"
+    },
+    {
+      "status": "FAIL",
+      "name": "Parent registration flow",
+      "details": "page.goto: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:3000/en/register\", waiting until \"networkidle\"\u001b[22m\n"
+    }
+  ],
+  "warnings": [
+    {
+      "name": "public registration workflow browser issues",
+      "details": "Console errors: 10, page errors: 0 | Sample: Failed to load resource: the server responded with a status of 404 (Not Found) | Refused to execute script from 'http://127.0.0.1:3000/_next/static/chunks/main-app.js?v=1778440409726' because its MIME type ('text/html') is not executable, and strict MIME type checking is enabled."
+    },
+    {
+      "name": "parent registration workflow browser issues",
+      "details": "Console errors: 26, page errors: 0 | Sample: Failed to load resource: the server responded with a status of 500 (Internal Server Error) | Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+    },
+    {
+      "name": "Browser audit unavailable",
+      "details": "page.goto: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:3000/en/login\", waiting until \"networkidle\"\u001b[22m\n"
+    }
+  ],
+  "failures": [],
+  "browserAvailable": true,
+  "finishedAt": "2026-05-10T19:15:02.922Z"
+}

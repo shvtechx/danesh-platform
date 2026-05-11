@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { FeedbackBanner } from '@/components/ui/feedback-banner';
+import { createUserHeaders, getStoredUserId } from '@/lib/auth/demo-auth-shared';
 import { 
-  BookOpen, ArrowLeft, ArrowRight, Plus, Search, Filter,
+  BookOpen, ArrowLeft, ArrowRight, Plus, Search,
   MoreVertical, Edit, Trash2, Eye, Users, FileText, Clock,
   ChevronRight, ChevronLeft, Calendar, BarChart, Copy, Archive
 } from 'lucide-react';
@@ -14,86 +16,104 @@ interface Course {
   title: string;
   description: string;
   grade: string;
+  gradeCode: string;
   subject: string;
+  subjectCode: string;
   students: number;
   lessons: number;
-  status: 'published' | 'draft' | 'archived';
+  status: 'published' | 'draft';
   progress: number;
   createdAt: string;
   lastUpdated: string;
 }
 
+function formatDate(value: string, locale: string) {
+  return new Intl.DateTimeFormat(locale === 'fa' ? 'fa-IR' : 'en-US', {
+    month: 'short',
+    day: 'numeric',
+  }).format(new Date(value));
+}
+
 export default function TeacherCourses({ params: { locale } }: { params: { locale: string } }) {
-  const t = useTranslations();
+  const router = useRouter();
   const isRTL = locale === 'fa';
   const Arrow = isRTL ? ArrowRight : ArrowLeft;
   const NavArrow = isRTL ? ChevronLeft : ChevronRight;
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'published' | 'draft'>('all');
   const [showMenu, setShowMenu] = useState<string | null>(null);
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [feedback, setFeedback] = useState<{ variant: 'success' | 'error' | 'info'; message: string } | null>(null);
 
-  const courses: Course[] = [
-    {
-      id: '1',
-      title: isRTL ? 'ریاضی پایه هشتم' : 'Grade 8 Mathematics',
-      description: isRTL ? 'آموزش کامل ریاضی پایه هشتم مطابق با کتاب درسی' : 'Complete Grade 8 Math curriculum',
-      grade: isRTL ? 'هشتم' : '8th',
-      subject: isRTL ? 'ریاضی' : 'Math',
-      students: 45,
-      lessons: 24,
-      status: 'published',
-      progress: 65,
-      createdAt: '2024-01-15',
-      lastUpdated: '2024-12-23',
-    },
-    {
-      id: '2',
-      title: isRTL ? 'ریاضی پایه نهم' : 'Grade 9 Mathematics',
-      description: isRTL ? 'آموزش معادلات و تابع‌ها' : 'Equations and functions',
-      grade: isRTL ? 'نهم' : '9th',
-      subject: isRTL ? 'ریاضی' : 'Math',
-      students: 38,
-      lessons: 20,
-      status: 'published',
-      progress: 40,
-      createdAt: '2024-02-01',
-      lastUpdated: '2024-12-20',
-    },
-    {
-      id: '3',
-      title: isRTL ? 'هندسه پایه دهم' : 'Grade 10 Geometry',
-      description: isRTL ? 'هندسه تحلیلی و برداری' : 'Analytical and vector geometry',
-      grade: isRTL ? 'دهم' : '10th',
-      subject: isRTL ? 'هندسه' : 'Geometry',
-      students: 52,
-      lessons: 18,
-      status: 'published',
-      progress: 85,
-      createdAt: '2024-03-10',
-      lastUpdated: '2024-12-24',
-    },
-    {
-      id: '4',
-      title: isRTL ? 'جبر پیشرفته' : 'Advanced Algebra',
-      description: isRTL ? 'دوره تکمیلی جبر برای المپیاد' : 'Olympiad preparation algebra',
-      grade: isRTL ? 'یازدهم' : '11th',
-      subject: isRTL ? 'ریاضی' : 'Math',
-      students: 0,
-      lessons: 8,
-      status: 'draft',
-      progress: 30,
-      createdAt: '2024-12-01',
-      lastUpdated: '2024-12-22',
-    },
-  ];
+  useEffect(() => {
+    const loadCourses = async () => {
+      try {
+        setLoading(true);
+        setFeedback(null);
 
-  const filteredCourses = courses.filter(course => {
-    const matchesSearch = course.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         course.description.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = filterStatus === 'all' || course.status === filterStatus;
-    return matchesSearch && matchesStatus;
-  });
+        const response = await fetch(`/api/v1/teacher/courses?locale=${locale}`, {
+          headers: createUserHeaders(getStoredUserId()),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to load teacher courses');
+        }
+
+        const data = await response.json();
+        setCourses(data.courses || []);
+      } catch {
+        setCourses([]);
+        setFeedback({
+          variant: 'error',
+          message: isRTL ? 'بارگذاری دوره‌های معلم ممکن نبود.' : 'Teacher courses could not be loaded.',
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    void loadCourses();
+  }, [isRTL, locale]);
+
+  const handleCourseAction = (course: Course, action: 'duplicate' | 'analytics' | 'archive' | 'delete') => {
+    if (action === 'analytics') {
+      router.push(`/${locale}/teacher/analytics`);
+      setShowMenu(null);
+      return;
+    }
+
+    setFeedback({
+      variant: 'info',
+      message: isRTL
+        ? 'این عمل هنوز به جریان ویرایش دوره متصل نشده است.'
+        : 'This action is not yet connected to the course editing workflow.',
+    });
+    setShowMenu(null);
+  };
+
+  const filteredCourses = useMemo(
+    () => courses.filter((course) => {
+      const matchesSearch = [course.title, course.description, course.subject, course.grade]
+        .join(' ')
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase());
+      const matchesStatus = filterStatus === 'all' || course.status === filterStatus;
+      return matchesSearch && matchesStatus;
+    }),
+    [courses, filterStatus, searchQuery],
+  );
+
+  const stats = useMemo(
+    () => ({
+      totalCourses: courses.length,
+      published: courses.filter((course) => course.status === 'published').length,
+      drafts: courses.filter((course) => course.status === 'draft').length,
+      students: courses.reduce((sum, course) => sum + course.students, 0),
+    }),
+    [courses],
+  );
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -107,12 +127,6 @@ export default function TeacherCourses({ params: { locale } }: { params: { local
         return (
           <span className="px-2 py-1 rounded-full text-xs bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
             {isRTL ? 'پیش‌نویس' : 'Draft'}
-          </span>
-        );
-      case 'archived':
-        return (
-          <span className="px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400">
-            {isRTL ? 'آرشیو' : 'Archived'}
           </span>
         );
       default:
@@ -147,6 +161,8 @@ export default function TeacherCourses({ params: { locale } }: { params: { local
       </header>
 
       <div className="max-w-7xl mx-auto px-4 py-6">
+        {feedback ? <FeedbackBanner className="mb-6" variant={feedback.variant} message={feedback.message} /> : null}
+
         {/* Stats */}
         <div className="grid gap-4 sm:grid-cols-4 mb-6">
           <div className="bg-card border rounded-xl p-4 flex items-center gap-3">
@@ -154,7 +170,7 @@ export default function TeacherCourses({ params: { locale } }: { params: { local
               <BookOpen className="h-5 w-5 text-blue-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{courses.length}</p>
+              <p className="text-2xl font-bold">{stats.totalCourses}</p>
               <p className="text-sm text-muted-foreground">{isRTL ? 'کل دوره‌ها' : 'Total Courses'}</p>
             </div>
           </div>
@@ -163,7 +179,7 @@ export default function TeacherCourses({ params: { locale } }: { params: { local
               <Eye className="h-5 w-5 text-green-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{courses.filter(c => c.status === 'published').length}</p>
+              <p className="text-2xl font-bold">{stats.published}</p>
               <p className="text-sm text-muted-foreground">{isRTL ? 'منتشر شده' : 'Published'}</p>
             </div>
           </div>
@@ -172,7 +188,7 @@ export default function TeacherCourses({ params: { locale } }: { params: { local
               <Edit className="h-5 w-5 text-yellow-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{courses.filter(c => c.status === 'draft').length}</p>
+              <p className="text-2xl font-bold">{stats.drafts}</p>
               <p className="text-sm text-muted-foreground">{isRTL ? 'پیش‌نویس' : 'Drafts'}</p>
             </div>
           </div>
@@ -181,7 +197,7 @@ export default function TeacherCourses({ params: { locale } }: { params: { local
               <Users className="h-5 w-5 text-purple-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{courses.reduce((sum, c) => sum + c.students, 0)}</p>
+              <p className="text-2xl font-bold">{stats.students}</p>
               <p className="text-sm text-muted-foreground">{isRTL ? 'کل دانش‌آموزان' : 'Total Students'}</p>
             </div>
           </div>
@@ -200,10 +216,10 @@ export default function TeacherCourses({ params: { locale } }: { params: { local
             />
           </div>
           <div className="flex gap-2">
-            {['all', 'published', 'draft', 'archived'].map((status) => (
+            {['all', 'published', 'draft'].map((status) => (
               <button
                 key={status}
-                onClick={() => setFilterStatus(status)}
+                onClick={() => setFilterStatus(status as 'all' | 'published' | 'draft')}
                 className={`px-4 py-2 rounded-lg text-sm transition-colors ${
                   filterStatus === status 
                     ? 'bg-primary text-primary-foreground' 
@@ -212,8 +228,7 @@ export default function TeacherCourses({ params: { locale } }: { params: { local
               >
                 {status === 'all' ? (isRTL ? 'همه' : 'All') :
                  status === 'published' ? (isRTL ? 'منتشر شده' : 'Published') :
-                 status === 'draft' ? (isRTL ? 'پیش‌نویس' : 'Draft') :
-                 (isRTL ? 'آرشیو' : 'Archived')}
+                 (isRTL ? 'پیش‌نویس' : 'Draft')}
               </button>
             ))}
           </div>
@@ -221,11 +236,15 @@ export default function TeacherCourses({ params: { locale } }: { params: { local
 
         {/* Courses List */}
         <div className="space-y-4">
-          {filteredCourses.length === 0 ? (
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            </div>
+          ) : filteredCourses.length === 0 ? (
             <div className="text-center py-12 bg-card border rounded-xl">
               <BookOpen className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
               <p className="text-muted-foreground">
-                {isRTL ? 'دوره‌ای یافت نشد' : 'No courses found'}
+                {isRTL ? 'هیچ دوره تخصیص‌یافته‌ای یافت نشد.' : 'No assigned courses were found.'}
               </p>
             </div>
           ) : (
@@ -275,20 +294,20 @@ export default function TeacherCourses({ params: { locale } }: { params: { local
                               <Eye className="h-4 w-4" />
                               {isRTL ? 'مشاهده' : 'View'}
                             </Link>
-                            <button className="w-full flex items-center gap-2 px-4 py-2 hover:bg-muted">
+                            <button type="button" onClick={() => handleCourseAction(course, 'duplicate')} className="w-full flex items-center gap-2 px-4 py-2 hover:bg-muted">
                               <Copy className="h-4 w-4" />
                               {isRTL ? 'کپی دوره' : 'Duplicate'}
                             </button>
-                            <button className="w-full flex items-center gap-2 px-4 py-2 hover:bg-muted">
+                            <button type="button" onClick={() => handleCourseAction(course, 'analytics')} className="w-full flex items-center gap-2 px-4 py-2 hover:bg-muted">
                               <BarChart className="h-4 w-4" />
                               {isRTL ? 'تحلیل‌ها' : 'Analytics'}
                             </button>
                             <div className="border-t my-1" />
-                            <button className="w-full flex items-center gap-2 px-4 py-2 hover:bg-muted">
+                            <button type="button" onClick={() => handleCourseAction(course, 'archive')} className="w-full flex items-center gap-2 px-4 py-2 hover:bg-muted">
                               <Archive className="h-4 w-4" />
                               {isRTL ? 'آرشیو کردن' : 'Archive'}
                             </button>
-                            <button className="w-full flex items-center gap-2 px-4 py-2 hover:bg-destructive/10 text-destructive">
+                            <button type="button" onClick={() => handleCourseAction(course, 'delete')} className="w-full flex items-center gap-2 px-4 py-2 hover:bg-destructive/10 text-destructive">
                               <Trash2 className="h-4 w-4" />
                               {isRTL ? 'حذف' : 'Delete'}
                             </button>
@@ -309,11 +328,11 @@ export default function TeacherCourses({ params: { locale } }: { params: { local
                       </span>
                       <span className="flex items-center gap-1">
                         <Calendar className="h-4 w-4" />
-                        {isRTL ? `پایه ${course.grade}` : `Grade ${course.grade}`}
+                        {course.grade}
                       </span>
                       <span className="flex items-center gap-1">
                         <Clock className="h-4 w-4" />
-                        {isRTL ? 'آخرین بروزرسانی:' : 'Updated:'} {course.lastUpdated}
+                        {isRTL ? 'آخرین بروزرسانی:' : 'Updated:'} {formatDate(course.lastUpdated, locale)}
                       </span>
                     </div>
 

@@ -1,0 +1,18 @@
+import { NextRequest, NextResponse } from 'next/server';
+import prisma from '@/lib/db';
+
+export async function GET(request: NextRequest) {
+  try {
+    const subjects = await prisma.subject.findMany({
+      orderBy: { name: 'asc' },
+    });
+
+    return NextResponse.json({ subjects });
+  } catch (error) {
+    console.error('Error fetching subjects:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch subjects' },
+      { status: 500 }
+    );
+  }
+}

@@ -2,24 +2,45 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { 
   BookOpen, Users, FileText, BarChart, MessageSquare, 
   Plus, Edit, Eye, Clock, TrendingUp, Award, Calendar,
-  ChevronRight, ChevronLeft, Settings, Bell, User, LogOut
+  ChevronRight, ChevronLeft, Settings, Bell, User, LogOut,
+  Brain, Target, CheckCircle
 } from 'lucide-react';
 import { ImpersonationBanner } from '@/components/auth/ImpersonationBanner';
-import { AUTH_STORAGE_KEY, ORIGINAL_USER_STORAGE_KEY, USER_ID_STORAGE_KEY } from '@/lib/auth/demo-users';
+import { getLocalizedSubjectName } from '@/lib/admin/teacher-metadata';
+import { AUTH_STORAGE_KEY, ORIGINAL_USER_STORAGE_KEY, USER_ID_STORAGE_KEY, createUserHeaders, getStoredUserId } from '@/lib/auth/demo-auth-shared';
+import { isDemoDataEnabled } from '@/lib/demo/demo-mode';
+
+function formatDashboardDate(value: string | Date | null | undefined, locale: string) {
+  if (!value) {
+    return locale === 'fa' ? '—' : '—';
+  }
+
+  return new Intl.DateTimeFormat(locale === 'fa' ? 'fa-IR' : 'en-US', {
+    month: 'short',
+    day: 'numeric',
+  }).format(new Date(value));
+}
 
 export default function TeacherDashboard({ params: { locale } }: { params: { locale: string } }) {
   const t = useTranslations();
   const router = useRouter();
   const isRTL = locale === 'fa';
+  const demoDataEnabled = isDemoDataEnabled();
   const Arrow = isRTL ? ChevronLeft : ChevronRight;
   const [authUser, setAuthUser] = useState<any>(null);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [studentProgress, setStudentProgress] = useState<any>(null);
+  const [loadingProgress, setLoadingProgress] = useState(true);
+  const shouldUseDemoFallback = useMemo(
+    () => demoDataEnabled && String(authUser?.id || '').startsWith('demo-'),
+    [authUser?.id, demoDataEnabled],
+  );
 
   useEffect(() => {
     try {
@@ -30,28 +51,64 @@ export default function TeacherDashboard({ params: { locale } }: { params: { loc
     } catch {
       setAuthUser(null);
     }
+    
+    loadStudentProgress();
   }, []);
 
+  const loadStudentProgress = async () => {
+    try {
+      const res = await fetch(`/api/v1/teacher/student-progress?locale=${locale}`, {
+        headers: createUserHeaders(getStoredUserId()),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setStudentProgress(data);
+      }
+    } catch (error) {
+      console.error('Error loading student progress:', error);
+    } finally {
+      setLoadingProgress(false);
+    }
+  };
+
   const teacherName = useMemo(
-    () => authUser?.profile?.displayName || (isRTL ? 'دکتر احمدی' : 'Dr. Ahmadi'),
-    [authUser, isRTL],
+    () => authUser?.profile?.displayName || (shouldUseDemoFallback ? (isRTL ? 'دکتر احمدی' : 'Dr. Ahmadi') : (isRTL ? 'معلم' : 'Teacher')),
+    [authUser, isRTL, shouldUseDemoFallback],
   );
 
   const assignedSubject = useMemo(
-    () => authUser?.assignedSubjects?.[0] || (isRTL ? 'ریاضی' : 'Mathematics'),
-    [authUser, isRTL],
+    () => {
+      const subjectCode = authUser?.assignedSubjectCodes?.[0];
+      if (subjectCode) {
+        return getLocalizedSubjectName(subjectCode, locale);
+      }
+
+      if (authUser?.assignedSubjects?.[0]) {
+        return authUser.assignedSubjects[0];
+      }
+
+      return shouldUseDemoFallback ? (isRTL ? 'ریاضی' : 'Mathematics') : (isRTL ? 'بدون تخصیص' : 'Unassigned');
+    },
+    [authUser, isRTL, locale, shouldUseDemoFallback],
   );
 
-  const stats = {
+  const stats = shouldUseDemoFallback ? {
     totalStudents: 156,
     activeCourses: 4,
     totalLessons: 48,
     pendingReviews: 12,
     avgProgress: 67,
     thisWeekXP: 2450,
+  } : {
+    totalStudents: studentProgress?.summary?.totalStudents || 0,
+    activeCourses: studentProgress?.courseSummaries?.length || 0,
+    totalLessons: studentProgress?.courseSummaries?.reduce((sum: number, course: any) => sum + (course.lessons || 0), 0) || 0,
+    pendingReviews: 0,
+    avgProgress: studentProgress?.summary?.averageMastery || 0,
+    thisWeekXP: 0,
   };
 
-  const myCourses = [
+  const myCourses = shouldUseDemoFallback ? [
     {
       id: '1',
       title: isRTL ? 'ریاضی پایه هشتم' : 'Grade 8 Mathematics',
@@ -76,9 +133,16 @@ export default function TeacherDashboard({ params: { locale } }: { params: { loc
       progress: 85,
       lastUpdated: isRTL ? 'امروز' : 'Today',
     },
-  ];
+  ] : (studentProgress?.courseSummaries || []).map((course: any) => ({
+    id: course.id,
+    title: course.title,
+    students: course.students,
+    lessons: course.lessons,
+    progress: course.progress,
+    lastUpdated: formatDashboardDate(course.updatedAt, locale),
+  }));
 
-  const recentActivity = [
+  const recentActivity = shouldUseDemoFallback ? [
     {
       type: 'submission',
       student: isRTL ? 'علی احمدی' : 'Ali Ahmadi',
@@ -98,15 +162,29 @@ export default function TeacherDashboard({ params: { locale } }: { params: { loc
       action: isRTL ? 'درس هندسه را تکمیل کرد' : 'completed Geometry lesson',
       time: isRTL ? '۳۰ دقیقه پیش' : '30 min ago',
     },
-  ];
+  ] : (studentProgress?.recentSessions || []).slice(0, 5).map((session: any) => ({
+    type: 'practice',
+    student: session.studentName,
+    action: isRTL ? `تمرین ${session.skillName} در ${session.subject}` : `practiced ${session.skillName} in ${session.subject}`,
+    time: formatDashboardDate(session.startedAt, locale),
+    score: session.accuracy,
+  }));
 
-  const topStudents = [
+  const topStudents = shouldUseDemoFallback ? [
     { name: isRTL ? 'علی احمدی' : 'Ali Ahmadi', xp: 2450, progress: 92 },
     { name: isRTL ? 'سارا محمدی' : 'Sara Mohammadi', xp: 2280, progress: 88 },
     { name: isRTL ? 'محمد رضایی' : 'Mohammad Rezaei', xp: 2100, progress: 85 },
-  ];
+  ] : (studentProgress?.students || [])
+    .slice()
+    .sort((a: any, b: any) => b.averageMastery - a.averageMastery)
+    .slice(0, 3)
+    .map((student: any) => ({
+      name: student.studentName,
+      xp: student.totalAttempts * 10,
+      progress: student.averageMastery,
+    }));
 
-  const notifications = [
+  const notifications = shouldUseDemoFallback ? [
     {
       id: 'n1',
       title: isRTL ? 'پاسخ جدید برای سوال دانش‌آموز' : 'New reply on student question',
@@ -122,7 +200,13 @@ export default function TeacherDashboard({ params: { locale } }: { params: { loc
       title: isRTL ? 'برنامه هفتگی به‌روزرسانی شد' : 'Weekly schedule updated',
       time: isRTL ? 'دیروز' : 'Yesterday',
     },
-  ];
+  ] : (studentProgress?.recentSessions || []).slice(0, 3).map((session: any) => ({
+    id: session.id,
+    title: isRTL
+      ? `${session.studentName} تمرین ${session.skillName} را تکمیل کرد`
+      : `${session.studentName} completed ${session.skillName} practice`,
+    time: formatDashboardDate(session.startedAt, locale),
+  }));
 
   const handleLogout = () => {
     localStorage.removeItem(AUTH_STORAGE_KEY);
@@ -168,7 +252,7 @@ export default function TeacherDashboard({ params: { locale } }: { params: { loc
                       <p className="font-semibold">{isRTL ? 'اعلان‌ها' : 'Notifications'}</p>
                     </div>
                     <div className="max-h-80 overflow-y-auto">
-                      {notifications.map((item) => (
+                      {notifications.map((item: any) => (
                         <button
                           key={item.id}
                           className="w-full px-3 py-3 text-start hover:bg-muted transition-colors border-b last:border-0"
@@ -331,6 +415,180 @@ export default function TeacherDashboard({ params: { locale } }: { params: { loc
               </Link>
             </div>
 
+            {/* Teacher Leaderboard CTA */}
+            <Link
+              href={`/${locale}/teacher/leaderboard`}
+              className="flex items-center justify-between p-4 bg-gradient-to-r from-violet-600 to-indigo-600 text-white rounded-xl hover:opacity-90 transition-opacity"
+            >
+              <div className="flex items-center gap-3">
+                <Award className="h-6 w-6" />
+                <div>
+                  <p className="font-semibold">{isRTL ? 'تابلوی افتخار معلمان 🏆' : "Teachers' Leaderboard 🏆"}</p>
+                  <p className="text-xs text-white/70">{isRTL ? 'ببینید در بین همکاران کجا قرار دارید' : 'See how you rank among your peers'}</p>
+                </div>
+              </div>
+              <ChevronRight className="h-5 w-5 text-white/70" />
+            </Link>
+
+            {/* Adaptive Assessment Student Progress */}
+            <div className="bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 dark:from-emerald-950/20 dark:via-teal-950/20 dark:to-cyan-950/20 border-2 border-emerald-200 dark:border-emerald-800 rounded-2xl p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white">
+                    <Brain className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+                      {isRTL ? 'گزارش ارزیابی تطبیقی' : 'Adaptive Assessment Reports'}
+                    </h2>
+                    <p className="text-sm text-slate-600 dark:text-slate-400">
+                      {isRTL ? 'پیشرفت دانش‌آموزان در سیستم تمرین هوشمند' : 'Student progress in smart practice system'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {loadingProgress ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+                </div>
+              ) : studentProgress?.students?.length > 0 ? (
+                <>
+                  {/* Summary Stats */}
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                    <div className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm rounded-xl p-4 border border-emerald-200/50 dark:border-emerald-800/50">
+                      <div className="flex items-center justify-between mb-2">
+                        <Users className="h-5 w-5 text-emerald-600" />
+                        <span className="text-2xl font-bold text-slate-900 dark:text-white">
+                          {studentProgress.summary.studentsWithProgress}
+                        </span>
+                      </div>
+                      <p className="text-sm text-slate-600 dark:text-slate-400">
+                        {isRTL ? 'دانش‌آموز فعال' : 'Active Students'}
+                      </p>
+                    </div>
+
+                    <div className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm rounded-xl p-4 border border-emerald-200/50 dark:border-emerald-800/50">
+                      <div className="flex items-center justify-between mb-2">
+                        <Target className="h-5 w-5 text-teal-600" />
+                        <span className="text-2xl font-bold text-slate-900 dark:text-white">
+                          {studentProgress.summary.averageMastery}%
+                        </span>
+                      </div>
+                      <p className="text-sm text-slate-600 dark:text-slate-400">
+                        {isRTL ? 'میانگین تسلط' : 'Avg Mastery'}
+                      </p>
+                    </div>
+
+                    <div className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm rounded-xl p-4 border border-emerald-200/50 dark:border-emerald-800/50">
+                      <div className="flex items-center justify-between mb-2">
+                        <CheckCircle className="h-5 w-5 text-green-600" />
+                        <span className="text-2xl font-bold text-slate-900 dark:text-white">
+                          {studentProgress.students.reduce((sum: number, s: any) => sum + s.masteredSkills, 0)}
+                        </span>
+                      </div>
+                      <p className="text-sm text-slate-600 dark:text-slate-400">
+                        {isRTL ? 'مهارت‌های تسلط‌یافته' : 'Skills Mastered'}
+                      </p>
+                    </div>
+
+                    <div className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm rounded-xl p-4 border border-emerald-200/50 dark:border-emerald-800/50">
+                      <div className="flex items-center justify-between mb-2">
+                        <BarChart className="h-5 w-5 text-cyan-600" />
+                        <span className="text-2xl font-bold text-slate-900 dark:text-white">
+                          {studentProgress.summary.totalPracticeSessions}
+                        </span>
+                      </div>
+                      <p className="text-sm text-slate-600 dark:text-slate-400">
+                        {isRTL ? 'جلسات تمرین' : 'Practice Sessions'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Top Students */}
+                  <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm rounded-xl p-4 border border-emerald-200/50 dark:border-emerald-800/50">
+                    <h3 className="font-semibold text-slate-900 dark:text-white mb-3">
+                      {isRTL ? 'برترین دانش‌آموزان' : 'Top Performing Students'}
+                    </h3>
+                    <div className="space-y-2">
+                      {studentProgress.students
+                        .sort((a: any, b: any) => b.averageMastery - a.averageMastery)
+                        .slice(0, 5)
+                        .map((student: any, index: number) => (
+                          <div
+                            key={student.studentId}
+                            className="flex items-center justify-between p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 text-white font-bold text-sm">
+                                {index + 1}
+                              </div>
+                              <div>
+                                <p className="font-medium text-slate-900 dark:text-white">
+                                  {student.studentName}
+                                </p>
+                                <p className="text-xs text-slate-500 dark:text-slate-400">
+                                  {student.totalSkills} {isRTL ? 'مهارت' : 'skills'} • {student.masteredSkills} {isRTL ? 'تسلط‌یافته' : 'mastered'}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-lg font-bold text-emerald-600">
+                                {student.averageMastery}%
+                              </p>
+                              <p className="text-xs text-slate-500 dark:text-slate-400">
+                                {student.totalAttempts} {isRTL ? 'تلاش' : 'attempts'}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+
+                  {/* Recent Practice Sessions */}
+                  {studentProgress.recentSessions?.length > 0 && (
+                    <div className="mt-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm rounded-xl p-4 border border-emerald-200/50 dark:border-emerald-800/50">
+                      <h3 className="font-semibold text-slate-900 dark:text-white mb-3">
+                        {isRTL ? 'فعالیت‌های اخیر' : 'Recent Activity'}
+                      </h3>
+                      <div className="space-y-2 max-h-60 overflow-y-auto">
+                        {studentProgress.recentSessions.slice(0, 10).map((session: any) => (
+                          <div
+                            key={session.id}
+                            className="flex items-center justify-between p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 text-sm"
+                          >
+                            <div>
+                              <p className="font-medium text-slate-900 dark:text-white">
+                                {session.studentName}
+                              </p>
+                              <p className="text-xs text-slate-500 dark:text-slate-400">
+                                {session.skillName} • {session.subject}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-semibold text-emerald-600">
+                                {session.accuracy}% {isRTL ? 'دقت' : 'accuracy'}
+                              </p>
+                              <p className="text-xs text-slate-500 dark:text-slate-400">
+                                {session.questionsAnswered} {isRTL ? 'سوال' : 'questions'}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="text-center py-8">
+                  <Brain className="h-12 w-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
+                  <p className="text-slate-600 dark:text-slate-400">
+                    {isRTL ? 'هنوز داده‌ای وجود ندارد' : 'No student activity yet'}
+                  </p>
+                </div>
+              )}
+            </div>
+
             {/* My Courses */}
             <div className="bg-card border rounded-xl">
               <div className="p-4 border-b flex items-center justify-between">
@@ -344,7 +602,7 @@ export default function TeacherDashboard({ params: { locale } }: { params: { loc
                 </Link>
               </div>
               <div className="divide-y">
-                {myCourses.map((course) => (
+                {myCourses.map((course: any) => (
                   <Link
                     key={course.id}
                     href={`/${locale}/teacher/courses/${course.id}`}
@@ -393,7 +651,7 @@ export default function TeacherDashboard({ params: { locale } }: { params: { loc
                 <h2 className="font-semibold">{isRTL ? 'فعالیت‌های اخیر' : 'Recent Activity'}</h2>
               </div>
               <div className="divide-y">
-                {recentActivity.map((activity, idx) => (
+                {recentActivity.map((activity: any, idx: number) => (
                   <div key={idx} className="flex items-start gap-4 p-4">
                     <div className={`h-10 w-10 rounded-full flex items-center justify-center ${
                       activity.type === 'submission' ? 'bg-green-100 text-green-600' :
@@ -419,7 +677,7 @@ export default function TeacherDashboard({ params: { locale } }: { params: { loc
                       </div>
                     </div>
                     {activity.type === 'question' && (
-                      <button className="text-sm text-primary hover:underline">
+                      <button type="button" onClick={() => router.push(`/${locale}/forum`)} className="text-sm text-primary hover:underline">
                         {isRTL ? 'پاسخ' : 'Reply'}
                       </button>
                     )}
@@ -440,7 +698,7 @@ export default function TeacherDashboard({ params: { locale } }: { params: { loc
                 </h2>
               </div>
               <div className="p-4 space-y-4">
-                {topStudents.map((student, idx) => (
+                {topStudents.map((student: any, idx: number) => (
                   <div key={idx} className="flex items-center gap-3">
                     <span className={`h-6 w-6 rounded-full flex items-center justify-center text-sm font-bold ${
                       idx === 0 ? 'bg-amber-100 text-amber-700' :

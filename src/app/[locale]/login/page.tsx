@@ -19,7 +19,7 @@ import {
   Stars,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { getHomeRouteForRoles } from '@/lib/auth/demo-users';
+import { getHomeRouteForRoles } from '@/lib/auth/demo-auth-shared';
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -130,6 +130,14 @@ export default function LoginPage({ params: { locale } }: { params: { locale: st
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleSocialLogin = (provider: 'google' | 'apple') => {
+    setError(
+      isRTL
+        ? `ورود با ${provider === 'google' ? text.google : text.apple} در این محیط فعال نیست. لطفاً با ایمیل و رمز عبور وارد شوید.`
+        : `${provider === 'google' ? text.google : text.apple} sign-in is not configured in this workspace. Please use your email and password.`
+    );
   };
 
   return (
@@ -284,7 +292,7 @@ export default function LoginPage({ params: { locale } }: { params: { locale: st
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
-                  <Button type="button" variant="outline" className="h-12 rounded-2xl border-slate-200 bg-white font-semibold dark:border-slate-700 dark:bg-slate-950" disabled={isLoading}>
+                  <Button type="button" onClick={() => handleSocialLogin('google')} variant="outline" className="h-12 rounded-2xl border-slate-200 bg-white font-semibold dark:border-slate-700 dark:bg-slate-950" disabled={isLoading}>
                     <svg className="mr-2 h-4 w-4 rtl:ml-2 rtl:mr-0" viewBox="0 0 24 24">
                       <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
                       <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
@@ -293,7 +301,7 @@ export default function LoginPage({ params: { locale } }: { params: { locale: st
                     </svg>
                     {text.google}
                   </Button>
-                  <Button type="button" variant="outline" className="h-12 rounded-2xl border-slate-200 bg-white font-semibold dark:border-slate-700 dark:bg-slate-950" disabled={isLoading}>
+                  <Button type="button" onClick={() => handleSocialLogin('apple')} variant="outline" className="h-12 rounded-2xl border-slate-200 bg-white font-semibold dark:border-slate-700 dark:bg-slate-950" disabled={isLoading}>
                     <svg className="mr-2 h-4 w-4 rtl:ml-2 rtl:mr-0" fill="currentColor" viewBox="0 0 24 24">
                       <path d="M15.23 1.75c0 1.32-.48 2.57-1.32 3.53-.9 1.02-2.36 1.8-3.65 1.7-.17-1.26.5-2.57 1.36-3.53.93-1.05 2.48-1.8 3.61-1.7zM19.96 17.2c-.55 1.26-.81 1.82-1.52 2.9-.99 1.52-2.39 3.41-4.12 3.43-1.54.01-1.94-1-4.03-.99-2.09.01-2.53 1.01-4.07.98-1.72-.02-3.05-1.73-4.05-3.25C-.64 16.28-.7 9.39 2.64 7.34c1.19-.73 2.74-1.17 4.2-1.17 1.57 0 2.56 1 4.05 1 1.45 0 2.34-1 4.03-1 1.31 0 2.69.36 3.86 1.06-3.38 1.85-2.83 6.67 1.18 9.97z" />
                     </svg>

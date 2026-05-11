@@ -1,8 +1,17 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
+import { FeedbackBanner } from '@/components/ui/feedback-banner';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { 
   ArrowLeft, ArrowRight, Save, Send, Eye, Sparkles, FileText,
   Video, Image, HelpCircle, List, Wand2, Loader2, Check, Copy,
@@ -25,18 +34,17 @@ interface QuizQuestion {
   explanation: string;
 }
 
+const TEACHER_LESSON_EDITOR_STORAGE_KEY = 'danesh.teacher.lesson-editor';
+
 export default function LessonEditor({ params }: { params: { locale: string; id: string; lessonId: string } }) {
   const { locale, id: courseId, lessonId } = params;
   const t = useTranslations();
   const isRTL = locale === 'fa';
   const Arrow = isRTL ? ArrowRight : ArrowLeft;
+  const storageKey = useMemo(() => `${TEACHER_LESSON_EDITOR_STORAGE_KEY}.${locale}.${courseId}.${lessonId}`, [courseId, lessonId, locale]);
 
-  const [lessonTitle, setLessonTitle] = useState(
-    isRTL ? 'معادلات درجه اول' : 'Linear Equations'
-  );
-  const [lessonDescription, setLessonDescription] = useState(
-    isRTL ? 'آموزش کامل معادلات درجه اول با مثال‌های حل شده' : 'Complete guide to linear equations with solved examples'
-  );
+  const [lessonTitle, setLessonTitle] = useState('');
+  const [lessonDescription, setLessonDescription] = useState('');
   const [duration, setDuration] = useState('20');
   const [xpReward, setXpReward] = useState('75');
   
@@ -45,40 +53,14 @@ export default function LessonEditor({ params }: { params: { locale: string; id:
   const [isGenerating, setIsGenerating] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
   const [generatedContent, setGeneratedContent] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [feedback, setFeedback] = useState<{ variant: 'success' | 'error' | 'info'; message: string } | null>(null);
+  const [showPublishDialog, setShowPublishDialog] = useState(false);
   
   const [contentBlocks, setContentBlocks] = useState<ContentBlock[]>([
-    {
-      id: '1',
-      type: 'text',
-      content: isRTL 
-        ? `## معادله درجه اول چیست؟
-
-معادله درجه اول معادله‌ای است که توان مجهول در آن یک است. فرم کلی این معادله به صورت **ax + b = 0** است که در آن:
-- **a** ضریب مجهول است (a ≠ 0)
-- **b** عدد ثابت است
-- **x** مجهول معادله است
-
-### مثال:
-- 2x + 4 = 0
-- 3x - 9 = 6
-- x/2 + 3 = 7`
-        : `## What is a Linear Equation?
-
-A linear equation is an equation where the power of the unknown is one. The general form is **ax + b = 0** where:
-- **a** is the coefficient (a ≠ 0)
-- **b** is a constant
-- **x** is the unknown
-
-### Examples:
-- 2x + 4 = 0
-- 3x - 9 = 6
-- x/2 + 3 = 7`,
-    },
-    {
-      id: '2',
-      type: 'video',
-      content: 'https://example.com/video.mp4',
-    },
+    { id: '1', type: 'text', content: '' },
   ]);
 
   const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([
@@ -114,6 +96,52 @@ A linear equation is an equation where the power of the unknown is one. The gene
     },
   ];
 
+  useEffect(() => {
+    try {
+      const storedDraft = window.localStorage.getItem(storageKey);
+      if (!storedDraft) return;
+
+      const parsed = JSON.parse(storedDraft) as {
+        lessonTitle?: string;
+        lessonDescription?: string;
+        duration?: string;
+        xpReward?: string;
+        contentBlocks?: ContentBlock[];
+        quizQuestions?: QuizQuestion[];
+        lastSaved?: string;
+      };
+
+      if (typeof parsed.lessonTitle === 'string') setLessonTitle(parsed.lessonTitle);
+      if (typeof parsed.lessonDescription === 'string') setLessonDescription(parsed.lessonDescription);
+      if (typeof parsed.duration === 'string') setDuration(parsed.duration);
+      if (typeof parsed.xpReward === 'string') setXpReward(parsed.xpReward);
+      if (Array.isArray(parsed.contentBlocks) && parsed.contentBlocks.length > 0) setContentBlocks(parsed.contentBlocks);
+      if (Array.isArray(parsed.quizQuestions)) setQuizQuestions(parsed.quizQuestions);
+      if (parsed.lastSaved) setLastSaved(new Date(parsed.lastSaved));
+    } catch {
+      setFeedback({
+        variant: 'error',
+        message: isRTL ? 'بارگذاری پیش‌نویس درس ممکن نبود.' : 'Saved lesson draft could not be loaded.',
+      });
+    }
+  }, [isRTL, storageKey]);
+
+  const persistLessonDraft = (status: 'draft' | 'published') => {
+    window.localStorage.setItem(
+      storageKey,
+      JSON.stringify({
+        lessonTitle,
+        lessonDescription,
+        duration,
+        xpReward,
+        contentBlocks,
+        quizQuestions,
+        status,
+        lastSaved: new Date().toISOString(),
+      }),
+    );
+  };
+
   const handleGenerateContent = async () => {
     if (!aiPrompt.trim()) return;
     
@@ -122,87 +150,48 @@ A linear equation is an equation where the power of the unknown is one. The gene
     // Simulate AI generation
     await new Promise(resolve => setTimeout(resolve, 2500));
     
-    const sampleContent = isRTL
-      ? `## روش حل معادلات درجه اول
-
-برای حل معادلات درجه اول، مراحل زیر را دنبال کنید:
-
-### مرحله ۱: ساده‌سازی دو طرف
-ابتدا هر طرف معادله را جداگانه ساده کنید. عبارات داخل پرانتز را باز کنید و عبارات مشابه را با هم جمع کنید.
-
-### مرحله ۲: جداسازی متغیر
-تمام عبارات حاوی x را به یک طرف و اعداد را به طرف دیگر منتقل کنید.
-
-> **نکته مهم:** وقتی عبارتی را از یک طرف به طرف دیگر منتقل می‌کنید، علامت آن عوض می‌شود.
-
-### مرحله ۳: محاسبه جواب
-با تقسیم هر دو طرف بر ضریب x، مقدار x را بیابید.
-
-### مثال:
-**حل کنید: 3(x + 2) = 15**
-
-1. باز کردن پرانتز: 3x + 6 = 15
-2. انتقال 6: 3x = 15 - 6 = 9
-3. تقسیم بر 3: x = 3
-
-✅ **جواب: x = 3**
-
-### بررسی صحت جواب:
-3(3 + 2) = 3(5) = 15 ✓`
-      : `## How to Solve Linear Equations
-
-Follow these steps to solve linear equations:
-
-### Step 1: Simplify Both Sides
-First, simplify each side of the equation separately. Expand parentheses and combine like terms.
-
-### Step 2: Isolate the Variable
-Move all terms with x to one side and numbers to the other side.
-
-> **Important:** When moving a term from one side to another, change its sign.
-
-### Step 3: Calculate the Solution
-Divide both sides by the coefficient of x to find the value of x.
-
-### Example:
-**Solve: 3(x + 2) = 15**
-
-1. Expand: 3x + 6 = 15
-2. Move 6: 3x = 15 - 6 = 9
-3. Divide by 3: x = 3
-
-✅ **Answer: x = 3**
-
-### Verify:
-3(3 + 2) = 3(5) = 15 ✓`;
-
+    const persianContent = ['## ', aiPrompt, '\n\n', '\u0627\u06cc\u0646 \u0645\u062d\u062a\u0648\u0627 \u0628\u0647 \u0635\u0648\u0631\u062a \u0646\u0645\u0648\u0646\u0647 \u062a\u0648\u0633\u0637 \u0647\u0648\u0634 \u0645\u0635\u0646\u0648\u0639\u06cc \u062a\u0648\u0644\u06cc\u062f \u0634\u062f\u0647 \u0627\u0633\u062a.', '\n\n', '### \u0646\u06a9\u0627\u062a \u06a9\u0644\u06cc\u062f\u06cc:\n', '- \u0646\u06a9\u062a\u0647 \u0627\u0648\u0644 \u0645\u0631\u062a\u0628\u0637 \u0628\u0627 \u0645\u0648\u0636\u0648\u0639\n', '- \u0646\u06a9\u062a\u0647 \u062f\u0648\u0645 \u0628\u0627 \u062a\u0648\u0636\u06cc\u062d \u0628\u06cc\u0634\u062a\u0631\n', '- \u0646\u06a9\u062a\u0647 \u0633\u0648\u0645 \u0628\u0631\u0627\u06cc \u062a\u0639\u0645\u06cc\u0642 \u062f\u0631\u06a9\n\n', '**\u062e\u0644\u0627\u0635\u0647:** \u0627\u06cc\u0646 \u062f\u0631\u0633 \u0628\u0647 \u062f\u0627\u0646\u0634\u200c\u0622\u0645\u0648\u0632\u0627\u0646 \u06a9\u0645\u06a9 \u0645\u06cc\u200c\u06a9\u0646\u062f \u062a\u0627 \u0645\u0641\u0647\u0648\u0645 \u0631\u0627 \u0628\u0647 \u062e\u0648\u0628\u06cc \u062f\u0631\u06a9 \u06a9\u0646\u0646\u062f.'].join('');
+    const englishContent = '## ' + aiPrompt + '\n\n'
+      + 'This content was generated as a sample by AI assistance.\n\n'
+      + '### Key Points:\n'
+      + '- First key point related to the topic\n'
+      + '- Second key point with more explanation\n'
+      + '- Third key point for deeper understanding\n\n'
+      + '> **Note:** Review and edit this content to match your students\' needs.\n\n'
+      + '**Summary:** This lesson helps students understand the concept clearly.';
+    const sampleContent = isRTL ? persianContent : englishContent;
     setGeneratedContent(sampleContent);
     setIsGenerating(false);
   };
 
   const handleGenerateQuiz = async () => {
+    if (!aiPrompt.trim()) return;
     setIsGenerating(true);
     
     await new Promise(resolve => setTimeout(resolve, 2000));
     
+    const q1 = isRTL ? '\u0633\u0648\u0627\u0644 \u0627\u0648\u0644 \u062f\u0631 \u0645\u0648\u0631\u062f: ' + aiPrompt : 'Question 1 about: ' + aiPrompt;
+    const q2 = isRTL ? '\u0633\u0648\u0627\u0644 \u062f\u0648\u0645 \u062f\u0631 \u0645\u0648\u0631\u062f: ' + aiPrompt : 'Question 2 about: ' + aiPrompt;
+    const optA = isRTL ? '\u06af\u0632\u06cc\u0646\u0647 \u0627\u0644\u0641' : 'Option A';
+    const optB = isRTL ? '\u06af\u0632\u06cc\u0646\u0647 \u0628' : 'Option B';
+    const optC = isRTL ? '\u06af\u0632\u06cc\u0646\u0647 \u062c' : 'Option C';
+    const optD = isRTL ? '\u06af\u0632\u06cc\u0646\u0647 \u062f' : 'Option D';
+    const expl = isRTL ? '\u062a\u0648\u0636\u06cc\u062d \u067e\u0627\u0633\u062e \u0635\u062d\u06cc\u062d \u0631\u0627 \u0627\u06cc\u0646\u062c\u0627 \u0628\u0646\u0648\u06cc\u0633\u06cc\u062f.' : 'Write the explanation for the correct answer here.';
+
     const newQuestions: QuizQuestion[] = [
       {
         id: Date.now().toString(),
-        question: isRTL ? 'کدام گزینه معادله درجه اول نیست؟' : 'Which is NOT a linear equation?',
-        options: ['2x + 5 = 11', 'x² + 3 = 7', '4x = 20', 'x/3 - 2 = 1'],
-        correctAnswer: 1,
-        explanation: isRTL 
-          ? 'x² + 3 = 7 معادله درجه دوم است چون توان x برابر ۲ است'
-          : 'x² + 3 = 7 is a quadratic equation because x has power 2',
+        question: q1,
+        options: [optA, optB, optC, optD],
+        correctAnswer: 0,
+        explanation: expl,
       },
       {
         id: (Date.now() + 1).toString(),
-        question: isRTL ? 'اگر 5x - 15 = 0 باشد، x چقدر است؟' : 'If 5x - 15 = 0, what is x?',
-        options: ['x = 0', 'x = 3', 'x = 5', 'x = 15'],
+        question: q2,
+        options: [optA, optB, optC, optD],
         correctAnswer: 1,
-        explanation: isRTL
-          ? '5x = 15، پس x = 3'
-          : '5x = 15, so x = 3',
+        explanation: expl,
       },
     ];
     
@@ -232,6 +221,30 @@ Divide both sides by the coefficient of x to find the value of x.
     setContentBlocks(blocks => blocks.filter(block => block.id !== id));
   };
 
+  const applyFormattingToBlock = (blockId: string, format: 'bold' | 'italic' | 'link' | 'code') => {
+    const wrappers = {
+      bold: isRTL ? '**\u0645\u062a\u0646 \u0636\u062e\u06cc\u0645**' : '**bold text**',
+      italic: isRTL ? '*\u0645\u062a\u0646 \u0645\u0648\u0631\u0628*' : '*italic text*',
+      link: isRTL ? '[\u0645\u062a\u0646 \u0644\u06cc\u0646\u06a9](https://example.com)' : '[link text](https://example.com)',
+      code: isRTL ? '`\u06a9\u062f`' : '`code`',
+    } as const;
+
+    setContentBlocks((blocks) =>
+      blocks.map((block) =>
+        block.id === blockId
+          ? {
+              ...block,
+              content: block.content ? block.content + '\n' + wrappers[format] : wrappers[format],
+            }
+          : block,
+      ),
+    );
+    setFeedback({
+      variant: 'info',
+      message: isRTL ? 'فرمت به بلوک متنی اضافه شد.' : 'Formatting added to the text block.',
+    });
+  };
+
   const handleAddBlock = (type: ContentBlock['type']) => {
     const newBlock: ContentBlock = {
       id: Date.now().toString(),
@@ -249,6 +262,80 @@ Divide both sides by the coefficient of x to find the value of x.
 
   const handleDeleteQuestion = (id: string) => {
     setQuizQuestions(questions => questions.filter(q => q.id !== id));
+  };
+
+  const handleAddQuestion = () => {
+    const newQuestion: QuizQuestion = {
+      id: Date.now().toString(),
+      question: '',
+      options: ['', '', '', ''],
+      correctAnswer: 0,
+      explanation: '',
+    };
+    setQuizQuestions([...quizQuestions, newQuestion]);
+  };
+
+  const handleUpdateOption = (questionId: string, optionIndex: number, value: string) => {
+    setQuizQuestions(questions =>
+      questions.map(q =>
+        q.id === questionId
+          ? { ...q, options: q.options.map((opt, idx) => idx === optionIndex ? value : opt) }
+          : q
+      )
+    );
+  };
+
+  const handlePreview = () => {
+    window.open(`/${locale}/courses/${courseId}/lessons/${lessonId}`, '_blank');
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    setFeedback(null);
+    await new Promise(resolve => setTimeout(resolve, 400));
+    const savedAt = new Date();
+    persistLessonDraft('draft');
+    setLastSaved(savedAt);
+    setIsSaving(false);
+    setFeedback({
+      variant: 'success',
+      message: isRTL ? 'درس ذخیره شد.' : 'Lesson saved.',
+    });
+  };
+
+  const handlePublish = async () => {
+    if (!lessonTitle.trim()) {
+      setFeedback({
+        variant: 'error',
+        message: isRTL ? 'لطفاً عنوان درس را وارد کنید.' : 'Please enter a lesson title.',
+      });
+      return;
+    }
+
+    if (contentBlocks.every(b => !b.content.trim())) {
+      setFeedback({
+        variant: 'error',
+        message: isRTL ? 'لطفاً محتوایی ایجاد کنید.' : 'Please add some content.',
+      });
+      return;
+    }
+
+    setShowPublishDialog(true);
+  };
+
+  const confirmPublish = async () => {
+    setIsPublishing(true);
+    setFeedback(null);
+    await new Promise(resolve => setTimeout(resolve, 500));
+    const savedAt = new Date();
+    persistLessonDraft('published');
+    setLastSaved(savedAt);
+    setIsPublishing(false);
+    setShowPublishDialog(false);
+    setFeedback({
+      variant: 'success',
+      message: isRTL ? 'درس با موفقیت منتشر شد.' : 'Lesson published successfully.',
+    });
   };
 
   return (
@@ -273,22 +360,46 @@ Divide both sides by the coefficient of x to find the value of x.
             />
           </div>
           <div className="flex items-center gap-2">
+            {lastSaved && (
+              <span className="text-xs text-muted-foreground hidden lg:inline">
+                {isRTL ? 'آخرین ذخیره: ' : 'Saved: '}{lastSaved.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            )}
             <button
               onClick={() => setShowAIPanel(!showAIPanel)}
               className={`p-2 rounded-lg border transition-colors ${showAIPanel ? 'bg-purple-100 border-purple-300 text-purple-700' : 'hover:bg-muted'}`}
             >
               <Sparkles className="h-4 w-4" />
             </button>
-            <button className="flex items-center gap-2 px-3 py-1.5 rounded-lg border hover:bg-muted text-sm">
+            <button 
+              onClick={handlePreview}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg border hover:bg-muted text-sm"
+            >
               <Eye className="h-4 w-4" />
               <span className="hidden sm:inline">{isRTL ? 'پیش‌نمایش' : 'Preview'}</span>
             </button>
-            <button className="flex items-center gap-2 px-3 py-1.5 rounded-lg border hover:bg-muted text-sm">
-              <Save className="h-4 w-4" />
+            <button 
+              onClick={handleSave}
+              disabled={isSaving}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg border hover:bg-muted text-sm disabled:opacity-50"
+            >
+              {isSaving ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
               <span className="hidden sm:inline">{isRTL ? 'ذخیره' : 'Save'}</span>
             </button>
-            <button className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-sm">
-              <Send className="h-4 w-4" />
+            <button 
+              onClick={handlePublish}
+              disabled={isPublishing}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-sm disabled:opacity-50"
+            >
+              {isPublishing ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
               <span className="hidden sm:inline">{isRTL ? 'انتشار' : 'Publish'}</span>
             </button>
           </div>
@@ -318,6 +429,8 @@ Divide both sides by the coefficient of x to find the value of x.
       <div className="flex-1 flex overflow-hidden">
         {/* Editor Area */}
         <div className={`flex-1 overflow-y-auto p-4 ${showAIPanel ? 'lg:pe-0' : ''}`}>
+          {feedback ? <FeedbackBanner className="mx-auto mb-4 max-w-3xl" variant={feedback.variant} message={feedback.message} /> : null}
+
           {/* Content Tab */}
           {activeTab === 'content' && (
             <div className="max-w-3xl mx-auto space-y-4">
@@ -360,10 +473,10 @@ Divide both sides by the coefficient of x to find the value of x.
                     {/* Text formatting toolbar for text blocks */}
                     {block.type === 'text' && (
                       <div className="hidden sm:flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button className="p-1 rounded hover:bg-background"><Bold className="h-3 w-3" /></button>
-                        <button className="p-1 rounded hover:bg-background"><Italic className="h-3 w-3" /></button>
-                        <button className="p-1 rounded hover:bg-background"><Link2 className="h-3 w-3" /></button>
-                        <button className="p-1 rounded hover:bg-background"><Code className="h-3 w-3" /></button>
+                        <button onClick={() => applyFormattingToBlock(block.id, 'bold')} className="p-1 rounded hover:bg-background"><Bold className="h-3 w-3" /></button>
+                        <button onClick={() => applyFormattingToBlock(block.id, 'italic')} className="p-1 rounded hover:bg-background"><Italic className="h-3 w-3" /></button>
+                        <button onClick={() => applyFormattingToBlock(block.id, 'link')} className="p-1 rounded hover:bg-background"><Link2 className="h-3 w-3" /></button>
+                        <button onClick={() => applyFormattingToBlock(block.id, 'code')} className="p-1 rounded hover:bg-background"><Code className="h-3 w-3" /></button>
                       </div>
                     )}
                     
@@ -703,6 +816,25 @@ Divide both sides by the coefficient of x to find the value of x.
           </div>
         )}
       </div>
+
+      <Dialog open={showPublishDialog} onOpenChange={setShowPublishDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{isRTL ? 'انتشار درس' : 'Publish lesson'}</DialogTitle>
+            <DialogDescription>
+              {isRTL ? 'با انتشار این درس، دانش‌آموزان می‌توانند آن را مشاهده کنند.' : 'Publishing will make this lesson visible to students.'}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <button type="button" onClick={() => setShowPublishDialog(false)} className="rounded-lg border px-4 py-2 hover:bg-muted">
+              {isRTL ? 'انصراف' : 'Cancel'}
+            </button>
+            <button type="button" onClick={confirmPublish} disabled={isPublishing} className="rounded-lg bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90 disabled:opacity-50">
+              {isPublishing ? (isRTL ? 'در حال انتشار...' : 'Publishing...') : (isRTL ? 'تأیید انتشار' : 'Confirm publish')}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

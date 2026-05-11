@@ -8,7 +8,7 @@ import {
   Users, BookOpen, GraduationCap, BarChart3, Settings, Bell,
   TrendingUp, Award, Calendar, ChevronRight, ChevronLeft,
   UserPlus, FileText, Shield, Activity, Clock, CheckCircle,
-  User, LogOut, ChevronDown
+  User, LogOut, ChevronDown, Layers
 } from 'lucide-react';
 import { ImpersonationBanner } from '@/components/auth/ImpersonationBanner';
 import {
@@ -17,19 +17,23 @@ import {
   USER_ID_STORAGE_KEY,
   getHomeRouteForRoles,
   getPrimaryRole,
-  getSwitchableAccounts,
   hasPermission,
-} from '@/lib/auth/demo-users';
+} from '@/lib/auth/demo-auth-shared';
+import { isDemoDataEnabled } from '@/lib/demo/demo-mode';
 
 export default function AdminDashboard({ params: { locale } }: { params: { locale: string } }) {
   const t = useTranslations();
   const router = useRouter();
   const isRTL = locale === 'fa';
+  const demoDataEnabled = isDemoDataEnabled();
   const Arrow = isRTL ? ChevronLeft : ChevronRight;
 
   const [authUser, setAuthUser] = useState<any>(null);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [approvals, setApprovals] = useState<any[]>([]);
+  const [switchableAccounts, setSwitchableAccounts] = useState<any[]>([]);
+  const [dashboardSummary, setDashboardSummary] = useState<{ stats?: any; recentTeachers?: any[] } | null>(null);
 
   useEffect(() => {
     try {
@@ -42,15 +46,93 @@ export default function AdminDashboard({ params: { locale } }: { params: { local
     }
   }, []);
 
+  useEffect(() => {
+    const loadDashboardSummary = async () => {
+      try {
+        const response = await fetch(`/api/v1/admin/dashboard-summary?locale=${locale}`);
+        if (!response.ok) {
+          throw new Error('failed_to_load_dashboard_summary');
+        }
+
+        const data = await response.json();
+        setDashboardSummary(data);
+      } catch {
+        setDashboardSummary(null);
+      }
+    };
+
+    loadDashboardSummary();
+  }, [locale]);
+
+  useEffect(() => {
+    const loadSwitchableAccounts = async () => {
+      try {
+        const response = await fetch('/api/v1/admin/users');
+        if (!response.ok) {
+          throw new Error('failed_to_load_accounts');
+        }
+
+        const data = await response.json();
+        setSwitchableAccounts((data.users || []).filter((user: any) => user.roles?.[0] !== 'SUPER_ADMIN'));
+      } catch {
+        setSwitchableAccounts([]);
+      }
+    };
+
+    loadSwitchableAccounts();
+  }, []);
+
+  useEffect(() => {
+    if (!demoDataEnabled) {
+      setApprovals([]);
+      return;
+    }
+
+    const initialApprovals = [
+      {
+        id: 'approval-1',
+        type: 'teacher',
+        name: isRTL ? 'علی کریمی' : 'Ali Karimi',
+        action: isRTL ? 'درخواست ثبت‌نام معلم' : 'Teacher registration request',
+        time: isRTL ? '۲ ساعت پیش' : '2 hours ago',
+      },
+      {
+        id: 'approval-2',
+        type: 'course',
+        name: isRTL ? 'دوره جبر پیشرفته' : 'Advanced Algebra Course',
+        action: isRTL ? 'در انتظار تأیید' : 'Pending approval',
+        time: isRTL ? '۵ ساعت پیش' : '5 hours ago',
+      },
+    ];
+    setApprovals(initialApprovals);
+  }, [demoDataEnabled, isRTL]);
+
+  const handleApprove = (id: string) => {
+    setApprovals((prev) => prev.filter((item) => item.id !== id));
+  };
+
+  const handleReject = (id: string) => {
+    setApprovals((prev) => prev.filter((item) => item.id !== id));
+  };
+
   const currentRole = getPrimaryRole(authUser?.roles || []);
   const isSuperAdmin = currentRole === 'SUPER_ADMIN';
-  const stats = isSuperAdmin
+  const stats = !demoDataEnabled
+    ? {
+        totalTeachers: dashboardSummary?.stats?.totalTeachers || 0,
+        totalStudents: dashboardSummary?.stats?.totalStudents || 0,
+        totalCourses: dashboardSummary?.stats?.totalCourses || 0,
+        activeClasses: dashboardSummary?.stats?.activeClasses || 0,
+        pendingApprovals: dashboardSummary?.stats?.pendingApprovals || approvals.length,
+        newRegistrations: dashboardSummary?.stats?.newRegistrations || 0,
+      }
+    : isSuperAdmin
     ? {
         totalTeachers: 24,
         totalStudents: 856,
         totalCourses: 48,
         activeClasses: 32,
-        pendingApprovals: 5,
+        pendingApprovals: approvals.length,
         newRegistrations: 12,
       }
     : {
@@ -58,11 +140,11 @@ export default function AdminDashboard({ params: { locale } }: { params: { local
         totalStudents: 214,
         totalCourses: 16,
         activeClasses: 12,
-        pendingApprovals: 2,
+        pendingApprovals: approvals.length,
         newRegistrations: 4,
       };
 
-  const recentTeachers = [
+  const recentTeachers = demoDataEnabled ? [
     {
       id: 't1',
       name: isRTL ? 'دکتر احمدی' : 'Dr. Ahmadi',
@@ -90,22 +172,7 @@ export default function AdminDashboard({ params: { locale } }: { params: { local
       status: 'active',
       avatar: 'R',
     },
-  ];
-
-  const pendingApprovals = [
-    {
-      type: 'teacher',
-      name: isRTL ? 'علی کریمی' : 'Ali Karimi',
-      action: isRTL ? 'درخواست ثبت‌نام معلم' : 'Teacher registration request',
-      time: isRTL ? '۲ ساعت پیش' : '2 hours ago',
-    },
-    {
-      type: 'course',
-      name: isRTL ? 'دوره جبر پیشرفته' : 'Advanced Algebra Course',
-      action: isRTL ? 'در انتظار تأیید' : 'Pending approval',
-      time: isRTL ? '۵ ساعت پیش' : '5 hours ago',
-    },
-  ];
+  ] : (dashboardSummary?.recentTeachers || []);
 
   const quickActions = useMemo(
     () => [
@@ -133,6 +200,12 @@ export default function AdminDashboard({ params: { locale } }: { params: { local
         label: isRTL ? 'تخصیص موضوع و دوره' : 'Assign Subjects & Courses',
         color: 'bg-purple-100 text-purple-600',
       },
+      {
+        href: `/${locale}/admin/course-management`,
+        icon: Layers,
+        label: isRTL ? 'مدیریت دوره‌ها (جدید)' : 'Course Management',
+        color: 'bg-indigo-100 text-indigo-600',
+      },
       isSuperAdmin && {
         href: `/${locale}/admin/reports`,
         icon: BarChart3,
@@ -142,8 +215,6 @@ export default function AdminDashboard({ params: { locale } }: { params: { local
     ].filter(Boolean) as Array<{ href: string; icon: any; label: string; color: string }>,
     [authUser, isRTL, isSuperAdmin, locale],
   );
-
-  const switchableAccounts = getSwitchableAccounts();
 
   const handleViewAs = (user: any) => {
     if (!isSuperAdmin) return;
@@ -161,7 +232,7 @@ export default function AdminDashboard({ params: { locale } }: { params: { local
     }
   };
 
-  const notifications = [
+  const notifications = demoDataEnabled ? [
     {
       id: 'n1',
       title: isRTL ? 'درخواست جدید برای نقش معلم' : 'New teacher-role request',
@@ -177,7 +248,7 @@ export default function AdminDashboard({ params: { locale } }: { params: { local
       title: isRTL ? 'یک تخصیص دانش‌آموز نیاز به بررسی دارد' : 'A student assignment needs review',
       time: isRTL ? 'دیروز' : 'Yesterday',
     },
-  ];
+  ] : [];
 
   const handleLogout = () => {
     localStorage.removeItem(AUTH_STORAGE_KEY);
@@ -496,32 +567,45 @@ export default function AdminDashboard({ params: { locale } }: { params: { local
                 </h2>
               </div>
               <div className="divide-y">
-                {pendingApprovals.map((item, idx) => (
-                  <div key={idx} className="p-4">
-                    <div className="flex items-start gap-3">
-                      <div className={`p-2 rounded-lg ${item.type === 'teacher' ? 'bg-blue-100' : 'bg-purple-100'}`}>
-                        {item.type === 'teacher' ? (
-                          <GraduationCap className="h-4 w-4 text-blue-600" />
-                        ) : (
-                          <BookOpen className="h-4 w-4 text-purple-600" />
-                        )}
+                {approvals.length > 0 ? (
+                  approvals.map((item) => (
+                    <div key={item.id} className="p-4">
+                      <div className="flex items-start gap-3">
+                        <div className={`p-2 rounded-lg ${item.type === 'teacher' ? 'bg-blue-100' : 'bg-purple-100'}`}>
+                          {item.type === 'teacher' ? (
+                            <GraduationCap className="h-4 w-4 text-blue-600" />
+                          ) : (
+                            <BookOpen className="h-4 w-4 text-purple-600" />
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-medium text-sm">{item.name}</p>
+                          <p className="text-xs text-muted-foreground">{item.action}</p>
+                          <p className="text-xs text-muted-foreground mt-1">{item.time}</p>
+                        </div>
                       </div>
-                      <div className="flex-1">
-                        <p className="font-medium text-sm">{item.name}</p>
-                        <p className="text-xs text-muted-foreground">{item.action}</p>
-                        <p className="text-xs text-muted-foreground mt-1">{item.time}</p>
+                      <div className="flex gap-2 mt-3">
+                        <button 
+                          onClick={() => handleApprove(item.id)}
+                          className="flex-1 px-3 py-1.5 rounded-lg bg-green-600 text-white text-sm hover:bg-green-700 transition-colors"
+                        >
+                          {isRTL ? 'تأیید' : 'Approve'}
+                        </button>
+                        <button 
+                          onClick={() => handleReject(item.id)}
+                          className="flex-1 px-3 py-1.5 rounded-lg border text-sm hover:bg-muted transition-colors"
+                        >
+                          {isRTL ? 'رد' : 'Reject'}
+                        </button>
                       </div>
                     </div>
-                    <div className="flex gap-2 mt-3">
-                      <button className="flex-1 px-3 py-1.5 rounded-lg bg-green-600 text-white text-sm hover:bg-green-700">
-                        {isRTL ? 'تأیید' : 'Approve'}
-                      </button>
-                      <button className="flex-1 px-3 py-1.5 rounded-lg border text-sm hover:bg-muted">
-                        {isRTL ? 'رد' : 'Reject'}
-                      </button>
-                    </div>
+                  ))
+                ) : (
+                  <div className="p-8 text-center text-muted-foreground">
+                    <CheckCircle className="h-12 w-12 mx-auto mb-3 text-green-500" />
+                    <p className="text-sm">{isRTL ? 'همه موارد بررسی شده‌اند' : 'All items reviewed'}</p>
                   </div>
-                ))}
+                )}
               </div>
             </div>
 

@@ -1,5 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { z } from 'zod';
+
+const updateCourseSchema = z.object({
+  title: z.string().min(1).optional(),
+  titleFA: z.string().nullable().optional(),
+  description: z.string().nullable().optional(),
+  descriptionFA: z.string().nullable().optional(),
+  coverImage: z.string().url().optional().or(z.literal('')).nullable(),
+  frameworkId: z.string().min(1).optional(),
+  gradeLevelId: z.string().min(1).optional(),
+  subjectId: z.string().min(1).optional(),
+  isPublished: z.boolean().optional(),
+});
 
 interface RouteParams {
   params: { courseId: string };
@@ -97,8 +110,12 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 // PUT /api/v1/courses/[courseId] - Update course
 export async function PUT(request: NextRequest, { params }: RouteParams) {
   try {
-    // TODO: Add authentication and authorization
-    const body = await request.json();
+    const body = updateCourseSchema.parse(await request.json());
+
+    const existingCourse = await prisma.course.findUnique({ where: { id: params.courseId } });
+    if (!existingCourse) {
+      return NextResponse.json({ error: 'Course not found' }, { status: 404 });
+    }
 
     const course = await prisma.course.update({
       where: { id: params.courseId },
@@ -107,7 +124,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         titleFA: body.titleFA,
         description: body.description,
         descriptionFA: body.descriptionFA,
-        coverImage: body.coverImage,
+        coverImage: body.coverImage || null,
         frameworkId: body.frameworkId,
         gradeLevelId: body.gradeLevelId,
         subjectId: body.subjectId,
@@ -120,6 +137,10 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       course,
     });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: 'Invalid course update payload', details: error.errors }, { status: 400 });
+    }
+
     console.error('Error updating course:', error);
     return NextResponse.json(
       { error: 'Failed to update course' },
@@ -131,7 +152,10 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 // DELETE /api/v1/courses/[courseId] - Delete course
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
-    // TODO: Add authentication and authorization (Admin only)
+    const existingCourse = await prisma.course.findUnique({ where: { id: params.courseId } });
+    if (!existingCourse) {
+      return NextResponse.json({ error: 'Course not found' }, { status: 404 });
+    }
     
     await prisma.course.delete({
       where: { id: params.courseId },

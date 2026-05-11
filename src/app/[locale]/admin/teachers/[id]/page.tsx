@@ -1,342 +1,397 @@
 'use client';
 
-import { useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { 
-  ArrowLeft, ArrowRight, Edit, Trash2, Users, BookOpen,
-  Mail, Phone, Calendar, Award, BarChart3, Clock, Check,
-  MessageSquare, Download, Send, ChevronRight, ChevronLeft,
-  GraduationCap, FileText, TrendingUp, Star
+import { useRouter } from 'next/navigation';
+import {
+  BookOpen, Calendar, Check, Edit, GraduationCap,
+  Mail, Phone, Plus, Trash2, Users, X,
 } from 'lucide-react';
+import { PageHeader } from '@/components/ui/PageHeader';
 
-export default function TeacherDetailPage({ params }: { params: { locale: string; id: string } }) {
-  const { locale, id } = params;
-  const t = useTranslations();
+interface TeacherRecord {
+  id: string;
+  firstName: string;
+  lastName: string;
+  name: string;
+  email: string;
+  phone: string;
+  subject: string;
+  department: string | null;
+  departmentLabel: string;
+  subjects: string[];
+  subjectLabels?: string[];
+  assignedCourseIds: string[];
+  students: number;
+  courses: number;
+  status: 'active' | 'inactive' | 'pending';
+  joinDate: string;
+  avatar: string;
+  bio: string;
+}
+
+interface CourseOption {
+  id: string;
+  code: string;
+  title: string;
+  titleFA: string | null;
+  subjectCode: string;
+  subjectName: string;
+}
+
+function formatDate(value: string, locale: string) {
+  return new Intl.DateTimeFormat(locale === 'fa' ? 'fa-IR' : 'en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  }).format(new Date(value));
+}
+
+export default function TeacherDetailPage({ params: { locale, id } }: { params: { locale: string; id: string } }) {
   const isRTL = locale === 'fa';
-  const Arrow = isRTL ? ArrowRight : ArrowLeft;
-  const NavArrow = isRTL ? ChevronLeft : ChevronRight;
+  const router = useRouter();
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'students' | 'courses' | 'activity'>('overview');
+  const [teacher, setTeacher] = useState<TeacherRecord | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  const teacher = {
-    id,
-    name: isRTL ? 'دکتر علی احمدی' : 'Dr. Ali Ahmadi',
-    email: 'ahmadi@danesh.edu',
-    phone: '+98 912 345 6789',
-    subject: isRTL ? 'ریاضی' : 'Mathematics',
-    department: isRTL ? 'گروه ریاضی' : 'Math Department',
-    bio: isRTL 
-      ? 'دکتر احمدی با بیش از ۱۵ سال تجربه تدریس ریاضی در مقاطع مختلف، متخصص در آموزش جبر و هندسه است.'
-      : 'Dr. Ahmadi has over 15 years of experience teaching mathematics at various levels, specializing in algebra and geometry.',
-    status: 'active',
-    joinDate: '2023-01-15',
-    avatar: 'A',
-    stats: {
-      totalStudents: 156,
-      activeCourses: 4,
-      completedCourses: 8,
-      avgRating: 4.8,
-      totalLessons: 96,
-      totalHours: 240,
-    },
+  // Course assignment state
+  const [allCourses, setAllCourses] = useState<CourseOption[]>([]);
+  const [selectedCourseIds, setSelectedCourseIds] = useState<Set<string>>(new Set());
+  const [isSavingCourses, setIsSavingCourses] = useState(false);
+  const [coursesSaved, setCoursesSaved] = useState(false);
+  const [coursesError, setCoursesError] = useState<string | null>(null);
+  const [courseFilter, setCourseFilter] = useState('');
+
+  const loadTeacher = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/v1/admin/teachers/${id}?locale=${locale}`, { cache: 'no-store' });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'failed_to_load_teacher');
+      setTeacher(data.teacher || null);
+      setSelectedCourseIds(new Set(data.teacher?.assignedCourseIds || []));
+    } catch {
+      setTeacher(null);
+      setError(isRTL ? 'اطلاعات معلم بارگیری نشد.' : 'Unable to load teacher details.');
+    } finally {
+      setLoading(false);
+    }
+  }, [id, isRTL, locale]);
+
+  const loadCourses = useCallback(async () => {
+    try {
+      const response = await fetch('/api/v1/courses?limit=200', { cache: 'no-store' });
+      const data = await response.json();
+      const raw: any[] = data.courses || data.data || [];
+      setAllCourses(raw.map((c) => ({
+        id: c.id,
+        code: c.code,
+        title: c.title,
+        titleFA: c.titleFA || null,
+        subjectCode: c.subject?.code || c.subjectCode || '',
+        subjectName: c.subject?.name || c.subjectName || c.subject?.code || '',
+      })));
+    } catch {
+      // non-fatal: course panel will show empty
+    }
+  }, []);
+
+  useEffect(() => {
+    loadTeacher();
+    loadCourses();
+  }, [loadTeacher, loadCourses]);
+
+  // Subjects are auto-derived from selected courses — no separate subject assignment needed
+  const derivedSubjects = useMemo(() => {
+    const names = new Map<string, string>();
+    for (const courseId of Array.from(selectedCourseIds)) {
+      const course = allCourses.find((c) => c.id === courseId);
+      if (course?.subjectCode && course?.subjectName) {
+        names.set(course.subjectCode, course.subjectName);
+      }
+    }
+    return Array.from(names.values());
+  }, [selectedCourseIds, allCourses]);
+
+  const filteredCourses = useMemo(() => {
+    const q = courseFilter.trim().toLowerCase();
+    if (!q) return allCourses;
+    return allCourses.filter(
+      (c) =>
+        c.title.toLowerCase().includes(q) ||
+        (c.titleFA || '').includes(q) ||
+        c.subjectCode.toLowerCase().includes(q) ||
+        c.subjectName.toLowerCase().includes(q),
+    );
+  }, [allCourses, courseFilter]);
+
+  const toggleCourse = (courseId: string) => {
+    setSelectedCourseIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(courseId)) next.delete(courseId);
+      else next.add(courseId);
+      return next;
+    });
+    setCoursesSaved(false);
   };
 
-  const students = [
-    { id: 's1', name: isRTL ? 'علی محمدی' : 'Ali Mohammadi', grade: isRTL ? 'هشتم' : '8th', progress: 85, avatar: 'A' },
-    { id: 's2', name: isRTL ? 'سارا احمدی' : 'Sara Ahmadi', grade: isRTL ? 'هشتم' : '8th', progress: 92, avatar: 'S' },
-    { id: 's3', name: isRTL ? 'محمد رضایی' : 'Mohammad Rezaei', grade: isRTL ? 'نهم' : '9th', progress: 78, avatar: 'M' },
-    { id: 's4', name: isRTL ? 'مریم کریمی' : 'Maryam Karimi', grade: isRTL ? 'هشتم' : '8th', progress: 88, avatar: 'M' },
-  ];
+  const saveCourseAssignments = async () => {
+    setIsSavingCourses(true);
+    setCoursesError(null);
+    setCoursesSaved(false);
+    try {
+      const response = await fetch(`/api/v1/admin/teachers/${id}/assignments`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assignedCourseIds: Array.from(selectedCourseIds),
+          assignedSubjectCodes: [], // subjects are auto-derived from course subjects by the API
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'failed_to_save');
+      setCoursesSaved(true);
+      await loadTeacher();
+    } catch (err) {
+      setCoursesError(err instanceof Error ? err.message : (isRTL ? 'ذخیره دوره‌ها انجام نشد.' : 'Failed to save course assignments.'));
+    } finally {
+      setIsSavingCourses(false);
+    }
+  };
 
-  const courses = [
-    { id: 'c1', title: isRTL ? 'ریاضی پایه هشتم' : 'Grade 8 Math', students: 45, lessons: 24, progress: 65, status: 'active' },
-    { id: 'c2', title: isRTL ? 'ریاضی پایه نهم' : 'Grade 9 Math', students: 38, lessons: 20, progress: 40, status: 'active' },
-    { id: 'c3', title: isRTL ? 'هندسه پایه دهم' : 'Grade 10 Geometry', students: 52, lessons: 18, progress: 85, status: 'active' },
-    { id: 'c4', title: isRTL ? 'جبر پیشرفته' : 'Advanced Algebra', students: 21, lessons: 12, progress: 30, status: 'draft' },
-  ];
+  const statusLabel = useMemo(() => {
+    if (!teacher) return '';
+    if (teacher.status === 'active') return isRTL ? 'فعال' : 'Active';
+    if (teacher.status === 'inactive') return isRTL ? 'غیرفعال' : 'Inactive';
+    return isRTL ? 'در انتظار' : 'Pending';
+  }, [isRTL, teacher]);
 
-  const activities = [
-    { action: isRTL ? 'درس جدید اضافه کرد' : 'Added new lesson', course: isRTL ? 'ریاضی پایه هشتم' : 'Grade 8 Math', time: isRTL ? '۲ ساعت پیش' : '2 hours ago' },
-    { action: isRTL ? 'آزمون را بررسی کرد' : 'Reviewed quiz', course: isRTL ? 'ریاضی پایه نهم' : 'Grade 9 Math', time: isRTL ? '۵ ساعت پیش' : '5 hours ago' },
-    { action: isRTL ? 'به سوال دانش‌آموز پاسخ داد' : 'Answered student question', course: isRTL ? 'هندسه پایه دهم' : 'Grade 10 Geometry', time: isRTL ? 'دیروز' : 'Yesterday' },
-  ];
+  const statusClassName = useMemo(() => {
+    if (!teacher) return '';
+    if (teacher.status === 'active') return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
+    if (teacher.status === 'inactive') return 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400';
+    return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400';
+  }, [teacher]);
+
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`/api/v1/admin/teachers/${id}`, { method: 'DELETE' });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'failed_to_delete_teacher');
+      router.push(`/${locale}/admin/teachers`);
+      router.refresh();
+    } catch {
+      setError(isRTL ? 'حذف معلم انجام نشد.' : 'Unable to delete the teacher.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-lg border-b">
-        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link 
-              href={`/${locale}/admin/teachers`}
-              className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
-            >
-              <Arrow className="h-5 w-5" />
-              <span>{isRTL ? 'بازگشت' : 'Back'}</span>
-            </Link>
-            <div className="h-6 w-px bg-border" />
-            <h1 className="font-semibold">{isRTL ? 'جزئیات معلم' : 'Teacher Details'}</h1>
-          </div>
-          <div className="flex items-center gap-2">
-            <Link
-              href={`/${locale}/admin/teachers/${id}/edit`}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg border hover:bg-muted"
-            >
-              <Edit className="h-4 w-4" />
-              <span className="hidden sm:inline">{isRTL ? 'ویرایش' : 'Edit'}</span>
-            </Link>
-            <button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-destructive text-white hover:bg-destructive/90">
-              <Trash2 className="h-4 w-4" />
-              <span className="hidden sm:inline">{isRTL ? 'حذف' : 'Delete'}</span>
-            </button>
-          </div>
-        </div>
-      </header>
+      <PageHeader
+        locale={locale}
+        title={isRTL ? 'جزئیات معلم' : 'Teacher Details'}
+        backHref={`/${locale}/admin/teachers`}
+        backLabel={isRTL ? 'بازگشت به فهرست' : 'Back to teachers'}
+      >
+        <Link href={`/${locale}/admin/teachers/${id}/edit`} className="inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm hover:bg-muted">
+          <Edit className="h-4 w-4" />
+          <span>{isRTL ? 'ویرایش' : 'Edit'}</span>
+        </Link>
+        <button
+          onClick={handleDelete}
+          disabled={isDeleting || loading || !teacher}
+          className="inline-flex items-center gap-2 rounded-lg bg-destructive px-4 py-2 text-sm text-white hover:bg-destructive/90 disabled:opacity-60"
+        >
+          <Trash2 className="h-4 w-4" />
+          <span>{isDeleting ? (isRTL ? 'در حال حذف...' : 'Deleting...') : (isRTL ? 'حذف' : 'Delete')}</span>
+        </button>
+      </PageHeader>
 
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        {/* Teacher Profile */}
-        <div className="bg-card border rounded-xl p-6 mb-6">
-          <div className="flex flex-col sm:flex-row items-start gap-6">
-            <div className="h-24 w-24 rounded-2xl bg-primary/10 flex items-center justify-center font-bold text-primary text-4xl shrink-0">
-              {teacher.avatar}
-            </div>
-            <div className="flex-1">
-              <div className="flex items-center gap-3 mb-2">
-                <h2 className="text-2xl font-bold">{teacher.name}</h2>
-                <span className="px-3 py-1 rounded-full text-sm bg-green-100 text-green-700">
-                  {isRTL ? 'فعال' : 'Active'}
-                </span>
-              </div>
-              <p className="text-muted-foreground mb-4">{teacher.department} • {teacher.subject}</p>
-              <p className="text-sm mb-4">{teacher.bio}</p>
-              <div className="flex flex-wrap gap-4 text-sm">
-                <span className="flex items-center gap-2">
-                  <Mail className="h-4 w-4 text-muted-foreground" />
-                  {teacher.email}
-                </span>
-                <span className="flex items-center gap-2">
-                  <Phone className="h-4 w-4 text-muted-foreground" />
-                  {teacher.phone}
-                </span>
-                <span className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  {isRTL ? 'عضویت از:' : 'Joined:'} {teacher.joinDate}
-                </span>
-              </div>
-            </div>
-            <div className="flex items-center gap-1 bg-amber-100 px-3 py-2 rounded-xl">
-              <Star className="h-5 w-5 text-amber-500 fill-current" />
-              <span className="font-bold text-amber-700">{teacher.stats.avgRating}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Stats */}
-        <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-6 mb-6">
-          <div className="bg-card border rounded-xl p-4 text-center">
-            <Users className="h-6 w-6 text-blue-600 mx-auto mb-2" />
-            <p className="text-2xl font-bold">{teacher.stats.totalStudents}</p>
-            <p className="text-xs text-muted-foreground">{isRTL ? 'دانش‌آموز' : 'Students'}</p>
-          </div>
-          <div className="bg-card border rounded-xl p-4 text-center">
-            <BookOpen className="h-6 w-6 text-purple-600 mx-auto mb-2" />
-            <p className="text-2xl font-bold">{teacher.stats.activeCourses}</p>
-            <p className="text-xs text-muted-foreground">{isRTL ? 'دوره فعال' : 'Active Courses'}</p>
-          </div>
-          <div className="bg-card border rounded-xl p-4 text-center">
-            <Check className="h-6 w-6 text-green-600 mx-auto mb-2" />
-            <p className="text-2xl font-bold">{teacher.stats.completedCourses}</p>
-            <p className="text-xs text-muted-foreground">{isRTL ? 'دوره تکمیل' : 'Completed'}</p>
-          </div>
-          <div className="bg-card border rounded-xl p-4 text-center">
-            <FileText className="h-6 w-6 text-orange-600 mx-auto mb-2" />
-            <p className="text-2xl font-bold">{teacher.stats.totalLessons}</p>
-            <p className="text-xs text-muted-foreground">{isRTL ? 'درس' : 'Lessons'}</p>
-          </div>
-          <div className="bg-card border rounded-xl p-4 text-center">
-            <Clock className="h-6 w-6 text-teal-600 mx-auto mb-2" />
-            <p className="text-2xl font-bold">{teacher.stats.totalHours}</p>
-            <p className="text-xs text-muted-foreground">{isRTL ? 'ساعت آموزش' : 'Hours'}</p>
-          </div>
-          <div className="bg-card border rounded-xl p-4 text-center">
-            <Star className="h-6 w-6 text-amber-500 mx-auto mb-2" />
-            <p className="text-2xl font-bold">{teacher.stats.avgRating}</p>
-            <p className="text-xs text-muted-foreground">{isRTL ? 'امتیاز' : 'Rating'}</p>
-          </div>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex gap-2 border-b mb-6">
-          {(['overview', 'students', 'courses', 'activity'] as const).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2 font-medium border-b-2 transition-colors ${
-                activeTab === tab 
-                  ? 'border-primary text-primary' 
-                  : 'border-transparent text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              {tab === 'overview' ? (isRTL ? 'نمای کلی' : 'Overview') :
-               tab === 'students' ? (isRTL ? 'دانش‌آموزان' : 'Students') :
-               tab === 'courses' ? (isRTL ? 'دوره‌ها' : 'Courses') :
-               (isRTL ? 'فعالیت‌ها' : 'Activity')}
-            </button>
-          ))}
-        </div>
-
-        {/* Overview Tab */}
-        {activeTab === 'overview' && (
-          <div className="grid gap-6 lg:grid-cols-2">
-            {/* Recent Courses */}
-            <div className="bg-card border rounded-xl">
-              <div className="p-4 border-b flex items-center justify-between">
-                <h3 className="font-semibold">{isRTL ? 'دوره‌های اخیر' : 'Recent Courses'}</h3>
-                <button onClick={() => setActiveTab('courses')} className="text-sm text-primary hover:underline">
-                  {isRTL ? 'مشاهده همه' : 'View All'}
-                </button>
-              </div>
-              <div className="divide-y">
-                {courses.slice(0, 3).map((course) => (
-                  <div key={course.id} className="flex items-center gap-3 p-4">
-                    <div className="h-10 w-10 rounded-lg bg-purple-100 flex items-center justify-center">
-                      <BookOpen className="h-5 w-5 text-purple-600" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-medium text-sm">{course.title}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {course.students} {isRTL ? 'دانش‌آموز' : 'students'}
-                      </p>
-                    </div>
-                    <div className="w-20 h-2 rounded-full bg-muted">
-                      <div className="h-full bg-primary rounded-full" style={{ width: `${course.progress}%` }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Recent Activity */}
-            <div className="bg-card border rounded-xl">
-              <div className="p-4 border-b">
-                <h3 className="font-semibold">{isRTL ? 'فعالیت‌های اخیر' : 'Recent Activity'}</h3>
-              </div>
-              <div className="divide-y">
-                {activities.map((activity, idx) => (
-                  <div key={idx} className="flex items-start gap-3 p-4">
-                    <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
-                      <Clock className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <p className="text-sm">{activity.action}</p>
-                      <p className="text-xs text-muted-foreground">{activity.course} • {activity.time}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+      <div className="mx-auto max-w-6xl px-4 py-6">
+        {error && (
+          <div className="mb-4 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">{error}</div>
         )}
 
-        {/* Students Tab */}
-        {activeTab === 'students' && (
-          <div className="bg-card border rounded-xl">
-            <div className="p-4 border-b flex items-center justify-between">
-              <h3 className="font-semibold">{isRTL ? 'دانش‌آموزان' : 'Students'}</h3>
-              <Link
-                href={`/${locale}/admin/assignments`}
-                className="text-sm text-primary hover:underline"
-              >
-                {isRTL ? 'مدیریت تخصیص' : 'Manage Assignments'}
-              </Link>
-            </div>
-            <div className="divide-y">
-              {students.map((student) => (
-                <div key={student.id} className="flex items-center gap-4 p-4 hover:bg-muted/30">
-                  <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center font-medium text-blue-700">
-                    {student.avatar}
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-medium">{student.name}</p>
-                    <p className="text-sm text-muted-foreground">{isRTL ? 'پایه' : 'Grade'} {student.grade}</p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="w-24 h-2 rounded-full bg-muted">
-                      <div className="h-full bg-green-600 rounded-full" style={{ width: `${student.progress}%` }} />
-                    </div>
-                    <span className="text-sm font-medium w-10">{student.progress}%</span>
-                  </div>
-                </div>
-              ))}
-            </div>
+        {loading ? (
+          <div className="rounded-xl border bg-card p-10 text-center text-muted-foreground">
+            {isRTL ? 'در حال بارگیری...' : 'Loading...'}
           </div>
-        )}
-
-        {/* Courses Tab */}
-        {activeTab === 'courses' && (
-          <div className="bg-card border rounded-xl">
-            <div className="p-4 border-b flex items-center justify-between">
-              <h3 className="font-semibold">{isRTL ? 'دوره‌ها' : 'Courses'}</h3>
-              <Link
-                href={`/${locale}/admin/courses`}
-                className="text-sm text-primary hover:underline"
-              >
-                {isRTL ? 'تخصیص دوره جدید' : 'Assign New Course'}
-              </Link>
-            </div>
-            <div className="divide-y">
-              {courses.map((course) => (
-                <div key={course.id} className="flex items-center gap-4 p-4 hover:bg-muted/30">
-                  <div className="h-12 w-12 rounded-xl bg-purple-100 flex items-center justify-center">
-                    <BookOpen className="h-6 w-6 text-purple-600" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium">{course.title}</p>
-                      {course.status === 'draft' && (
-                        <span className="px-2 py-0.5 rounded-full text-xs bg-yellow-100 text-yellow-700">
-                          {isRTL ? 'پیش‌نویس' : 'Draft'}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {course.students} {isRTL ? 'دانش‌آموز' : 'students'} • {course.lessons} {isRTL ? 'درس' : 'lessons'}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="w-24 h-2 rounded-full bg-muted">
-                      <div className="h-full bg-primary rounded-full" style={{ width: `${course.progress}%` }} />
-                    </div>
-                    <span className="text-sm font-medium w-10">{course.progress}%</span>
-                    <NavArrow className="h-5 w-5 text-muted-foreground" />
-                  </div>
-                </div>
-              ))}
-            </div>
+        ) : !teacher ? (
+          <div className="rounded-xl border bg-card p-10 text-center text-muted-foreground">
+            {isRTL ? 'معلم پیدا نشد.' : 'Teacher not found.'}
           </div>
-        )}
+        ) : (
+          <div className="space-y-6">
 
-        {/* Activity Tab */}
-        {activeTab === 'activity' && (
-          <div className="bg-card border rounded-xl">
-            <div className="p-4 border-b">
-              <h3 className="font-semibold">{isRTL ? 'تمام فعالیت‌ها' : 'All Activity'}</h3>
-            </div>
-            <div className="divide-y">
-              {[...activities, ...activities, ...activities].map((activity, idx) => (
-                <div key={idx} className="flex items-start gap-3 p-4 hover:bg-muted/30">
-                  <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
-                    <Clock className="h-5 w-5" />
+            {/* Profile card */}
+            <div className="rounded-xl border bg-card p-6">
+              <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
+                <div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-primary/10 text-4xl font-bold text-primary">
+                  {teacher.avatar}
+                </div>
+                <div className="flex-1">
+                  <div className="mb-3 flex flex-wrap items-center gap-3">
+                    <h2 className="text-2xl font-bold">{teacher.name}</h2>
+                    <span className={`rounded-full px-3 py-1 text-sm ${statusClassName}`}>{statusLabel}</span>
                   </div>
-                  <div>
-                    <p className="font-medium text-sm">{activity.action}</p>
-                    <p className="text-sm text-muted-foreground">{activity.course}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{activity.time}</p>
+                  <p className="mb-4 text-sm text-muted-foreground">{teacher.departmentLabel} • {teacher.subject}</p>
+                  <p className="mb-4 text-sm leading-6 text-muted-foreground">
+                    {teacher.bio || (isRTL ? 'برای این معلم توضیحی ثبت نشده است.' : 'No biography has been added for this teacher.')}
+                  </p>
+                  <div className="flex flex-wrap gap-4 text-sm">
+                    <span className="flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-muted-foreground" />{teacher.email}
+                    </span>
+                    <span className="flex items-center gap-2">
+                      <Phone className="h-4 w-4 text-muted-foreground" />
+                      {teacher.phone || (isRTL ? 'ثبت نشده' : 'Not provided')}
+                    </span>
+                    <span className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-muted-foreground" />
+                      {isRTL ? 'عضویت:' : 'Joined:'} {formatDate(teacher.joinDate, locale)}
+                    </span>
                   </div>
                 </div>
-              ))}
+              </div>
             </div>
+
+            {/* Stats row */}
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="rounded-xl border bg-card p-5">
+                <div className="mb-3 flex items-center gap-2">
+                  <GraduationCap className="h-5 w-5 text-primary" />
+                  <h3 className="font-semibold">{isRTL ? 'موضوع‌های تدریس' : 'Teaching Subjects'}</h3>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {derivedSubjects.length > 0
+                    ? derivedSubjects.map((name) => (
+                        <span key={name} className="rounded-lg bg-muted px-3 py-1 text-sm">{name}</span>
+                      ))
+                    : <span className="text-sm text-muted-foreground">{isRTL ? 'پس از تخصیص دوره نمایش می‌یابد' : 'Shown after courses are assigned'}</span>}
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground">{isRTL ? 'بر اساس دوره‌های تخصیص‌یافته' : 'Auto-derived from assigned courses'}</p>
+              </div>
+              <div className="rounded-xl border bg-card p-5">
+                <div className="mb-3 flex items-center gap-2">
+                  <Users className="h-5 w-5 text-primary" />
+                  <h3 className="font-semibold">{isRTL ? 'دانش‌آموزان' : 'Students'}</h3>
+                </div>
+                <p className="text-3xl font-bold">{teacher.students}</p>
+                <p className="text-sm text-muted-foreground">{isRTL ? 'در حال حاضر تخصیص داده شده' : 'Currently assigned'}</p>
+              </div>
+              <div className="rounded-xl border bg-card p-5">
+                <div className="mb-3 flex items-center gap-2">
+                  <BookOpen className="h-5 w-5 text-primary" />
+                  <h3 className="font-semibold">{isRTL ? 'دوره‌ها' : 'Courses'}</h3>
+                </div>
+                <p className="text-3xl font-bold">{selectedCourseIds.size}</p>
+                <p className="text-sm text-muted-foreground">{isRTL ? 'دوره‌های تخصیص داده شده' : 'Assigned courses'}</p>
+              </div>
+            </div>
+
+            {/* Course Assignment Panel */}
+            <div className="rounded-xl border bg-card p-6">
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <BookOpen className="h-5 w-5 text-primary" />
+                  <h3 className="text-lg font-semibold">
+                    {isRTL ? 'تخصیص دوره‌ها به معلم' : 'Assign Courses to Teacher'}
+                  </h3>
+                </div>
+                <div className="flex items-center gap-3">
+                  {coursesSaved && (
+                    <span className="flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
+                      <Check className="h-4 w-4" />
+                      {isRTL ? 'ذخیره شد' : 'Saved'}
+                    </span>
+                  )}
+                  <button
+                    onClick={saveCourseAssignments}
+                    disabled={isSavingCourses}
+                    className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+                  >
+                    {isSavingCourses ? (
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    ) : (
+                      <Check className="h-4 w-4" />
+                    )}
+                    {isRTL ? 'ذخیره تخصیص' : 'Save Assignments'}
+                  </button>
+                </div>
+              </div>
+
+              {coursesError && (
+                <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+                  {coursesError}
+                </div>
+              )}
+
+              <p className="mb-3 text-sm text-muted-foreground">
+                {isRTL
+                  ? `${selectedCourseIds.size} دوره انتخاب شده از ${allCourses.length} دوره موجود. روی هر دوره کلیک کنید تا اضافه یا حذف شود.`
+                  : `${selectedCourseIds.size} of ${allCourses.length} courses selected. Click a course to toggle assignment.`}
+              </p>
+
+              {/* Search */}
+              <div className="relative mb-4">
+                <input
+                  type="text"
+                  value={courseFilter}
+                  onChange={(e) => setCourseFilter(e.target.value)}
+                  placeholder={isRTL ? 'جستجوی دوره...' : 'Search courses...'}
+                  className="w-full rounded-lg border bg-background px-4 py-2 text-sm pe-8"
+                />
+                {courseFilter && (
+                  <button
+                    onClick={() => setCourseFilter('')}
+                    className="absolute top-1/2 end-2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+
+              {allCourses.length === 0 ? (
+                <p className="py-6 text-center text-sm text-muted-foreground">
+                  {isRTL ? 'هیچ دوره‌ای یافت نشد.' : 'No courses found.'}
+                </p>
+              ) : (
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  {filteredCourses.map((course) => {
+                    const assigned = selectedCourseIds.has(course.id);
+                    return (
+                      <button
+                        key={course.id}
+                        type="button"
+                        onClick={() => toggleCourse(course.id)}
+                        className={`flex items-start gap-3 rounded-lg border p-3 text-left transition-colors ${
+                          assigned
+                            ? 'border-primary/50 bg-primary/5 hover:bg-primary/10'
+                            : 'border-border bg-background hover:bg-muted'
+                        }`}
+                      >
+                        <div className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border ${assigned ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground'}`}>
+                          {assigned ? <Check className="h-3 w-3" /> : <Plus className="h-3 w-3 text-muted-foreground" />}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium">
+                            {isRTL && course.titleFA ? course.titleFA : course.title}
+                          </p>
+                          <p className="text-xs text-muted-foreground">{course.subjectName} · {course.code}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
           </div>
         )}
       </div>

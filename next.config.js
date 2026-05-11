@@ -90,6 +90,8 @@ const nextConfig = {
     serverActions: {
       bodySizeLimit: '2mb',
     },
+    // Exclude cheerio/undici from webpack bundling (they use private class fields unsupported by SWC)
+    serverComponentsExternalPackages: ['cheerio', 'undici'],
   },
 
   // Webpack configuration
@@ -99,6 +101,21 @@ const nextConfig = {
       test: /\.svg$/,
       use: ['@svgr/webpack'],
     });
+
+    // Exclude cheerio and undici from webpack bundling on the server
+    // (they use private class field syntax #foo that SWC cannot parse)
+    if (isServer) {
+      const existingExternals = config.externals || [];
+      config.externals = [
+        ...(Array.isArray(existingExternals) ? existingExternals : [existingExternals]),
+        ({ request }, callback) => {
+          if (request === 'cheerio' || request === 'undici' || (request && request.startsWith('undici/'))) {
+            return callback(null, 'commonjs ' + request);
+          }
+          callback();
+        },
+      ];
+    }
 
     return config;
   },

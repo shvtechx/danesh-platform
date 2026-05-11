@@ -1,0 +1,128 @@
+[
+  {
+    "id": "demo-subject-admin",
+    "email": "subjectadmin@danesh.app",
+    "password": "SubjectAdmin@123",
+    "status": "ACTIVE",
+    "profile": {
+      "firstName": "Neda",
+      "lastName": "Farhadi",
+      "displayName": "Subject Administrator"
+    },
+    "roles": [
+      "SUBJECT_ADMIN"
+    ],
+    "permissions": [
+      "subjects.read",
+      "subjects.assign",
+      "subjects.update",
+      "teachers.read",
+      "teachers.assignSubjects",
+      "students.read",
+      "students.assign",
+      "courses.read",
+      "system.settings",
+      "profile.read"
+    ],
+    "managedSubjects": [
+      "Mathematics",
+      "Physics"
+    ],
+    "dashboardPath": "admin"
+  },
+  {
+    "id": "demo-teacher-math",
+    "email": "teacher.math@danesh.app",
+    "password": "Teacher@123",
+    "status": "ACTIVE",
+    "profile": {
+      "firstName": "Reza",
+      "lastName": "Ahmadi",
+      "displayName": "Dr. Reza Ahmadi"
+    },
+    "roles": [
+      "TEACHER"
+    ],
+    "permissions": [
+      "subjects.read",
+      "courses.read",
+      "courses.update.assigned",
+      "lessons.update.assigned",
+      "students.read",
+      "profile.read"
+    ],
+    "assignedSubjects": [
+      "Mathematics"
+    ],
+    "assignedStudents": [
+      "Ali Ahmadi"
+    ],
+    "dashboardPath": "teacher"
+  },
+  {
+    "id": "demo-student-ali",
+    "email": "student.ali@danesh.app",
+    "password": "Student@123",
+    "status": "ACTIVE",
+    "profile": {
+      "firstName": "Ali",
+      "lastName": "Ahmadi",
+      "displayName": "Ali Ahmadi"
+    },
+    "roles": [
+      "STUDENT"
+    ],
+    "permissions": [
+      "courses.read",
+      "wellbeing.submit",
+      "profile.read"
+    ],
+    "assignedSubjects": [
+      "Mathematics"
+    ],
+    "dashboardPath": "dashboard"
+  },
+  {
+    "id": "demo-super-admin",
+    "email": "superadmin@danesh.app",
+    "password": "SuperAdmin@123",
+    "status": "ACTIVE",
+    "profile": {
+      "firstName": "Super",
+      "lastName": "Admin",
+      "displayName": "Super Administrator"
+    },
+    "roles": [
+      "SUPER_ADMIN"
+    ],
+    "permissions": [
+      "users.create",
+      "users.read",
+      "users.update",
+      "users.delete",
+      "roles.manage",
+      "subjects.create",
+      "subjects.read",
+      "subjects.update",
+      "subjects.delete",
+      "subjects.assign",
+      "teachers.read",
+      "teachers.assignSubjects",
+      "teachers.manage",
+      "students.read",
+      "students.assign",
+      "courses.read",
+      "courses.update.assigned",
+      "lessons.update.assigned",
+      "system.settings",
+      "impersonate.all",
+      "profile.read"
+    ],
+    "managedSubjects": [
+      "Mathematics",
+      "Physics",
+      "English"
+    ],
+    "dashboardPath": "admin"
+  }
+]

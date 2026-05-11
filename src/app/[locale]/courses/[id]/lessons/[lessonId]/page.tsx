@@ -1205,6 +1205,8 @@ export default function LessonPage({ params }: { params: { locale: string; id: s
   const [isPlaying, setIsPlaying] = useState(false);
   const [quizAnswers, setQuizAnswers] = useState<Record<number, number>>({});
   const [quizSubmitted, setQuizSubmitted] = useState(false);
+  const [discussionDraft, setDiscussionDraft] = useState('');
+  const [discussionLikes, setDiscussionLikes] = useState<Record<string, number>>({ 'sample-1': 3 });
 
   const lesson = lessonsData[lessonId] || defaultLesson;
   const aiLessonNumber = getAiLessonNumber(lessonId);
@@ -1254,6 +1256,32 @@ export default function LessonPage({ params }: { params: { locale: string; id: s
         },
       ]
     : [];
+  const sampleDiscussion = [
+    {
+      id: 'sample-1',
+      author: isRTL ? 'سارا م.' : 'Sara M.',
+      time: isRTL ? '۲ ساعت پیش' : '2 hours ago',
+      content: isRTL
+        ? 'سلام، آیا می‌توانید بیشتر درباره روش حذفی توضیح دهید؟'
+        : 'Hello, can you explain more about the elimination method?',
+    },
+  ];
+
+  const handleDiscussionSend = () => {
+    if (!discussionDraft.trim()) return;
+    setDiscussionDraft('');
+  };
+
+  const handleDiscussionLike = (discussionId: string) => {
+    setDiscussionLikes((current) => ({
+      ...current,
+      [discussionId]: (current[discussionId] ?? 0) + 1,
+    }));
+  };
+
+  const handleDiscussionReply = (author: string) => {
+    setDiscussionDraft(`@${author} `);
+  };
 
   const practiceQuestions: PracticeQuestion[] = lesson.quiz.map((q: any, idx: number) => ({
     id: `${lessonId}-${idx + 1}`,
@@ -1663,41 +1691,43 @@ export default function LessonPage({ params }: { params: { locale: string; id: s
                     </div>
                     <input
                       type="text"
+                      value={discussionDraft}
+                      onChange={(event) => setDiscussionDraft(event.target.value)}
                       placeholder={isRTL ? 'سوال یا نظر خود را بنویسید...' : 'Write your question or comment...'}
                       className="flex-1 h-10 px-4 rounded-lg border bg-background"
                     />
-                    <button className="px-4 h-10 rounded-lg bg-primary text-primary-foreground">
+                    <button type="button" onClick={handleDiscussionSend} className="px-4 h-10 rounded-lg bg-primary text-primary-foreground">
                       {isRTL ? 'ارسال' : 'Send'}
                     </button>
                   </div>
                   
                   {/* Sample Discussion */}
                   <div className="space-y-4 mt-6">
-                    <div className="bg-muted/50 rounded-lg p-4">
+                    {sampleDiscussion.map((discussionItem) => (
+                    <div key={discussionItem.id} className="bg-muted/50 rounded-lg p-4">
                       <div className="flex items-start gap-3">
                         <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-sm font-semibold">
                           س
                         </div>
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
-                            <span className="font-medium">{isRTL ? 'سارا م.' : 'Sara M.'}</span>
-                            <span className="text-xs text-muted-foreground">{isRTL ? '۲ ساعت پیش' : '2 hours ago'}</span>
+                            <span className="font-medium">{discussionItem.author}</span>
+                            <span className="text-xs text-muted-foreground">{discussionItem.time}</span>
                           </div>
                           <p className="text-sm mt-1">
-                            {isRTL 
-                              ? 'سلام، آیا می‌توانید بیشتر درباره روش حذفی توضیح دهید؟'
-                              : 'Hello, can you explain more about the elimination method?'}
+                            {discussionItem.content}
                           </p>
                           <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-                            <button className="flex items-center gap-1 hover:text-primary">
+                            <button type="button" onClick={() => handleDiscussionLike(discussionItem.id)} className="flex items-center gap-1 hover:text-primary">
                               <ThumbsUp className="h-4 w-4" />
-                              3
+                              {discussionLikes[discussionItem.id] ?? 0}
                             </button>
-                            <button className="hover:text-primary">{isRTL ? 'پاسخ' : 'Reply'}</button>
+                            <button type="button" onClick={() => handleDiscussionReply(discussionItem.author)} className="hover:text-primary">{isRTL ? 'پاسخ' : 'Reply'}</button>
                           </div>
                         </div>
                       </div>
                     </div>
+                    ))}
                   </div>
                 </div>
               )}

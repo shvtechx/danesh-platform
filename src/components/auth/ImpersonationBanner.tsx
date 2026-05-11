@@ -7,7 +7,7 @@ import {
   ORIGINAL_USER_STORAGE_KEY,
   USER_ID_STORAGE_KEY,
   getHomeRouteForRoles,
-} from '@/lib/auth/demo-users';
+} from '@/lib/auth/demo-auth-shared';
 
 interface StoredUser {
   id: string;

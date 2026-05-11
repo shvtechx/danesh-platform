@@ -1,0 +1,137 @@
+{
+  "passed": 26,
+  "failed": 0,
+  "warnings": 0,
+  "tests": [
+    {
+      "name": "File exists: package.json",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "name": "File exists: next.config.js",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "name": "File exists: tsconfig.json",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "name": "File exists: tailwind.config.ts",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "name": "File exists: prisma/schema.prisma",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "name": "File exists: src/app/[locale]/layout.tsx",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "name": "File exists: src/lib/auth/demo-users.ts",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "name": "File exists: docs/PLATFORM_DESIGN_SPECIFICATION.md",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "name": "Create User API",
+      "status": "PASS",
+      "details": "Created test1778496328523@test.com"
+    },
+    {
+      "name": "List Users API",
+      "status": "PASS",
+      "details": "Found 31 users"
+    },
+    {
+      "name": "Delete User API",
+      "status": "PASS",
+      "details": "Deleted test-student-1778496328523"
+    },
+    {
+      "name": "List Scraped Content API",
+      "status": "PASS",
+      "details": "Found 38 items"
+    },
+    {
+      "name": "Create Scraped Content API",
+      "status": "PASS",
+      "details": "Created test content"
+    },
+    {
+      "name": "Approve Content API",
+      "status": "PASS",
+      "details": "Approved content"
+    },
+    {
+      "name": "List Skills API",
+      "status": "PASS",
+      "details": "Found 35 skills"
+    },
+    {
+      "name": "Filter Skills by Subject API",
+      "status": "PASS",
+      "details": "Found 1 math skills"
+    },
+    {
+      "name": "Create Skill API",
+      "status": "PASS",
+      "details": "Created TEST_SKILL_1778496329632"
+    },
+    {
+      "name": "List Subjects API",
+      "status": "PASS",
+      "details": "Found 14 subjects"
+    },
+    {
+      "name": "Create Teacher For Assignment Workflow",
+      "status": "PASS",
+      "details": "audit.teacher.1778496329863@danesh.app"
+    },
+    {
+      "name": "Assign Subject And Course To Teacher",
+      "status": "PASS",
+      "details": "ART + 1 course"
+    },
+    {
+      "name": "Teacher Assignment Sync Verification",
+      "status": "PASS",
+      "details": "subjects=1, courses=1"
+    },
+    {
+      "name": "Cleanup Assignment Test Teacher",
+      "status": "PASS",
+      "details": "cmp12sn4l000ci762yxdw1od1"
+    },
+    {
+      "name": "Buttons Have Handlers",
+      "status": "PASS",
+      "details": "283/283 buttons have handlers"
+    },
+    {
+      "name": "Internal Links Valid",
+      "status": "PASS",
+      "details": "7/7 links point to existing routes"
+    },
+    {
+      "name": "API Endpoints Found",
+      "status": "PASS",
+      "details": "45 endpoints discovered"
+    },
+    {
+      "name": "Implementation gap scan",
+      "status": "PASS",
+      "details": "0 TODOs, 0 alert calls, 0 coming-soon placeholders"
+    }
+  ]
+}

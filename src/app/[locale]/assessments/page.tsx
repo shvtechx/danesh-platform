@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { FileQuestion, Clock, CheckCircle, XCircle, PlayCircle, Trophy, Target, BarChart } from 'lucide-react';
@@ -8,6 +9,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 export default function AssessmentsPage({ params: { locale } }: { params: { locale: string } }) {
   const t = useTranslations();
   const isRTL = locale === 'fa';
+  const [activeFilter, setActiveFilter] = useState<'all' | 'quiz' | 'exam' | 'practice'>('all');
 
   const assessments = [
     {
@@ -77,6 +79,10 @@ export default function AssessmentsPage({ params: { locale } }: { params: { loca
     missed: isRTL ? 'از دست رفته' : 'Missed',
   };
 
+  const filteredAssessments = assessments.filter((assessment) =>
+    activeFilter === 'all' ? true : assessment.type === activeFilter
+  );
+
   return (
     <div className="min-h-screen bg-background">
       <PageHeader 
@@ -142,23 +148,47 @@ export default function AssessmentsPage({ params: { locale } }: { params: { loca
 
       {/* Tabs */}
       <div className="flex gap-2 border-b">
-        <button className="px-4 py-2 border-b-2 border-primary text-primary font-medium">
+        <button
+          type="button"
+          onClick={() => setActiveFilter('all')}
+          className={`px-4 py-2 border-b-2 font-medium ${
+            activeFilter === 'all' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
+          }`}
+        >
           {isRTL ? 'همه' : 'All'}
         </button>
-        <button className="px-4 py-2 text-muted-foreground hover:text-foreground">
+        <button
+          type="button"
+          onClick={() => setActiveFilter('quiz')}
+          className={`px-4 py-2 border-b-2 ${
+            activeFilter === 'quiz' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
+          }`}
+        >
           {t('assessments.quiz')}
         </button>
-        <button className="px-4 py-2 text-muted-foreground hover:text-foreground">
+        <button
+          type="button"
+          onClick={() => setActiveFilter('exam')}
+          className={`px-4 py-2 border-b-2 ${
+            activeFilter === 'exam' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
+          }`}
+        >
           {t('assessments.exam')}
         </button>
-        <button className="px-4 py-2 text-muted-foreground hover:text-foreground">
+        <button
+          type="button"
+          onClick={() => setActiveFilter('practice')}
+          className={`px-4 py-2 border-b-2 ${
+            activeFilter === 'practice' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
+          }`}
+        >
           {t('assessments.practice')}
         </button>
       </div>
 
       {/* Assessment List */}
       <div className="space-y-4">
-        {assessments.map((assessment) => {
+        {filteredAssessments.map((assessment) => {
           const StatusIcon = statusIcons[assessment.status as keyof typeof statusIcons];
           return (
             <div

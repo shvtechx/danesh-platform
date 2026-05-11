@@ -1,28 +1,100 @@
 'use client';
 
-import { useTranslations } from 'next-intl';
-import { Trophy, Medal, Crown, Flame, Star, TrendingUp, ChevronUp, ChevronDown } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { ChevronDown, ChevronUp, Crown, Flame, Medal, Star, Trophy } from 'lucide-react';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { FeedbackBanner } from '@/components/ui/feedback-banner';
+import { createUserHeaders, getStoredUserId } from '@/lib/auth/demo-auth-shared';
+
+type LeaderboardEntry = {
+  id: string;
+  name: string;
+  xp: number;
+  totalXP: number;
+  level: number;
+  streak: number;
+  change: number;
+  mastery: number;
+  avatar: string;
+  rank: number;
+  rankLabel: string;
+};
+
+type LeaderboardResponse = {
+  range: 'week' | 'month' | 'all';
+  rankings: LeaderboardEntry[];
+  summary: {
+    totalParticipants: number;
+    maxXP: number;
+  };
+};
+
+const EMPTY_RESPONSE: LeaderboardResponse = {
+  range: 'week',
+  rankings: [],
+  summary: {
+    totalParticipants: 0,
+    maxXP: 0,
+  },
+};
 
 export default function LeaderboardPage({ params: { locale } }: { params: { locale: string } }) {
-  const t = useTranslations();
   const isRTL = locale === 'fa';
+  const [activeRange, setActiveRange] = useState<'week' | 'month' | 'all'>('week');
+  const [leaderboard, setLeaderboard] = useState<LeaderboardResponse>(EMPTY_RESPONSE);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [feedback, setFeedback] = useState<{ variant: 'error' | 'info'; message: string } | null>(null);
 
-  const topUsers = [
-    { rank: 1, name: isRTL ? 'سارا کریمی' : 'Sara Karimi', xp: 12450, streak: 45, avatar: 'S', change: 0 },
-    { rank: 2, name: isRTL ? 'محمد رضایی' : 'Mohammad Rezaei', xp: 11200, streak: 38, avatar: 'M', change: 1 },
-    { rank: 3, name: isRTL ? 'زهرا محمدی' : 'Zahra Mohammadi', xp: 10850, streak: 32, avatar: 'Z', change: -1 },
-  ];
+  useEffect(() => {
+    setCurrentUserId(getStoredUserId());
+  }, []);
 
-  const leaderboard = [
-    { rank: 4, name: isRTL ? 'علی احمدی' : 'Ali Ahmadi', xp: 9500, streak: 28, avatar: 'A', change: 2, isCurrentUser: true },
-    { rank: 5, name: isRTL ? 'مریم حسینی' : 'Maryam Hosseini', xp: 9200, streak: 25, avatar: 'M', change: -1 },
-    { rank: 6, name: isRTL ? 'امیر نوری' : 'Amir Noori', xp: 8900, streak: 22, avatar: 'A', change: 0 },
-    { rank: 7, name: isRTL ? 'فاطمه جعفری' : 'Fatemeh Jafari', xp: 8600, streak: 20, avatar: 'F', change: 3 },
-    { rank: 8, name: isRTL ? 'رضا موسوی' : 'Reza Mousavi', xp: 8300, streak: 18, avatar: 'R', change: -2 },
-    { rank: 9, name: isRTL ? 'نیلوفر صادقی' : 'Niloofar Sadeghi', xp: 8000, streak: 15, avatar: 'N', change: 1 },
-    { rank: 10, name: isRTL ? 'حسین قاسمی' : 'Hossein Ghasemi', xp: 7800, streak: 14, avatar: 'H', change: 0 },
-  ];
+  useEffect(() => {
+    let active = true;
+
+    const loadLeaderboard = async () => {
+      try {
+        setIsLoading(true);
+        setFeedback(null);
+
+        const response = await fetch(`/api/v1/leaderboard?locale=${locale}&range=${activeRange}`, {
+          cache: 'no-store',
+          headers: createUserHeaders(getStoredUserId()),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to load leaderboard');
+        }
+
+        const data = (await response.json()) as LeaderboardResponse;
+        if (active) {
+          setLeaderboard(data);
+        }
+      } catch {
+        if (active) {
+          setLeaderboard(EMPTY_RESPONSE);
+          setFeedback({
+            variant: 'error',
+            message: isRTL ? 'بارگذاری جدول رتبه‌بندی انجام نشد.' : 'Leaderboard data could not be loaded.',
+          });
+        }
+      } finally {
+        if (active) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadLeaderboard();
+
+    return () => {
+      active = false;
+    };
+  }, [activeRange, isRTL, locale]);
+
+  const topUsers = useMemo(() => leaderboard.rankings.slice(0, 3), [leaderboard.rankings]);
+  const remainingUsers = useMemo(() => leaderboard.rankings.slice(3), [leaderboard.rankings]);
 
   const getRankIcon = (rank: number) => {
     switch (rank) {
@@ -52,119 +124,176 @@ export default function LeaderboardPage({ params: { locale } }: { params: { loca
 
   return (
     <div className="min-h-screen bg-background">
-      <PageHeader 
-        locale={locale} 
-        title={t('gamification.leaderboard')}
+      <PageHeader
+        locale={locale}
+        title={isRTL ? 'جدول رتبه‌بندی' : 'Leaderboard'}
         backHref={`/${locale}/dashboard`}
         backLabel={isRTL ? 'داشبورد' : 'Dashboard'}
       />
-      <div className="space-y-8 p-6">
+
+      <div className="mx-auto max-w-7xl space-y-8 p-6">
         <div>
-          <p className="text-muted-foreground mt-2">
-            {isRTL ? 'رتبه‌بندی دانش‌آموزان برتر' : 'Top students ranking'}
+          <p className="mt-2 text-muted-foreground">
+            {isRTL ? 'رتبه‌بندی دانش‌آموزان بر پایه XP، تداوم فعالیت و تسلط مهارتی' : 'Student rankings based on XP, learning streaks, and mastery signals'}
           </p>
         </div>
 
-      {/* Tabs */}
-      <div className="flex gap-2 border-b">
-        <button className="px-4 py-2 border-b-2 border-primary text-primary font-medium">
-          {isRTL ? 'این هفته' : 'This Week'}
-        </button>
-        <button className="px-4 py-2 text-muted-foreground hover:text-foreground">
-          {isRTL ? 'این ماه' : 'This Month'}
-        </button>
-        <button className="px-4 py-2 text-muted-foreground hover:text-foreground">
-          {isRTL ? 'همه زمان‌ها' : 'All Time'}
-        </button>
-      </div>
+        {feedback ? <FeedbackBanner variant={feedback.variant} message={feedback.message} /> : null}
 
-      {/* Top 3 */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        {topUsers.map((user, index) => (
-          <div
-            key={user.rank}
-            className={`rounded-2xl border bg-card p-6 text-center ${
-              user.rank === 1 ? 'sm:order-2 sm:-mt-4' : user.rank === 2 ? 'sm:order-1' : 'sm:order-3'
-            }`}
-          >
-            <div className="relative inline-block">
-              <div className={`h-20 w-20 rounded-full ${getRankBg(user.rank)} flex items-center justify-center text-3xl text-white font-bold mx-auto`}>
-                {user.avatar}
-              </div>
-              <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-card border shadow-sm">
-                {getRankIcon(user.rank)}
-              </div>
-            </div>
-            <h3 className="font-semibold mt-4">{user.name}</h3>
-            <div className="flex items-center justify-center gap-2 mt-2 text-primary">
-              <Star className="h-4 w-4" />
-              <span className="font-bold">{user.xp.toLocaleString()} XP</span>
-            </div>
-            <div className="flex items-center justify-center gap-1 mt-1 text-sm text-muted-foreground">
-              <Flame className="h-4 w-4 text-orange-500" />
-              <span>{user.streak} {isRTL ? 'روز' : 'days'}</span>
-            </div>
+        <div className="grid gap-4 md:grid-cols-3">
+          <div className="rounded-2xl border bg-card p-5">
+            <p className="text-sm text-muted-foreground">{isRTL ? 'شرکت‌کنندگان فعال' : 'Active participants'}</p>
+            <p className="mt-2 text-3xl font-bold">{isLoading ? '—' : leaderboard.summary.totalParticipants.toLocaleString(isRTL ? 'fa-IR' : 'en-US')}</p>
           </div>
-        ))}
-      </div>
-
-      {/* Leaderboard Table */}
-      <div className="rounded-2xl border bg-card overflow-hidden">
-        <div className="grid grid-cols-12 gap-4 p-4 border-b bg-muted/50 text-sm font-medium text-muted-foreground">
-          <div className="col-span-1">{isRTL ? 'رتبه' : 'Rank'}</div>
-          <div className="col-span-5">{isRTL ? 'کاربر' : 'User'}</div>
-          <div className="col-span-2 text-center">{t('gamification.xp')}</div>
-          <div className="col-span-2 text-center">{t('gamification.streak')}</div>
-          <div className="col-span-2 text-center">{isRTL ? 'تغییر' : 'Change'}</div>
+          <div className="rounded-2xl border bg-card p-5">
+            <p className="text-sm text-muted-foreground">{isRTL ? 'بیشترین XP در بازه' : 'Highest XP in range'}</p>
+            <p className="mt-2 text-3xl font-bold">{isLoading ? '—' : leaderboard.summary.maxXP.toLocaleString(isRTL ? 'fa-IR' : 'en-US')}</p>
+          </div>
+          <div className="rounded-2xl border bg-card p-5">
+            <p className="text-sm text-muted-foreground">{isRTL ? 'بازه فعال' : 'Selected range'}</p>
+            <p className="mt-2 text-lg font-semibold">{activeRange === 'week' ? (isRTL ? 'این هفته' : 'This Week') : activeRange === 'month' ? (isRTL ? 'این ماه' : 'This Month') : (isRTL ? 'همه زمان‌ها' : 'All Time')}</p>
+          </div>
         </div>
-        {leaderboard.map((user) => (
-          <div
-            key={user.rank}
-            className={`grid grid-cols-12 gap-4 p-4 items-center border-b last:border-0 ${
-              user.isCurrentUser ? 'bg-primary/5' : ''
-            }`}
+
+        <div className="flex gap-2 border-b">
+          <button
+            type="button"
+            onClick={() => setActiveRange('week')}
+            className={`border-b-2 px-4 py-2 font-medium ${activeRange === 'week' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
           >
-            <div className="col-span-1">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
-                {getRankIcon(user.rank)}
+            {isRTL ? 'این هفته' : 'This Week'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveRange('month')}
+            className={`border-b-2 px-4 py-2 ${activeRange === 'month' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
+          >
+            {isRTL ? 'این ماه' : 'This Month'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveRange('all')}
+            className={`border-b-2 px-4 py-2 ${activeRange === 'all' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
+          >
+            {isRTL ? 'همه زمان‌ها' : 'All Time'}
+          </button>
+        </div>
+
+        {topUsers.length > 0 ? (
+          <div className="grid gap-4 sm:grid-cols-3">
+            {topUsers.map((user) => (
+              <div
+                key={user.id}
+                className={`rounded-2xl border bg-card p-6 text-center ${
+                  user.rank === 1 ? 'sm:order-2 sm:-mt-4' : user.rank === 2 ? 'sm:order-1' : 'sm:order-3'
+                }`}
+              >
+                <div className="relative inline-block">
+                  <div className={`mx-auto flex h-20 w-20 items-center justify-center rounded-full ${getRankBg(user.rank)} text-3xl font-bold text-white`}>
+                    {user.avatar}
+                  </div>
+                  <div className="absolute -bottom-2 left-1/2 flex h-8 w-8 -translate-x-1/2 items-center justify-center rounded-full border bg-card shadow-sm">
+                    {getRankIcon(user.rank)}
+                  </div>
+                </div>
+                <h3 className="mt-4 font-semibold">{user.name}</h3>
+                <div className="mt-2 flex items-center justify-center gap-2 text-primary">
+                  <Star className="h-4 w-4" />
+                  <span className="font-bold">{user.xp.toLocaleString(isRTL ? 'fa-IR' : 'en-US')} XP</span>
+                </div>
+                <div className="mt-1 flex items-center justify-center gap-1 text-sm text-muted-foreground">
+                  <Flame className="h-4 w-4 text-orange-500" />
+                  <span>{user.streak} {isRTL ? 'روز' : 'days'}</span>
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground">{isRTL ? `سطح ${user.level}` : `Level ${user.level}`}</p>
               </div>
-            </div>
-            <div className="col-span-5 flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center font-semibold text-primary">
-                {user.avatar}
-              </div>
-              <div>
-                <p className="font-medium">{user.name}</p>
-                {user.isCurrentUser && (
-                  <span className="text-xs text-primary">{isRTL ? 'شما' : 'You'}</span>
-                )}
-              </div>
-            </div>
-            <div className="col-span-2 text-center">
-              <span className="font-semibold">{user.xp.toLocaleString()}</span>
-            </div>
-            <div className="col-span-2 text-center flex items-center justify-center gap-1">
-              <Flame className="h-4 w-4 text-orange-500" />
-              <span>{user.streak}</span>
-            </div>
-            <div className="col-span-2 text-center">
-              {user.change > 0 ? (
-                <span className="inline-flex items-center gap-1 text-green-500">
-                  <ChevronUp className="h-4 w-4" />
-                  {user.change}
-                </span>
-              ) : user.change < 0 ? (
-                <span className="inline-flex items-center gap-1 text-red-500">
-                  <ChevronDown className="h-4 w-4" />
-                  {Math.abs(user.change)}
-                </span>
-              ) : (
-                <span className="text-muted-foreground">-</span>
-              )}
-            </div>
+            ))}
           </div>
-        ))}
-      </div>
+        ) : (
+          <div className="rounded-2xl border border-dashed bg-card p-8 text-center text-sm text-muted-foreground">
+            {isLoading ? (isRTL ? 'در حال بارگذاری رتبه‌بندی...' : 'Loading leaderboard...') : (isRTL ? 'هنوز داده‌ای برای رتبه‌بندی ثبت نشده است.' : 'No ranking data is available yet.')}
+          </div>
+        )}
+
+        <div className="overflow-hidden rounded-2xl border bg-card">
+          <div className="grid grid-cols-12 gap-4 border-b bg-muted/50 p-4 text-sm font-medium text-muted-foreground">
+            <div className="col-span-1">{isRTL ? 'رتبه' : 'Rank'}</div>
+            <div className="col-span-4">{isRTL ? 'کاربر' : 'User'}</div>
+            <div className="col-span-2 text-center">XP</div>
+            <div className="col-span-2 text-center">{isRTL ? 'سطح' : 'Level'}</div>
+            <div className="col-span-1 text-center">{isRTL ? 'تداوم' : 'Streak'}</div>
+            <div className="col-span-1 text-center">{isRTL ? 'تسلط' : 'Mastery'}</div>
+            <div className="col-span-1 text-center">{isRTL ? 'تغییر' : 'Change'}</div>
+          </div>
+
+          {remainingUsers.length === 0 ? (
+            <div className="p-6 text-center text-sm text-muted-foreground">
+              {isLoading ? (isRTL ? 'در حال بارگذاری...' : 'Loading...') : (isRTL ? 'هنوز فهرست رتبه‌بندی کامل نشده است.' : 'The leaderboard list is not populated yet.')}
+            </div>
+          ) : (
+            remainingUsers.map((user) => {
+              const isCurrentUser = currentUserId === user.id;
+
+              return (
+                <div
+                  key={user.id}
+                  className={`grid grid-cols-12 items-center gap-4 border-b p-4 last:border-0 ${isCurrentUser ? 'bg-primary/5' : ''}`}
+                >
+                  <div className="col-span-1">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
+                      {getRankIcon(user.rank)}
+                    </div>
+                  </div>
+                  <div className="col-span-4 flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/20 font-semibold text-primary">
+                      {user.avatar}
+                    </div>
+                    <div>
+                      <p className="font-medium">{user.name}</p>
+                      {isCurrentUser ? <span className="text-xs text-primary">{isRTL ? 'شما' : 'You'}</span> : null}
+                    </div>
+                  </div>
+                  <div className="col-span-2 text-center font-semibold">{user.xp.toLocaleString(isRTL ? 'fa-IR' : 'en-US')}</div>
+                  <div className="col-span-2 text-center">{user.level}</div>
+                  <div className="col-span-1 flex items-center justify-center gap-1">
+                    <Flame className="h-4 w-4 text-orange-500" />
+                    <span>{user.streak}</span>
+                  </div>
+                  <div className="col-span-1 text-center">{user.mastery}%</div>
+                  <div className="col-span-1 text-center">
+                    {user.change > 0 ? (
+                      <span className="inline-flex items-center gap-1 text-green-500">
+                        <ChevronUp className="h-4 w-4" />
+                        {user.change}
+                      </span>
+                    ) : user.change < 0 ? (
+                      <span className="inline-flex items-center gap-1 text-red-500">
+                        <ChevronDown className="h-4 w-4" />
+                        {Math.abs(user.change)}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">-</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {topUsers.length > 0 ? (
+          <div className="rounded-2xl border bg-card p-5">
+            <div className="mb-3 flex items-center gap-2">
+              <Trophy className="h-5 w-5 text-primary" />
+              <h2 className="font-semibold">{isRTL ? 'جمع‌بندی رقابت سالم' : 'Growth-focused summary'}</h2>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {isRTL
+                ? 'رتبه‌بندی برای تشویق رشد فردی نمایش داده می‌شود. تمرکز اصلی بر تداوم یادگیری، کسب XP و تقویت مهارت‌ها است.'
+                : 'Rankings are shown to encourage personal growth. The main focus remains consistent learning, earned XP, and mastery development.'}
+            </p>
+          </div>
+        ) : null}
       </div>
     </div>
   );

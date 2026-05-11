@@ -7,7 +7,8 @@ import {
   BookOpen, Clock, Users, Star, Play, CheckCircle2, Lock, 
   ChevronRight, ChevronLeft, User, Award, BarChart 
 } from 'lucide-react';
-import { AUTH_STORAGE_KEY, getPrimaryRole } from '@/lib/auth/demo-users';
+import { AUTH_STORAGE_KEY, createUserHeaders, getPrimaryRole, getStoredUserId } from '@/lib/auth/demo-auth-shared';
+import { isDemoDataEnabled } from '@/lib/demo/demo-mode';
 
 // Course data based on Iranian curriculum (Grade 8)
 const coursesData: Record<string, any> = {
@@ -265,8 +266,11 @@ export default function CourseDetailPage({ params }: { params: { locale: string;
   const { locale, id } = params;
   const t = useTranslations();
   const isRTL = locale === 'fa';
+  const demoDataEnabled = isDemoDataEnabled();
   const Arrow = isRTL ? ChevronLeft : ChevronRight;
   const [activeRole, setActiveRole] = useState<string>('STUDENT');
+  const [resolvedCourse, setResolvedCourse] = useState<any | null>(null);
+  const [isLoadingCourse, setIsLoadingCourse] = useState(demoDataEnabled ? !coursesData[id] : true);
 
   useEffect(() => {
     try {
@@ -279,9 +283,140 @@ export default function CourseDetailPage({ params }: { params: { locale: string;
     }
   }, []);
 
-  const course = coursesData[id] || coursesData['1'];
+  useEffect(() => {
+    let active = true;
+
+    const loadCourse = async () => {
+      try {
+        setIsLoadingCourse(true);
+        const userId = getStoredUserId();
+
+        const [courseRes, enrolledRes] = await Promise.all([
+          fetch(`/api/v1/courses/${id}?locale=${locale}`),
+          userId
+            ? fetch('/api/v1/student/courses', { headers: createUserHeaders(userId) })
+            : Promise.resolve(null),
+        ]);
+
+        if (!courseRes.ok) {
+          if (active) {
+            setResolvedCourse(null);
+          }
+          return;
+        }
+
+        const courseData = await courseRes.json();
+        let enrolledCourse: any | null = null;
+
+        if (enrolledRes?.ok) {
+          const enrolledData = await enrolledRes.json();
+          enrolledCourse = (enrolledData.courses || []).find((course: any) => course.id === id) || null;
+        }
+
+        const completedLessonIds = new Set(
+          enrolledCourse?.units
+            ?.flatMap((unit: any) => unit.lessons)
+            ?.filter((lesson: any) => lesson.completion?.completedAt)
+            ?.map((lesson: any) => lesson.id) || []
+        );
+
+        const currentLessonId =
+          enrolledCourse?.units
+            ?.flatMap((unit: any) => unit.lessons)
+            ?.find((lesson: any) => !lesson.completion?.completedAt)?.id || null;
+
+        const totalLessons = courseData.totalLessons || 0;
+        const completedLessons = completedLessonIds.size;
+        const progress = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
+        const totalDuration = courseData.totalDuration || 0;
+        const durationLabel =
+          totalDuration >= 60
+            ? `${Math.round(totalDuration / 60)} ${isRTL ? 'ساعت' : 'hours'}`
+            : totalDuration > 0
+              ? `${totalDuration} ${isRTL ? 'دقیقه' : 'minutes'}`
+              : isRTL
+                ? 'با سرعت دلخواه'
+                : 'Self paced';
+
+        const normalizedCourse = {
+          title: { fa: courseData.title, en: courseData.title },
+          description: {
+            fa: courseData.description || 'توضیحی برای این دوره ثبت نشده است.',
+            en: courseData.description || 'No description available for this course.',
+          },
+          instructor: {
+            fa: 'تیم آموزشی دانش',
+            en: 'Danesh Teaching Team',
+          },
+          progress,
+          totalLessons,
+          completedLessons,
+          duration: durationLabel,
+          students: courseData.enrollmentsCount || 0,
+          rating: 4.8,
+          xpReward: totalLessons * 25,
+          units: (courseData.units || []).map((unit: any) => ({
+            id: unit.id,
+            title: { fa: unit.title, en: unit.title },
+            lessons: (unit.lessons || []).map((lesson: any, lessonIndex: number) => ({
+              id: lesson.id,
+              title: { fa: lesson.title, en: lesson.title },
+              duration: lesson.estimatedTime
+                ? `${lesson.estimatedTime} ${isRTL ? 'دقیقه' : 'min'}`
+                : isRTL
+                  ? 'زمان نامشخص'
+                  : 'Flexible pace',
+              completed: completedLessonIds.has(lesson.id),
+              xp: 25 + lessonIndex * 5,
+              current: currentLessonId === lesson.id,
+              locked: false,
+            })),
+          })),
+        };
+
+        if (active) {
+          setResolvedCourse(normalizedCourse);
+        }
+      } catch (error) {
+        console.error('Error loading course detail:', error);
+        if (active) {
+          setResolvedCourse(null);
+        }
+      } finally {
+        if (active) {
+          setIsLoadingCourse(false);
+        }
+      }
+    };
+
+    loadCourse();
+
+    return () => {
+      active = false;
+    };
+  }, [id, isRTL, locale]);
+
+  const course = resolvedCourse || (demoDataEnabled ? coursesData[id] : null) || null;
   const lang = isRTL ? 'fa' : 'en';
   const hasFullCourseAccess = activeRole === 'SUPER_ADMIN' || activeRole === 'SUBJECT_ADMIN';
+
+  if (isLoadingCourse && !course) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (!course) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="text-center text-muted-foreground">
+          {isRTL ? 'دوره یافت نشد.' : 'Course not found.'}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">

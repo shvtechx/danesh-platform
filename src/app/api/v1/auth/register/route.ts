@@ -1,20 +1,57 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import bcrypt from 'bcryptjs';
+import { RoleName } from '@prisma/client';
 import { prisma } from '@/lib/db';
+
+const nullableOptionalString = () =>
+  z.preprocess((value) => (value === null || value === '' ? undefined : value), z.string().optional());
+
+const nullableOptionalEnum = <T extends [string, ...string[]]>(values: T) =>
+  z.preprocess((value) => (value === null || value === '' ? undefined : value), z.enum(values).optional());
 
 const registerSchema = z.object({
   firstName: z.string().min(2),
   lastName: z.string().min(2),
   email: z.string().email(),
   password: z.string().min(8),
-  phone: z.string().optional(),
+  phone: nullableOptionalString(),
   userType: z.enum(['student', 'parent', 'teacher']),
-  stream: z.enum(['iranian', 'international']).optional(),
-  gradeBand: z.enum(['early-years', 'primary', 'middle', 'secondary']).optional(),
-  grade: z.string().optional(),
-  locale: z.enum(['en', 'fa']).optional(),
+  stream: nullableOptionalEnum(['iranian', 'international']),
+  gradeBand: nullableOptionalEnum(['early-years', 'primary', 'middle', 'secondary']),
+  grade: nullableOptionalString(),
+  locale: nullableOptionalEnum(['en', 'fa']),
 });
+
+function mapUserTypeToRole(userType: 'student' | 'parent' | 'teacher') {
+  if (userType === 'parent') return RoleName.PARENT;
+  if (userType === 'teacher') return RoleName.SUPPORT_TEACHER;
+  return RoleName.STUDENT;
+}
+
+function mapRoleNameToAppRoles(roleName: RoleName) {
+  if (roleName === RoleName.PARENT) return ['PARENT'];
+  if (roleName === RoleName.SUPPORT_TEACHER) return ['TEACHER'];
+  return ['STUDENT'];
+}
+
+function getDashboardPath(roleName: RoleName) {
+  if (roleName === RoleName.PARENT) return 'parent';
+  if (roleName === RoleName.SUPPORT_TEACHER) return 'teacher';
+  return 'dashboard';
+}
+
+async function ensureRole(roleName: RoleName) {
+  return prisma.role.upsert({
+    where: { name: roleName },
+    update: {},
+    create: {
+      name: roleName,
+      description: `${roleName} role`,
+      permissions: roleName === RoleName.PARENT ? ['profile:read'] : ['courses:read', 'profile:read'],
+    },
+  });
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -48,6 +85,9 @@ export async function POST(request: NextRequest) {
       secondary: 'SECONDARY',
     };
 
+    const primaryRole = mapUserTypeToRole(data.userType);
+    const ensuredRole = await ensureRole(primaryRole);
+
     // Create user
     const user = await prisma.user.create({
       data: {
@@ -61,6 +101,12 @@ export async function POST(request: NextRequest) {
             lastName: data.lastName,
             displayName: `${data.firstName} ${data.lastName}`,
             gradeBand: data.gradeBand ? gradeBandMap[data.gradeBand] : undefined,
+          },
+        },
+        userRoles: {
+          create: {
+            roleId: ensuredRole.id,
+            scope: 'global',
           },
         },
       },
@@ -78,13 +124,24 @@ export async function POST(request: NextRequest) {
             gradeBand: true,
           },
         },
+        userRoles: {
+          include: {
+            role: true,
+          },
+        },
       },
     });
+
+    const roles = mapRoleNameToAppRoles(primaryRole);
 
     return NextResponse.json(
       { 
         message: 'User registered successfully',
-        user,
+        user: {
+          ...user,
+          roles,
+          dashboardPath: getDashboardPath(primaryRole),
+        },
       },
       { status: 201 }
     );

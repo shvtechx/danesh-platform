@@ -1,5 +1,51 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { z } from 'zod';
+
+const createCourseSchema = z.object({
+  code: z.string().min(1),
+  frameworkId: z.string().min(1),
+  gradeLevelId: z.string().min(1),
+  subjectId: z.string().min(1),
+  title: z.string().min(1),
+  titleFA: z.string().optional().nullable(),
+  description: z.string().optional().nullable(),
+  descriptionFA: z.string().optional().nullable(),
+  coverImage: z.string().url().optional().or(z.literal('')).nullable(),
+  isPublished: z.boolean().optional(),
+});
+
+async function resolveFrameworkId(value: string) {
+  const framework = await prisma.curriculumFramework.findFirst({
+    where: {
+      OR: [
+        { id: value },
+        { code: value },
+      ],
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  return framework?.id || null;
+}
+
+async function resolveGradeLevelId(value: string) {
+  const gradeLevel = await prisma.gradeLevel.findFirst({
+    where: {
+      OR: [
+        { id: value },
+        { code: value },
+      ],
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  return gradeLevel?.id || null;
+}
 
 // GET /api/v1/courses - List all courses
 export async function GET(request: NextRequest) {
@@ -94,6 +140,7 @@ export async function GET(request: NextRequest) {
     // Transform courses for response
     const transformedCourses = courses.map((course: any) => ({
       id: course.id,
+      code: course.code,
       title: locale === 'fa' ? (course.titleFA || course.title) : course.title,
       description: locale === 'fa' ? (course.descriptionFA || course.description) : course.description,
       coverImage: course.coverImage,
@@ -106,6 +153,7 @@ export async function GET(request: NextRequest) {
       },
       isPublished: course.isPublished,
       unitsCount: course.units.length,
+      totalLessons: course.units.reduce((total: number, unit: any) => total + (unit.lessons?.length || 0), 0),
       enrollmentsCount: course._count.enrollments,
     }));
 
@@ -130,21 +178,38 @@ export async function GET(request: NextRequest) {
 // POST /api/v1/courses - Create a new course (Admin/Teacher only)
 export async function POST(request: NextRequest) {
   try {
-    // TODO: Add authentication and authorization check
-    const body = await request.json();
+    const body = createCourseSchema.parse(await request.json());
+
+    const [frameworkId, gradeLevelId] = await Promise.all([
+      resolveFrameworkId(body.frameworkId),
+      resolveGradeLevelId(body.gradeLevelId),
+    ]);
+
+    if (!frameworkId) {
+      return NextResponse.json({ error: 'Invalid curriculum framework' }, { status: 400 });
+    }
+
+    if (!gradeLevelId) {
+      return NextResponse.json({ error: 'Invalid grade level' }, { status: 400 });
+    }
+
+    const existingCourse = await prisma.course.findUnique({ where: { code: body.code } });
+    if (existingCourse) {
+      return NextResponse.json({ error: 'Course code already exists' }, { status: 409 });
+    }
 
     const course = await prisma.course.create({
       data: {
         code: body.code,
-        frameworkId: body.frameworkId,
-        gradeLevelId: body.gradeLevelId,
+        frameworkId,
+        gradeLevelId,
         subjectId: body.subjectId,
         title: body.title,
         titleFA: body.titleFA,
         description: body.description,
         descriptionFA: body.descriptionFA,
-        coverImage: body.coverImage,
-        isPublished: false,
+        coverImage: body.coverImage || null,
+        isPublished: body.isPublished ?? false,
       },
     });
 
@@ -153,6 +218,10 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: 'Invalid course payload', details: error.errors }, { status: 400 });
+    }
+
     console.error('Error creating course:', error);
     return NextResponse.json(
       { error: 'Failed to create course' },

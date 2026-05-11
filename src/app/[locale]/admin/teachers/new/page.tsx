@@ -1,19 +1,27 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { Copy, Save, User, Mail, Phone, Building, FileText, Camera, Check } from 'lucide-react';
 import { 
-  ArrowLeft, ArrowRight, Save, User, Mail, Phone, 
-  BookOpen, Building, FileText, Camera, X, Check
+  ArrowLeft, ArrowRight
 } from 'lucide-react';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { createUserHeaders, getStoredUserId } from '@/lib/auth/demo-auth-shared';
+import { getDepartmentForSubject, TEACHER_DEPARTMENTS } from '@/lib/admin/teacher-metadata';
+
+interface SubjectOption {
+  id: string;
+  name: string;
+  department: string | null;
+}
 
 export default function NewTeacherPage({ params: { locale } }: { params: { locale: string } }) {
   const t = useTranslations();
-  const router = useRouter();
   const isRTL = locale === 'fa';
   const Arrow = isRTL ? ArrowRight : ArrowLeft;
+  const avatarInputRef = useRef<HTMLInputElement | null>(null);
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -21,50 +29,58 @@ export default function NewTeacherPage({ params: { locale } }: { params: { local
     email: '',
     phone: '',
     department: '',
-    subjects: [] as string[],
     bio: '',
     status: 'active',
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [createdCredentials, setCreatedCredentials] = useState<{ name: string; email: string; password: string } | null>(null);
+  const [subjectOptions, setSubjectOptions] = useState<SubjectOption[]>([]);
 
-  const departments = [
-    { id: 'math', name: isRTL ? 'گروه ریاضی' : 'Mathematics' },
-    { id: 'science', name: isRTL ? 'گروه علوم' : 'Science' },
-    { id: 'language', name: isRTL ? 'گروه زبان' : 'Languages' },
-    { id: 'humanities', name: isRTL ? 'گروه علوم انسانی' : 'Humanities' },
-    { id: 'arts', name: isRTL ? 'گروه هنر' : 'Arts' },
-  ];
+  const departments = TEACHER_DEPARTMENTS.map((department) => ({
+    id: department.id,
+    name: isRTL ? department.labels.fa : department.labels.en,
+  }));
 
-  const subjects = [
-    { id: 'math', name: isRTL ? 'ریاضی' : 'Mathematics' },
-    { id: 'physics', name: isRTL ? 'فیزیک' : 'Physics' },
-    { id: 'chemistry', name: isRTL ? 'شیمی' : 'Chemistry' },
-    { id: 'biology', name: isRTL ? 'زیست‌شناسی' : 'Biology' },
-    { id: 'english', name: isRTL ? 'زبان انگلیسی' : 'English' },
-    { id: 'persian', name: isRTL ? 'ادبیات فارسی' : 'Persian Literature' },
-    { id: 'arabic', name: isRTL ? 'عربی' : 'Arabic' },
-    { id: 'history', name: isRTL ? 'تاریخ' : 'History' },
-    { id: 'geography', name: isRTL ? 'جغرافیا' : 'Geography' },
-    { id: 'geometry', name: isRTL ? 'هندسه' : 'Geometry' },
-  ];
+  useEffect(() => {
+    const loadSubjects = async () => {
+      try {
+        const response = await fetch('/api/v1/admin/subjects', {
+          cache: 'no-store',
+          headers: createUserHeaders(getStoredUserId()),
+        });
+
+        if (!response.ok) {
+          throw new Error('failed_to_load_subjects');
+        }
+
+        const data = await response.json();
+        const subjectsFromApi = (data.subjects || []).map((subject: any) => ({
+          id: String(subject.code || subject.id || ''),
+          name: isRTL ? (subject.nameFA || subject.name || subject.code) : (subject.name || subject.nameFA || subject.code),
+          department: getDepartmentForSubject(subject.code),
+        } satisfies SubjectOption));
+
+        setSubjectOptions(subjectsFromApi.length > 0 ? subjectsFromApi : []);
+      } catch {
+        setSubjectOptions([]);
+      }
+    };
+
+    void loadSubjects();
+  }, [isRTL]);
+
+  const subjects = subjectOptions.filter((subject) => !formData.department || subject.department === formData.department);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
     }
-  };
-
-  const toggleSubject = (subjectId: string) => {
-    setFormData(prev => ({
-      ...prev,
-      subjects: prev.subjects.includes(subjectId)
-        ? prev.subjects.filter(s => s !== subjectId)
-        : [...prev.subjects, subjectId]
-    }));
   };
 
   const validate = () => {
@@ -81,12 +97,6 @@ export default function NewTeacherPage({ params: { locale } }: { params: { local
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
       newErrors.email = isRTL ? 'فرمت ایمیل صحیح نیست' : 'Invalid email format';
     }
-    if (!formData.department) {
-      newErrors.department = isRTL ? 'گروه آموزشی را انتخاب کنید' : 'Please select a department';
-    }
-    if (formData.subjects.length === 0) {
-      newErrors.subjects = isRTL ? 'حداقل یک درس انتخاب کنید' : 'Select at least one subject';
-    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -98,43 +108,132 @@ export default function NewTeacherPage({ params: { locale } }: { params: { local
     if (!validate()) return;
 
     setIsSubmitting(true);
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    // Redirect to teachers list
-    router.push(`/${locale}/admin/teachers`);
+    setSubmissionError(null);
+
+    try {
+      const response = await fetch('/api/v1/admin/teachers', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...formData,
+          subjects: [], // auto-derived from assigned courses
+          locale,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'failed_to_create_teacher');
+      }
+
+      setCreatedCredentials({
+        name: `${formData.firstName} ${formData.lastName}`.trim(),
+        email: formData.email,
+        password: data.temporaryPassword,
+      });
+      setFormData({
+        firstName: '',
+        lastName: '',
+        email: '',
+        phone: '',
+        department: '',
+        bio: '',
+        status: 'active',
+      });
+      setAvatarPreview(null);
+    } catch (error) {
+      setSubmissionError(
+        error instanceof Error
+          ? error.message
+          : (isRTL ? 'ذخیره معلم انجام نشد.' : 'Unable to save the teacher.'),
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleAvatarSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => setAvatarPreview(typeof reader.result === 'string' ? reader.result : null);
+    reader.readAsDataURL(file);
+  };
+
+  const copyPassword = async () => {
+    if (!createdCredentials?.password) return;
+    try {
+      await navigator.clipboard.writeText(createdCredentials.password);
+    } catch {
+      setSubmissionError(isRTL ? 'کپی رمز عبور انجام نشد.' : 'Unable to copy the password.');
+    }
   };
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-lg border-b">
-        <div className="max-w-3xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link 
-              href={`/${locale}/admin/teachers`}
-              className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
-            >
-              <Arrow className="h-5 w-5" />
-              <span>{isRTL ? 'بازگشت' : 'Back'}</span>
-            </Link>
-            <div className="h-6 w-px bg-border" />
-            <h1 className="font-semibold">{isRTL ? 'افزودن معلم جدید' : 'Add New Teacher'}</h1>
-          </div>
-        </div>
-      </header>
+      <PageHeader
+        locale={locale}
+        title={isRTL ? 'افزودن معلم جدید' : 'Add New Teacher'}
+        backHref={`/${locale}/admin/teachers`}
+        backLabel={isRTL ? 'بازگشت به فهرست' : 'Back to teachers'}
+      />
 
       <div className="max-w-3xl mx-auto px-4 py-6">
+        {createdCredentials && (
+          <div className="mb-6 rounded-xl border border-green-500/30 bg-green-500/5 p-5">
+            <h2 className="mb-2 text-lg font-semibold text-green-700 dark:text-green-400">
+              {isRTL ? 'حساب معلم ایجاد شد' : 'Teacher account created'}
+            </h2>
+            <p className="mb-3 text-sm text-muted-foreground">
+              {isRTL ? 'این رمز عبور موقت را نگه دارید تا کاربر جدید بتواند وارد سامانه شود.' : 'Keep this temporary password so the new user can sign in.'}
+            </p>
+            <div className="space-y-2 rounded-lg border bg-background p-4 text-sm">
+              <p><span className="font-medium">{isRTL ? 'نام:' : 'Name:'}</span> {createdCredentials.name}</p>
+              <p><span className="font-medium">{isRTL ? 'ایمیل:' : 'Email:'}</span> {createdCredentials.email}</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-medium">{isRTL ? 'رمز عبور موقت:' : 'Temporary password:'}</span>
+                <span className="rounded bg-muted px-2 py-1 font-mono">{createdCredentials.password}</span>
+                <button type="button" onClick={copyPassword} className="inline-flex items-center gap-1 rounded border px-2 py-1 text-xs hover:bg-muted">
+                  <Copy className="h-3 w-3" />
+                  <span>{isRTL ? 'کپی' : 'Copy'}</span>
+                </button>
+              </div>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <Link href={`/${locale}/admin/teachers`} className="rounded-lg bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90">
+                {isRTL ? 'رفتن به فهرست معلمان' : 'Go to teachers list'}
+              </Link>
+              <button type="button" onClick={() => setCreatedCredentials(null)} className="rounded-lg border px-4 py-2 text-sm hover:bg-muted">
+                {isRTL ? 'ایجاد معلم دیگر' : 'Create another teacher'}
+              </button>
+            </div>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-6">
+          {submissionError && (
+            <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+              {submissionError}
+            </div>
+          )}
+
           {/* Avatar */}
           <div className="flex justify-center">
             <div className="relative">
-              <div className="h-24 w-24 rounded-full bg-primary/10 flex items-center justify-center">
-                <User className="h-12 w-12 text-primary" />
-              </div>
+              {avatarPreview ? (
+                <img src={avatarPreview} alt={isRTL ? 'پیش‌نمایش تصویر معلم' : 'Teacher avatar preview'} className="h-24 w-24 rounded-full object-cover" />
+              ) : (
+                <div className="h-24 w-24 rounded-full bg-primary/10 flex items-center justify-center">
+                  <User className="h-12 w-12 text-primary" />
+                </div>
+              )}
+              <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarSelect} />
               <button
                 type="button"
+                onClick={() => avatarInputRef.current?.click()}
                 className="absolute bottom-0 right-0 h-8 w-8 rounded-full bg-primary text-white flex items-center justify-center hover:bg-primary/90"
               >
                 <Camera className="h-4 w-4" />
@@ -232,7 +331,7 @@ export default function NewTeacherPage({ params: { locale } }: { params: { local
 
             <div>
               <label className="text-sm text-muted-foreground mb-1 block">
-                {isRTL ? 'گروه آموزشی' : 'Department'} *
+                {isRTL ? 'گروه آموزشی' : 'Department'} ({isRTL ? 'اختیاری' : 'optional'})
               </label>
               <select
                 name="department"
@@ -250,32 +349,10 @@ export default function NewTeacherPage({ params: { locale } }: { params: { local
               )}
             </div>
 
-            <div>
-              <label className="text-sm text-muted-foreground mb-2 block">
-                {isRTL ? 'دروس تدریس' : 'Teaching Subjects'} *
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {subjects.map(subject => (
-                  <button
-                    key={subject.id}
-                    type="button"
-                    onClick={() => toggleSubject(subject.id)}
-                    className={`px-3 py-2 rounded-lg border text-sm transition-colors ${
-                      formData.subjects.includes(subject.id)
-                        ? 'bg-primary text-primary-foreground border-primary'
-                        : 'bg-background hover:bg-muted'
-                    }`}
-                  >
-                    {formData.subjects.includes(subject.id) && (
-                      <Check className="h-3 w-3 inline me-1" />
-                    )}
-                    {subject.name}
-                  </button>
-                ))}
-              </div>
-              {errors.subjects && (
-                <p className="text-xs text-destructive mt-2">{errors.subjects}</p>
-              )}
+            <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700 dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-300">
+              📚 {isRTL
+                ? 'دروس تدریس به صورت خودکار از دوره‌های تخصیص‌یافته محاسبه می‌شوند. پس از ایجاد معلم، از صفحه جزئیات او دوره‌ها را تخصیص دهید.'
+                : 'Teaching subjects are automatically determined by assigned courses. After creating the teacher, assign courses from their detail page.'}
             </div>
           </div>
 

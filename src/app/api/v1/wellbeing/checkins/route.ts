@@ -91,7 +91,7 @@ export async function GET(request: NextRequest) {
 
       return NextResponse.json({
         checkins,
-        stats: calculateStats(checkins),
+        stats: calculateStats(checkins as Array<{ moodScore: number; energyLevel?: number; createdAt: Date | string }>),
         storage: 'database',
       });
     } catch {

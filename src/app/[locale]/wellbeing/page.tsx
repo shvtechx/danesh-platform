@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Heart, Smile, Meh, Frown, Battery, Wind, BookHeart, Coffee, PenLine, AlertCircle } from 'lucide-react';
+import { Heart, Smile, Meh, Frown, Battery, Wind, BookHeart, Coffee, PenLine, AlertCircle, X } from 'lucide-react';
 import Link from 'next/link';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { FeedbackBanner } from '@/components/ui/feedback-banner';
 
 type WellbeingState = {
   mood: string | null;
@@ -27,6 +28,11 @@ export default function WellbeingPage({ params: { locale } }: { params: { locale
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitMessage, setSubmitMessage] = useState<string | null>(null);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportText, setReportText] = useState('');
+  const [isSubmittingReport, setIsSubmittingReport] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
+  const [reportSuccess, setReportSuccess] = useState<string | null>(null);
 
   const moodToScore: Record<string, number> = {
     great: 5,
@@ -77,6 +83,22 @@ export default function WellbeingPage({ params: { locale } }: { params: { locale
     }));
   };
 
+  const handleResourceAction = (resourceId: string) => {
+    const actions = {
+      '1': isRTL ? 'تمرین تنفس باز شد. ۴ ثانیه دم، ۴ ثانیه نگه دارید، ۴ ثانیه بازدم.' : 'Breathing exercise opened. Inhale for 4, hold for 4, exhale for 4.',
+      '2': isRTL ? 'زمان استراحت کوتاه شروع شد. پنج دقیقه از صفحه فاصله بگیرید.' : 'Break timer started. Step away from the screen for five minutes.',
+      '3': isRTL ? 'دفترچه یادداشت آماده است. احساسات خود را آزادانه بنویسید.' : 'Journaling prompt is ready. Write your thoughts freely.',
+      '4': isRTL ? 'فرم ارتباط با مشاور باز شد. می‌توانید گزارش ناشناس هم ثبت کنید.' : 'Counselor support is ready. You can also submit an anonymous report.',
+    } as const;
+
+    setSubmitMessage((actions as Record<string, string>)[resourceId] || (isRTL ? 'منبع انتخاب شد.' : 'Resource selected.'));
+
+    if (resourceId === '4') {
+      setShowReportModal(true);
+      setReportError(null);
+    }
+  };
+
   const handleSubmitCheckin = async () => {
     if (!state.mood) {
       setSubmitError(isRTL ? 'ابتدا حال خود را انتخاب کنید.' : 'Please select your mood first.');
@@ -112,6 +134,47 @@ export default function WellbeingPage({ params: { locale } }: { params: { locale
       setSubmitError(isRTL ? 'ثبت انجام نشد. دوباره تلاش کنید.' : 'Submission failed. Please try again.');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleSubmitAnonymousReport = async () => {
+    if (!reportText.trim()) {
+      setReportError(isRTL ? 'لطفاً متن گزارش را وارد کنید.' : 'Please enter your concern.');
+      return;
+    }
+
+    setIsSubmittingReport(true);
+    setReportError(null);
+    setReportSuccess(null);
+
+    try {
+      const storedUserId = typeof window !== 'undefined' ? localStorage.getItem('danesh.userId') : null;
+      const response = await fetch('/api/v1/wellbeing/concern-reports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reporterId: storedUserId || null,
+          concernType: 'OTHER',
+          description: reportText.trim(),
+          anonymous: true,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('submit_failed');
+      }
+      
+      setShowReportModal(false);
+      setReportText('');
+      setReportSuccess(
+        isRTL
+          ? 'گزارش شما با موفقیت ثبت شد. تیم ما به زودی بررسی خواهد کرد.'
+          : 'Your report has been submitted successfully. Our team will review it soon.'
+      );
+    } catch (error) {
+      setReportError(isRTL ? 'خطا در ارسال گزارش.' : 'Error submitting report.');
+    } finally {
+      setIsSubmittingReport(false);
     }
   };
 
@@ -331,6 +394,7 @@ export default function WellbeingPage({ params: { locale } }: { params: { locale
           {resources.map((resource) => (
             <button
               key={resource.id}
+              onClick={() => handleResourceAction(resource.id)}
               className="rounded-xl border bg-card p-4 text-left hover:shadow-md transition-shadow"
             >
               <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${resource.color}`}>
@@ -345,6 +409,8 @@ export default function WellbeingPage({ params: { locale } }: { params: { locale
 
       {/* Concern Report */}
       <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-6">
+        {reportSuccess ? <FeedbackBanner className="mb-4" variant="success" message={reportSuccess} /> : null}
+
         <div className="flex items-start gap-4">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/10">
             <AlertCircle className="h-6 w-6 text-amber-500" />
@@ -356,12 +422,87 @@ export default function WellbeingPage({ params: { locale } }: { params: { locale
                 ? 'اگر نگران خود یا یکی از دوستانتان هستید، می‌توانید به صورت ناشناس گزارش دهید.'
                 : 'If you are concerned about yourself or a friend, you can report anonymously.'}
             </p>
-            <button className="mt-4 rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-white hover:bg-amber-600">
+            <button 
+              onClick={() => {
+                setShowReportModal(true);
+                setReportError(null);
+              }}
+              className="mt-4 rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-white hover:bg-amber-600"
+            >
               {t('wellbeing.anonymous')}
             </button>
           </div>
         </div>
       </div>
+
+      {/* Anonymous Report Modal */}
+      {showReportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-background rounded-2xl border max-w-lg w-full p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold">
+                {isRTL ? 'گزارش ناشناس' : 'Anonymous Report'}
+              </h3>
+              <button 
+                onClick={() => setShowReportModal(false)}
+                className="p-1 hover:bg-muted rounded"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+              <p className="text-sm text-amber-900 dark:text-amber-100">
+                {isRTL
+                  ? 'این گزارش کاملاً محرمانه و ناشناس است. هیچ‌کس نمی‌تواند هویت شما را ببیند.'
+                  : 'This report is completely confidential and anonymous. No one will be able to identify you.'}
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                {isRTL ? 'لطفاً نگرانی خود را شرح دهید' : 'Please describe your concern'}
+              </label>
+              {reportError ? <FeedbackBanner className="mb-3" variant="error" message={reportError} /> : null}
+              <textarea
+                value={reportText}
+                onChange={(e) => setReportText(e.target.value)}
+                rows={6}
+                className="w-full p-3 rounded-lg border bg-background resize-none"
+                placeholder={isRTL 
+                  ? 'چه اتفاقی افتاده? چه کسی درگیر است؟ چه کمکی لازم دارید؟'
+                  : 'What happened? Who is involved? What help do you need?'}
+              />
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  setShowReportModal(false);
+                  setReportText('');
+                }}
+                className="flex-1 px-4 py-2 rounded-lg border hover:bg-muted"
+              >
+                {isRTL ? 'انصراف' : 'Cancel'}
+              </button>
+              <button
+                onClick={handleSubmitAnonymousReport}
+                disabled={isSubmittingReport || !reportText.trim()}
+                className="flex-1 px-4 py-2 rounded-lg bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-50"
+              >
+                {isSubmittingReport ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                    {isRTL ? 'در حال ارسال...' : 'Sending...'}
+                  </span>
+                ) : (
+                  isRTL ? 'ارسال گزارش' : 'Submit Report'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

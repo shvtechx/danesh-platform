@@ -4,7 +4,7 @@
   "private": true,
   "description": "Danesh Online Learning Platform - Bilingual (Persian/English) K-12 Education",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --port 3000",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -15,7 +15,9 @@
     "db:seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:system": "node scripts/test-all-workflows.js",
+    "audit:platform": "node scripts/platform-audit-agent.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.4",
@@ -40,8 +42,9 @@
     "@radix-ui/react-toast": "^1.1.5",
     "@radix-ui/react-tooltip": "^1.0.7",
     "@tanstack/react-query": "^5.24.1",
-    "axios": "^1.6.7",
+    "axios": "^1.16.0",
     "bcryptjs": "^2.4.3",
+    "cheerio": "^1.2.0",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.0",
     "date-fns": "^3.3.1",
@@ -59,6 +62,7 @@
     "react-dom": "^18.2.0",
     "react-hook-form": "^7.51.0",
     "recharts": "^2.12.2",
+    "robots-parser": "^3.0.1",
     "sonner": "^1.4.3",
     "tailwind-merge": "^2.2.1",
     "tailwindcss-animate": "^1.0.7",
@@ -70,6 +74,7 @@
     "@testing-library/jest-dom": "^6.4.2",
     "@testing-library/react": "^14.2.1",
     "@types/bcryptjs": "^2.4.6",
+    "@types/cheerio": "^0.22.35",
     "@types/jest": "^29.5.12",
     "@types/node": "^20.11.24",
     "@types/react": "^18.2.61",

@@ -1,6 +1,8 @@
 ﻿'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
 
 export default function Error({
   error,
@@ -9,6 +11,24 @@ export default function Error({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const params = useParams<{ locale?: string | string[] }>();
+  const localeParam = params?.locale;
+  const locale = Array.isArray(localeParam) ? localeParam[0] : localeParam || 'en';
+  const dashboardHref = useMemo(() => {
+    try {
+      const raw = typeof window !== 'undefined' ? localStorage.getItem('danesh_auth_user') : null;
+      if (raw) {
+        const user = JSON.parse(raw);
+        const role = (user.roles?.[0] || user.role || '').toLowerCase();
+        if (role === 'admin') return `/${locale}/admin`;
+        if (role === 'teacher') return `/${locale}/teacher`;
+        if (role === 'parent') return `/${locale}/parent`;
+        if (role === 'student') return `/${locale}/student`;
+      }
+    } catch {}
+    return `/${locale}`;
+  }, [locale]);
+
   useEffect(() => {
     console.error(error);
   }, [error]);
@@ -36,12 +56,12 @@ export default function Error({
           >
             Try again
           </button>
-          <a 
-            href="/"
+          <Link
+            href={dashboardHref}
             className="px-6 py-3 border border-border rounded-lg hover:bg-accent transition-colors"
           >
-            Go Home
-          </a>
+            Go to dashboard
+          </Link>
         </div>
       </div>
     </div>

@@ -1,208 +1,299 @@
 'use client';
 
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
-import { 
-  Target, Award, Clock, CheckCircle2, Star, Flame, 
-  BookOpen, Trophy, Users, Zap, Gift, Calendar
+import {
+  Award,
+  Calendar,
+  CheckCircle2,
+  Clock,
+  Flame,
+  Gift,
+  Play,
+  Star,
+  Target,
+  Trophy,
+  Zap,
 } from 'lucide-react';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { FeedbackBanner } from '@/components/ui/feedback-banner';
+import { createUserHeaders, getStoredUserId } from '@/lib/auth/demo-auth-shared';
+
+type QuestStep = {
+  id: string;
+  sequence: number;
+  title: string;
+  titleFA?: string | null;
+  xpReward: number;
+};
+
+type Quest = {
+  id: string;
+  title: string;
+  titleFA?: string | null;
+  description?: string | null;
+  descriptionFA?: string | null;
+  category?: string | null;
+  xpReward: number;
+  coinReward?: number;
+  startDate?: string | null;
+  endDate?: string | null;
+  steps: QuestStep[];
+  userProgress?: {
+    status: string;
+    currentStep: number;
+    startedAt?: string | null;
+    completedAt?: string | null;
+    stepProgress?: {
+      completed: boolean;
+      progress: number;
+      target: number;
+    } | null;
+  };
+};
+
+type QuestData = {
+  active: Quest[];
+  completed: Quest[];
+  available: Quest[];
+};
+
+const EMPTY_QUESTS: QuestData = {
+  active: [],
+  completed: [],
+  available: [],
+};
+
+function getRelativeTimeLabel(endDate: string | null | undefined, isRTL: boolean) {
+  if (!endDate) {
+    return isRTL ? 'بدون محدودیت' : 'No deadline';
+  }
+
+  const diff = new Date(endDate).getTime() - Date.now();
+  if (diff <= 0) {
+    return isRTL ? 'به پایان رسیده' : 'Expired';
+  }
+
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  if (hours < 24) {
+    return isRTL ? `${hours} ساعت باقی‌مانده` : `${hours}h left`;
+  }
+
+  const days = Math.floor(hours / 24);
+  return isRTL ? `${days} روز باقی‌مانده` : `${days}d left`;
+}
+
+function getCategoryColor(category?: string | null) {
+  const colors: Record<string, string> = {
+    PERSIAN_MYTHOLOGY: 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-300',
+    ISLAMIC_SCHOLARS: 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-300',
+    GLOBAL_SCIENCE: 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300',
+    CITIZENSHIP: 'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-300',
+    SEASONAL: 'bg-pink-100 text-pink-600 dark:bg-pink-900/30 dark:text-pink-300',
+  };
+
+  return colors[category || ''] || 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-300';
+}
+
+function getCategoryIcon(category?: string | null) {
+  switch (category) {
+    case 'GLOBAL_SCIENCE':
+      return Zap;
+    case 'CITIZENSHIP':
+      return Flame;
+    case 'ISLAMIC_SCHOLARS':
+      return Trophy;
+    case 'PERSIAN_MYTHOLOGY':
+      return Star;
+    default:
+      return Target;
+  }
+}
 
 export default function QuestsPage({ params: { locale } }: { params: { locale: string } }) {
   const t = useTranslations();
   const isRTL = locale === 'fa';
+  const [quests, setQuests] = useState<QuestData>(EMPTY_QUESTS);
+  const [isLoading, setIsLoading] = useState(true);
+  const [feedback, setFeedback] = useState<{ variant: 'error' | 'info'; message: string } | null>(null);
+  const [startingQuestId, setStartingQuestId] = useState<string | null>(null);
 
-  const dailyQuests = [
-    {
-      id: 'd1',
-      title: isRTL ? 'تکمیل ۲ درس' : 'Complete 2 Lessons',
-      description: isRTL ? 'هر ۲ درس از هر دوره‌ای را تکمیل کنید' : 'Complete any 2 lessons from any course',
-      progress: 1,
-      total: 2,
-      xp: 50,
-      icon: BookOpen,
-      color: 'blue',
-      deadline: isRTL ? 'امروز' : 'Today',
-    },
-    {
-      id: 'd2',
-      title: isRTL ? 'پاسخ به ۱۰ سوال' : 'Answer 10 Questions',
-      description: isRTL ? 'در آزمون‌ها به ۱۰ سوال پاسخ دهید' : 'Answer 10 questions in quizzes',
-      progress: 7,
-      total: 10,
-      xp: 30,
-      icon: Target,
-      color: 'green',
-      deadline: isRTL ? 'امروز' : 'Today',
-    },
-    {
-      id: 'd3',
-      title: isRTL ? '۳۰ دقیقه مطالعه' : '30 Minutes of Study',
-      description: isRTL ? '۳۰ دقیقه در پلتفرم فعالیت کنید' : 'Spend 30 minutes on the platform',
-      progress: 25,
-      total: 30,
-      xp: 25,
-      icon: Clock,
-      color: 'purple',
-      deadline: isRTL ? 'امروز' : 'Today',
-    },
-  ];
+  useEffect(() => {
+    let active = true;
 
-  const weeklyQuests = [
-    {
-      id: 'w1',
-      title: isRTL ? 'تکمیل ۵ درس' : 'Complete 5 Lessons',
-      description: isRTL ? 'پنج درس از هر دوره‌ای را تکمیل کنید' : 'Complete five lessons from any course',
-      progress: 3,
-      total: 5,
-      xp: 100,
-      icon: BookOpen,
-      color: 'blue',
-      deadline: isRTL ? '۲ روز' : '2 days',
-    },
-    {
-      id: 'w2',
-      title: isRTL ? 'کسب ۷ روز متوالی' : 'Get 7 Day Streak',
-      description: isRTL ? 'هفت روز متوالی فعالیت کنید' : 'Be active for 7 consecutive days',
-      progress: 5,
-      total: 7,
-      xp: 150,
-      icon: Flame,
-      color: 'orange',
-      deadline: isRTL ? '۲ روز' : '2 days',
-    },
-    {
-      id: 'w3',
-      title: isRTL ? 'شرکت در انجمن' : 'Forum Participation',
-      description: isRTL ? 'در ۳ بحث شرکت کنید یا سوال بپرسید' : 'Participate in 3 discussions or ask questions',
-      progress: 1,
-      total: 3,
-      xp: 75,
-      icon: Users,
-      color: 'pink',
-      deadline: isRTL ? '۴ روز' : '4 days',
-    },
-    {
-      id: 'w4',
-      title: isRTL ? 'نمره بالای ۸۰٪' : 'Score Above 80%',
-      description: isRTL ? 'در ۳ آزمون نمره بالای ۸۰٪ بگیرید' : 'Score above 80% in 3 quizzes',
-      progress: 2,
-      total: 3,
-      xp: 120,
-      icon: Star,
-      color: 'amber',
-      deadline: isRTL ? '۵ روز' : '5 days',
-    },
-  ];
+    const loadQuests = async () => {
+      try {
+        setIsLoading(true);
+        setFeedback(null);
 
-  const specialQuests = [
-    {
-      id: 's1',
-      title: isRTL ? 'قهرمان ریاضی' : 'Math Champion',
-      description: isRTL ? 'تمام فصل اول ریاضی را با نمره بالای ۹۰٪ تکمیل کنید' : 'Complete all of Chapter 1 Math with over 90% score',
-      progress: 75,
-      total: 100,
-      xp: 300,
-      gems: 10,
-      icon: Trophy,
-      color: 'yellow',
-      deadline: isRTL ? 'بدون محدودیت' : 'No deadline',
-    },
-    {
-      id: 's2',
-      title: isRTL ? 'دانشمند جوان' : 'Young Scientist',
-      description: isRTL ? 'دوره علوم تجربی را تکمیل کنید' : 'Complete the Science course',
-      progress: 40,
-      total: 100,
-      xp: 500,
-      gems: 25,
-      icon: Zap,
-      color: 'cyan',
-      deadline: isRTL ? 'بدون محدودیت' : 'No deadline',
-    },
-  ];
+        const response = await fetch('/api/v1/student/quests', {
+          cache: 'no-store',
+          headers: createUserHeaders(getStoredUserId()),
+        });
 
-  const completedQuests = [
-    {
-      id: 'c1',
-      title: isRTL ? 'اولین درس' : 'First Lesson',
-      xp: 10,
-      completedAt: isRTL ? 'دیروز' : 'Yesterday',
-    },
-    {
-      id: 'c2',
-      title: isRTL ? 'اولین آزمون' : 'First Quiz',
-      xp: 20,
-      completedAt: isRTL ? '۲ روز پیش' : '2 days ago',
-    },
-    {
-      id: 'c3',
-      title: isRTL ? '۳ روز متوالی' : '3 Day Streak',
-      xp: 30,
-      completedAt: isRTL ? '۳ روز پیش' : '3 days ago',
-    },
-  ];
+        if (!response.ok) {
+          throw new Error('Failed to fetch quests');
+        }
 
-  const getColorClasses = (color: string) => {
-    const colors: Record<string, string> = {
-      blue: 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
-      green: 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400',
-      purple: 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400',
-      orange: 'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400',
-      pink: 'bg-pink-100 text-pink-600 dark:bg-pink-900/30 dark:text-pink-400',
-      amber: 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400',
-      yellow: 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400',
-      cyan: 'bg-cyan-100 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-400',
+        const result = (await response.json()) as { success: boolean; data?: QuestData };
+        if (!result.success) {
+          throw new Error('Failed to fetch quests');
+        }
+
+        if (active) {
+          setQuests(result.data || EMPTY_QUESTS);
+        }
+      } catch {
+        if (active) {
+          setQuests(EMPTY_QUESTS);
+          setFeedback({
+            variant: 'error',
+            message: isRTL ? 'بارگذاری مأموریت‌ها انجام نشد.' : 'Quest data could not be loaded.',
+          });
+        }
+      } finally {
+        if (active) {
+          setIsLoading(false);
+        }
+      }
     };
-    return colors[color] || colors.blue;
+
+    loadQuests();
+
+    return () => {
+      active = false;
+    };
+  }, [isRTL]);
+
+  const startQuest = async (questId: string) => {
+    try {
+      setStartingQuestId(questId);
+      setFeedback(null);
+
+      const response = await fetch('/api/v1/student/quests', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...createUserHeaders(getStoredUserId()),
+        },
+        body: JSON.stringify({ questId }),
+      });
+
+      const result = (await response.json()) as { success: boolean; error?: string };
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Failed to start quest');
+      }
+
+      const refresh = await fetch('/api/v1/student/quests', {
+        cache: 'no-store',
+        headers: createUserHeaders(getStoredUserId()),
+      });
+
+      if (refresh.ok) {
+        const refreshed = (await refresh.json()) as { success: boolean; data?: QuestData };
+        if (refreshed.success) {
+          setQuests(refreshed.data || EMPTY_QUESTS);
+        }
+      }
+
+      setFeedback({
+        variant: 'info',
+        message: isRTL ? 'مأموریت با موفقیت آغاز شد.' : 'Quest started successfully.',
+      });
+    } catch (error) {
+      setFeedback({
+        variant: 'error',
+        message: error instanceof Error ? error.message : isRTL ? 'شروع مأموریت انجام نشد.' : 'Quest could not be started.',
+      });
+    } finally {
+      setStartingQuestId(null);
+    }
   };
 
-  const QuestCard = ({ quest, isSpecial = false }: { quest: any; isSpecial?: boolean }) => {
-    const Icon = quest.icon;
-    const progressPercent = Math.round((quest.progress / quest.total) * 100);
-    
+  const totalWeeklyXP = useMemo(
+    () => quests.active.reduce((sum, quest) => sum + quest.xpReward, 0),
+    [quests.active],
+  );
+
+  const activeSummary = useMemo(
+    () => quests.active.reduce((sum, quest) => sum + (quest.userProgress?.stepProgress?.progress || 0), 0),
+    [quests.active],
+  );
+
+  const QuestCard = ({ quest, mode }: { quest: Quest; mode: 'active' | 'available' | 'completed' }) => {
+    const Icon = getCategoryIcon(quest.category);
+    const title = isRTL ? quest.titleFA || quest.title : quest.title;
+    const description = isRTL ? quest.descriptionFA || quest.description || '' : quest.description || quest.descriptionFA || '';
+    const progress = quest.userProgress?.stepProgress?.progress || 0;
+    const target = quest.userProgress?.stepProgress?.target || quest.steps.length || 1;
+    const progressPercent = Math.min(Math.round((progress / Math.max(target, 1)) * 100), 100);
+
     return (
-      <div className="bg-card border rounded-xl p-4 hover:shadow-md transition-shadow">
+      <div className="rounded-xl border bg-card p-4 transition-shadow hover:shadow-md">
         <div className="flex items-start gap-4">
-          <div className={`p-3 rounded-xl ${getColorClasses(quest.color)}`}>
+          <div className={`rounded-xl p-3 ${getCategoryColor(quest.category)}`}>
             <Icon className="h-6 w-6" />
           </div>
-          <div className="flex-1 min-w-0">
-            <h3 className="font-semibold">{quest.title}</h3>
-            <p className="text-sm text-muted-foreground mt-1">{quest.description}</p>
-            
-            <div className="mt-3 space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">
-                  {quest.progress} / {quest.total}
-                </span>
-                <span className="font-medium">{progressPercent}%</span>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="font-semibold">{title}</h3>
+                <p className="mt-1 text-sm text-muted-foreground">{description}</p>
               </div>
-              <div className="h-2 rounded-full bg-muted overflow-hidden">
-                <div 
-                  className="h-full bg-primary rounded-full transition-all"
-                  style={{ width: `${progressPercent}%` }}
-                />
-              </div>
+              {mode === 'completed' ? <CheckCircle2 className="h-5 w-5 text-green-500" /> : null}
             </div>
 
-            <div className="flex items-center justify-between mt-3">
-              <div className="flex items-center gap-3">
-                <span className="flex items-center gap-1 text-sm text-amber-600 font-medium">
-                  <Award className="h-4 w-4" />
-                  +{quest.xp} XP
-                </span>
-                {isSpecial && quest.gems && (
-                  <span className="flex items-center gap-1 text-sm text-cyan-600 font-medium">
-                    <Gift className="h-4 w-4" />
-                    +{quest.gems} 💎
+            {mode !== 'completed' ? (
+              <div className="mt-3 space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">
+                    {mode === 'active' ? `${progress} / ${target}` : `${quest.steps.length} ${isRTL ? 'مرحله' : 'steps'}`}
                   </span>
-                )}
+                  <span className="font-medium">{mode === 'active' ? `${progressPercent}%` : getRelativeTimeLabel(quest.endDate, isRTL)}</span>
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-muted">
+                  <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${mode === 'active' ? progressPercent : 0}%` }} />
+                </div>
               </div>
-              <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                <Clock className="h-3 w-3" />
-                {quest.deadline}
-              </span>
+            ) : null}
+
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <span className="flex items-center gap-1 text-sm font-medium text-amber-600">
+                  <Award className="h-4 w-4" />
+                  +{quest.xpReward} XP
+                </span>
+                {(quest.coinReward || 0) > 0 ? (
+                  <span className="flex items-center gap-1 text-sm font-medium text-cyan-600">
+                    <Gift className="h-4 w-4" />
+                    +{quest.coinReward}
+                  </span>
+                ) : null}
+              </div>
+
+              {mode === 'available' ? (
+                <button
+                  type="button"
+                  onClick={() => startQuest(quest.id)}
+                  disabled={startingQuestId === quest.id}
+                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-60"
+                >
+                  <Play className="h-4 w-4" />
+                  {startingQuestId === quest.id ? (isRTL ? 'در حال شروع...' : 'Starting...') : (isRTL ? 'شروع مأموریت' : 'Start Quest')}
+                </button>
+              ) : (
+                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Clock className="h-3 w-3" />
+                  {mode === 'completed'
+                    ? quest.userProgress?.completedAt
+                      ? new Date(quest.userProgress.completedAt).toLocaleDateString(isRTL ? 'fa-IR' : 'en-US')
+                      : isRTL
+                        ? 'تکمیل شده'
+                        : 'Completed'
+                    : getRelativeTimeLabel(quest.endDate, isRTL)}
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -212,106 +303,118 @@ export default function QuestsPage({ params: { locale } }: { params: { locale: s
 
   return (
     <div className="min-h-screen bg-background">
-      <PageHeader 
-        locale={locale} 
+      <PageHeader
+        locale={locale}
         title={t('gamification.quests')}
         backHref={`/${locale}/dashboard`}
         backLabel={isRTL ? 'داشبورد' : 'Dashboard'}
       />
+
       <div className="space-y-8 p-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-muted-foreground">
-              {isRTL ? 'ماموریت‌ها را تکمیل کنید و امتیاز کسب کنید' : 'Complete quests to earn rewards'}
+              {isRTL ? 'مأموریت‌های زنده برای رشد فردی، استمرار و پیشرفت مرحله‌ای' : 'Live quests designed to encourage personal growth, consistency, and step-by-step progress'}
             </p>
           </div>
           <div className="flex items-center gap-4">
-            <div className="bg-card border rounded-xl px-4 py-2 flex items-center gap-2">
+            <div className="flex items-center gap-2 rounded-xl border bg-card px-4 py-2">
               <Calendar className="h-5 w-5 text-primary" />
               <div>
-                <p className="text-xs text-muted-foreground">{isRTL ? 'ماموریت‌های امروز' : "Today's Quests"}</p>
-              <p className="font-bold">3/3</p>
-            </div>
-          </div>
-          <div className="bg-card border rounded-xl px-4 py-2 flex items-center gap-2">
-            <Award className="h-5 w-5 text-amber-500" />
-            <div>
-              <p className="text-xs text-muted-foreground">{isRTL ? 'امتیاز این هفته' : 'XP This Week'}</p>
-              <p className="font-bold text-amber-600">+450</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Daily Quests */}
-      <section>
-        <div className="flex items-center gap-2 mb-4">
-          <div className="h-8 w-8 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
-            <Flame className="h-5 w-5 text-orange-600" />
-          </div>
-          <h2 className="text-lg font-semibold">{isRTL ? 'ماموریت‌های روزانه' : 'Daily Quests'}</h2>
-        </div>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {dailyQuests.map(quest => (
-            <QuestCard key={quest.id} quest={quest} />
-          ))}
-        </div>
-      </section>
-
-      {/* Weekly Quests */}
-      <section>
-        <div className="flex items-center gap-2 mb-4">
-          <div className="h-8 w-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-            <Calendar className="h-5 w-5 text-blue-600" />
-          </div>
-          <h2 className="text-lg font-semibold">{isRTL ? 'ماموریت‌های هفتگی' : 'Weekly Quests'}</h2>
-        </div>
-        <div className="grid gap-4 md:grid-cols-2">
-          {weeklyQuests.map(quest => (
-            <QuestCard key={quest.id} quest={quest} />
-          ))}
-        </div>
-      </section>
-
-      {/* Special Quests */}
-      <section>
-        <div className="flex items-center gap-2 mb-4">
-          <div className="h-8 w-8 rounded-lg bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center">
-            <Trophy className="h-5 w-5 text-yellow-600" />
-          </div>
-          <h2 className="text-lg font-semibold">{isRTL ? 'ماموریت‌های ویژه' : 'Special Quests'}</h2>
-        </div>
-        <div className="grid gap-4 md:grid-cols-2">
-          {specialQuests.map(quest => (
-            <QuestCard key={quest.id} quest={quest} isSpecial />
-          ))}
-        </div>
-      </section>
-
-      {/* Completed Quests */}
-      <section>
-        <div className="flex items-center gap-2 mb-4">
-          <div className="h-8 w-8 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-            <CheckCircle2 className="h-5 w-5 text-green-600" />
-          </div>
-          <h2 className="text-lg font-semibold">{isRTL ? 'تکمیل‌شده اخیر' : 'Recently Completed'}</h2>
-        </div>
-        <div className="bg-card border rounded-xl divide-y">
-          {completedQuests.map(quest => (
-            <div key={quest.id} className="flex items-center justify-between p-4">
-              <div className="flex items-center gap-3">
-                <CheckCircle2 className="h-5 w-5 text-green-500" />
-                <span className="font-medium">{quest.title}</span>
-              </div>
-              <div className="flex items-center gap-4">
-                <span className="text-sm text-amber-600 font-medium">+{quest.xp} XP</span>
-                <span className="text-sm text-muted-foreground">{quest.completedAt}</span>
+                <p className="text-xs text-muted-foreground">{isRTL ? 'مأموریت‌های فعال' : 'Active quests'}</p>
+                <p className="font-bold">{isLoading ? '—' : `${quests.active.length}`}</p>
               </div>
             </div>
-          ))}
+            <div className="flex items-center gap-2 rounded-xl border bg-card px-4 py-2">
+              <Award className="h-5 w-5 text-amber-500" />
+              <div>
+                <p className="text-xs text-muted-foreground">{isRTL ? 'XP در جریان' : 'XP in progress'}</p>
+                <p className="font-bold text-amber-600">{isLoading ? '—' : `+${totalWeeklyXP}`}</p>
+              </div>
+            </div>
+          </div>
         </div>
-      </section>
+
+        {feedback ? <FeedbackBanner variant={feedback.variant} message={feedback.message} /> : null}
+
+        <section>
+          <div className="mb-4 flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-900/30">
+              <Flame className="h-5 w-5 text-orange-600" />
+            </div>
+            <h2 className="text-lg font-semibold">{isRTL ? 'مأموریت‌های فعال' : 'Active Quests'}</h2>
+          </div>
+          {quests.active.length === 0 ? (
+            <div className="rounded-xl border border-dashed bg-card p-6 text-sm text-muted-foreground">
+              {isLoading ? (isRTL ? 'در حال بارگذاری مأموریت‌ها...' : 'Loading quests...') : (isRTL ? 'در حال حاضر مأموریت فعالی وجود ندارد.' : 'There are no active quests right now.')}
+            </div>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {quests.active.map((quest) => (
+                <QuestCard key={quest.id} quest={quest} mode="active" />
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section>
+          <div className="mb-4 flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
+              <Target className="h-5 w-5 text-blue-600" />
+            </div>
+            <h2 className="text-lg font-semibold">{isRTL ? 'مأموریت‌های قابل شروع' : 'Available Quests'}</h2>
+          </div>
+          {quests.available.length === 0 ? (
+            <div className="rounded-xl border border-dashed bg-card p-6 text-sm text-muted-foreground">
+              {isRTL ? 'همه مأموریت‌های موجود شروع شده یا تکمیل شده‌اند.' : 'All currently available quests have already been started or completed.'}
+            </div>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2">
+              {quests.available.map((quest) => (
+                <QuestCard key={quest.id} quest={quest} mode="available" />
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section>
+          <div className="mb-4 flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
+              <CheckCircle2 className="h-5 w-5 text-green-600" />
+            </div>
+            <h2 className="text-lg font-semibold">{isRTL ? 'تکمیل‌شده‌ها' : 'Completed Quests'}</h2>
+          </div>
+          {quests.completed.length === 0 ? (
+            <div className="rounded-xl border border-dashed bg-card p-6 text-sm text-muted-foreground">
+              {isRTL ? 'هنوز مأموریتی تکمیل نشده است.' : 'No quests have been completed yet.'}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {quests.completed.map((quest) => (
+                <QuestCard key={quest.id} quest={quest} mode="completed" />
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section>
+          <div className="rounded-xl border bg-card p-5">
+            <div className="mb-2 flex items-center gap-2">
+              <Trophy className="h-5 w-5 text-primary" />
+              <h2 className="font-semibold">{isRTL ? 'جمع‌بندی رشد' : 'Growth snapshot'}</h2>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {isRTL
+                ? `در حال حاضر ${quests.active.length} مأموریت فعال دارید، ${quests.completed.length} مأموریت را کامل کرده‌اید و مجموع پیشرفت ثبت‌شده در گام‌های فعال ${activeSummary.toLocaleString('fa-IR')} است.`
+                : `You currently have ${quests.active.length} active quests, have completed ${quests.completed.length} quests, and have logged ${activeSummary.toLocaleString('en-US')} total progress points across active steps.`}
+            </p>
+            <div className="mt-4">
+              <Link href={`/${locale}/leaderboard`} className="text-sm text-primary hover:underline">
+                {isRTL ? 'مشاهده رتبه‌بندی برای دنبال‌کردن رشد' : 'View leaderboard to track growth'}
+              </Link>
+            </div>
+          </div>
+        </section>
       </div>
     </div>
   );

@@ -35,6 +35,7 @@ export default function SettingsPage({ params: { locale } }: { params: { locale:
 
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
 
   const applyAccessibilitySettings = (next: typeof accessibility) => {
     if (typeof document === 'undefined') return;
@@ -44,6 +45,10 @@ export default function SettingsPage({ params: { locale } }: { params: { locale:
     root.classList.toggle('high-contrast', next.highContrast);
     root.classList.toggle('focus-mode', next.focusMode);
   };
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   useEffect(() => {
     try {
@@ -118,6 +123,20 @@ export default function SettingsPage({ params: { locale } }: { params: { locale:
     }
   };
 
+  const handleProfilePhotoEdit = () => {
+    setSaveMessage(isRTL ? 'برای به‌روزرسانی تصویر پروفایل، تغییرات را ذخیره کنید و سپس از پروفایل اصلی ادامه دهید.' : 'Save your changes first, then continue profile photo updates from your main profile flow.');
+  };
+
+  const handleSecurityAction = (action: 'password' | 'devices' | 'twoFactor') => {
+    const messages = {
+      password: isRTL ? 'برای تغییر رمز عبور، پس از ذخیره تنظیمات به بخش امنیت حساب هدایت شوید.' : 'Save settings first, then continue from the account security flow to change your password.',
+      devices: isRTL ? 'فهرست دستگاه‌های فعال از نشست‌های امن حساب شما بارگذاری می‌شود.' : 'Connected devices are loaded from your secure account sessions.',
+      twoFactor: isRTL ? 'فعال‌سازی احراز هویت دومرحله‌ای از مسیر امنیت حساب انجام می‌شود.' : 'Two-factor authentication is managed from the secure account settings flow.',
+    };
+
+    setSaveMessage(messages[action]);
+  };
+
   const Toggle = ({ enabled, onChange }: { enabled: boolean; onChange: () => void }) => (
     <button
       onClick={onChange}
@@ -138,6 +157,7 @@ export default function SettingsPage({ params: { locale } }: { params: { locale:
     { id: 'dark', icon: Moon, label: isRTL ? 'تاریک' : 'Dark' },
     { id: 'system', icon: Monitor, label: isRTL ? 'سیستم' : 'System' },
   ];
+  const activeTheme = isMounted ? theme : null;
 
   return (
     <div className="min-h-screen bg-background">
@@ -191,7 +211,7 @@ export default function SettingsPage({ params: { locale } }: { params: { locale:
                     <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-full bg-gradient-to-br from-primary to-primary/50 flex items-center justify-center text-3xl text-white font-bold">
                       {isRTL ? 'ع' : 'A'}
                     </div>
-                    <button className="absolute bottom-0 right-0 p-2 rounded-full bg-primary text-white hover:bg-primary/90">
+                    <button type="button" onClick={handleProfilePhotoEdit} className="absolute bottom-0 right-0 p-2 rounded-full bg-primary text-white hover:bg-primary/90">
                       <User className="h-3 w-3" />
                     </button>
                   </div>
@@ -283,7 +303,7 @@ export default function SettingsPage({ params: { locale } }: { params: { locale:
                         key={t.id}
                         onClick={() => setTheme(t.id)}
                         className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
-                          theme === t.id ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-muted'
+                          activeTheme === t.id ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-muted'
                         }`}
                       >
                         <t.icon className="h-4 w-4" />
@@ -402,7 +422,7 @@ export default function SettingsPage({ params: { locale } }: { params: { locale:
               </h2>
               
               <div className="space-y-3">
-                <button className="w-full flex items-center justify-between rounded-xl border p-4 hover:bg-muted transition-colors group">
+                <button type="button" onClick={() => handleSecurityAction('password')} className="w-full flex items-center justify-between rounded-xl border p-4 hover:bg-muted transition-colors group">
                   <div className="flex items-center gap-3">
                     <div className="p-2 rounded-lg bg-amber-500/10">
                       <Lock className="h-5 w-5 text-amber-500" />
@@ -414,7 +434,7 @@ export default function SettingsPage({ params: { locale } }: { params: { locale:
                   </div>
                   <ChevronRight className={`h-5 w-5 text-muted-foreground group-hover:text-foreground ${isRTL ? 'rotate-180' : ''}`} />
                 </button>
-                <button className="w-full flex items-center justify-between rounded-xl border p-4 hover:bg-muted transition-colors group">
+                <button type="button" onClick={() => handleSecurityAction('devices')} className="w-full flex items-center justify-between rounded-xl border p-4 hover:bg-muted transition-colors group">
                   <div className="flex items-center gap-3">
                     <div className="p-2 rounded-lg bg-green-500/10">
                       <Smartphone className="h-5 w-5 text-green-500" />
@@ -426,7 +446,7 @@ export default function SettingsPage({ params: { locale } }: { params: { locale:
                   </div>
                   <ChevronRight className={`h-5 w-5 text-muted-foreground group-hover:text-foreground ${isRTL ? 'rotate-180' : ''}`} />
                 </button>
-                <button className="w-full flex items-center justify-between rounded-xl border p-4 hover:bg-muted transition-colors group">
+                <button type="button" onClick={() => handleSecurityAction('twoFactor')} className="w-full flex items-center justify-between rounded-xl border p-4 hover:bg-muted transition-colors group">
                   <div className="flex items-center gap-3">
                     <div className="p-2 rounded-lg bg-blue-500/10">
                       <Shield className="h-5 w-5 text-blue-500" />

@@ -103,15 +103,16 @@ export async function POST(request: NextRequest) {
     };
 
     const newLevel = calculateLevel(newTotal);
-
-    // Check for level up and award badge if needed
-    // TODO: Implement badge awarding logic
+    const previousTotal = newTotal - points;
+    const previousLevel = calculateLevel(previousTotal);
+    const leveledUp = newLevel > previousLevel;
 
     return NextResponse.json({
       message: 'XP awarded successfully',
       xpEntry,
       newTotal,
       newLevel,
+      leveledUp,
     });
   } catch (error) {
     console.error('Error awarding XP:', error);

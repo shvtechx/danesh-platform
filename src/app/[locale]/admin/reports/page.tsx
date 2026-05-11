@@ -1,185 +1,234 @@
 'use client';
 
-import { useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { 
-  ArrowLeft, ArrowRight, BarChart3, Users, BookOpen, GraduationCap,
-  TrendingUp, TrendingDown, Calendar, Download, Filter, RefreshCw,
-  Clock, Star, Trophy, Target, ChevronDown
+import {
+  ArrowLeft,
+  ArrowRight,
+  BarChart3,
+  BookOpen,
+  Calendar,
+  Clock,
+  Download,
+  Filter,
+  GraduationCap,
+  RefreshCw,
+  Target,
+  Trophy,
+  Users,
 } from 'lucide-react';
+import { FeedbackBanner } from '@/components/ui/feedback-banner';
+
+type AdminReportSummary = {
+  stats: {
+    totalTeachers: number;
+    totalStudents: number;
+    totalCourses: number;
+    teachingHours: number;
+  };
+  topTeachers: Array<{
+    id: string;
+    name: string;
+    subject: string;
+    students: number;
+    courses: number;
+    completionRate: number;
+    status: string;
+  }>;
+  departmentStats: Array<{
+    id: string;
+    name: string;
+    teachers: number;
+    students: number;
+    courses: number;
+    completion: number;
+  }>;
+  recentActivities: Array<{
+    type: 'course' | 'student' | 'teacher';
+    action: string;
+    detail: string;
+    time: string;
+  }>;
+  enrollmentsBySubject: Array<{
+    id: string;
+    name: string;
+    enrollments: number;
+    courses: number;
+  }>;
+  enrollmentTrend: Array<{
+    id: string;
+    name: string;
+    students: number;
+    completion: number;
+  }>;
+};
+
+const EMPTY_DATA: AdminReportSummary = {
+  stats: {
+    totalTeachers: 0,
+    totalStudents: 0,
+    totalCourses: 0,
+    teachingHours: 0,
+  },
+  topTeachers: [],
+  departmentStats: [],
+  recentActivities: [],
+  enrollmentsBySubject: [],
+  enrollmentTrend: [],
+};
 
 export default function AdminReportsPage({ params: { locale } }: { params: { locale: string } }) {
-  const t = useTranslations();
   const isRTL = locale === 'fa';
   const Arrow = isRTL ? ArrowRight : ArrowLeft;
 
   const [dateRange, setDateRange] = useState('month');
   const [selectedDepartment, setSelectedDepartment] = useState('all');
+  const [lastRefreshedAt, setLastRefreshedAt] = useState(() => new Date());
+  const [report, setReport] = useState<AdminReportSummary>(EMPTY_DATA);
+  const [isLoading, setIsLoading] = useState(true);
+  const [feedback, setFeedback] = useState<{ variant: 'error' | 'info'; message: string } | null>(null);
 
-  const stats = [
-    { 
-      label: isRTL ? 'کل معلمان' : 'Total Teachers', 
-      value: '24', 
-      change: '+3', 
-      trend: 'up',
-      icon: Users,
-      color: 'primary'
-    },
-    { 
-      label: isRTL ? 'کل دانش‌آموزان' : 'Total Students', 
-      value: '847', 
-      change: '+45', 
-      trend: 'up',
-      icon: GraduationCap,
-      color: 'green'
-    },
-    { 
-      label: isRTL ? 'دروس فعال' : 'Active Courses', 
-      value: '56', 
-      change: '+8', 
-      trend: 'up',
-      icon: BookOpen,
-      color: 'purple'
-    },
-    { 
-      label: isRTL ? 'ساعت تدریس' : 'Teaching Hours', 
-      value: '1,234', 
-      change: '+156', 
-      trend: 'up',
-      icon: Clock,
-      color: 'orange'
-    },
-  ];
+  useEffect(() => {
+    let active = true;
 
-  const topTeachers = [
-    { 
-      id: 1, 
-      name: isRTL ? 'علی احمدی' : 'Ali Ahmadi', 
-      subject: isRTL ? 'ریاضی' : 'Mathematics',
-      students: 45, 
-      rating: 4.9,
-      courses: 5 
-    },
-    { 
-      id: 2, 
-      name: isRTL ? 'سارا محمدی' : 'Sara Mohammadi', 
-      subject: isRTL ? 'فیزیک' : 'Physics',
-      students: 42, 
-      rating: 4.8,
-      courses: 4 
-    },
-    { 
-      id: 3, 
-      name: isRTL ? 'محمد حسینی' : 'Mohammad Hosseini', 
-      subject: isRTL ? 'زبان انگلیسی' : 'English',
-      students: 38, 
-      rating: 4.7,
-      courses: 6 
-    },
-    { 
-      id: 4, 
-      name: isRTL ? 'زهرا کریمی' : 'Zahra Karimi', 
-      subject: isRTL ? 'شیمی' : 'Chemistry',
-      students: 35, 
-      rating: 4.7,
-      courses: 3 
-    },
-    { 
-      id: 5, 
-      name: isRTL ? 'رضا موسوی' : 'Reza Mousavi', 
-      subject: isRTL ? 'ادبیات' : 'Literature',
-      students: 32, 
-      rating: 4.6,
-      courses: 4 
-    },
-  ];
+    const loadReport = async () => {
+      try {
+        setIsLoading(true);
+        setFeedback(null);
 
-  const departmentStats = [
-    { 
-      name: isRTL ? 'گروه ریاضی' : 'Mathematics', 
-      teachers: 6, 
-      students: 245, 
-      courses: 15,
-      completion: 78 
-    },
-    { 
-      name: isRTL ? 'گروه علوم' : 'Science', 
-      teachers: 8, 
-      students: 312, 
-      courses: 18,
-      completion: 72 
-    },
-    { 
-      name: isRTL ? 'گروه زبان' : 'Languages', 
-      teachers: 5, 
-      students: 180, 
-      courses: 12,
-      completion: 85 
-    },
-    { 
-      name: isRTL ? 'گروه علوم انسانی' : 'Humanities', 
-      teachers: 3, 
-      students: 78, 
-      courses: 8,
-      completion: 68 
-    },
-    { 
-      name: isRTL ? 'گروه هنر' : 'Arts', 
-      teachers: 2, 
-      students: 32, 
-      courses: 3,
-      completion: 90 
-    },
-  ];
+        const response = await fetch(`/api/v1/admin/reports/summary?locale=${locale}`, { cache: 'no-store' });
+        if (!response.ok) {
+          throw new Error('Failed to load admin reports');
+        }
 
-  const recentActivities = [
-    { 
-      type: 'course', 
-      action: isRTL ? 'دوره جدید اضافه شد' : 'New course added',
-      detail: isRTL ? 'ریاضی پیشرفته توسط علی احمدی' : 'Advanced Math by Ali Ahmadi',
-      time: isRTL ? '۲ ساعت پیش' : '2 hours ago'
-    },
-    { 
-      type: 'student', 
-      action: isRTL ? 'دانش‌آموز ثبت‌نام کرد' : 'Student enrolled',
-      detail: isRTL ? '۵ دانش‌آموز در کلاس فیزیک' : '5 students in Physics class',
-      time: isRTL ? '۴ ساعت پیش' : '4 hours ago'
-    },
-    { 
-      type: 'teacher', 
-      action: isRTL ? 'معلم جدید تأیید شد' : 'Teacher approved',
-      detail: isRTL ? 'مریم رضایی - گروه زبان' : 'Maryam Rezaei - Languages',
-      time: isRTL ? '۱ روز پیش' : '1 day ago'
-    },
-    { 
-      type: 'course', 
-      action: isRTL ? 'دوره تکمیل شد' : 'Course completed',
-      detail: isRTL ? '۱۲ دانش‌آموز دوره زبان را تمام کردند' : '12 students finished English course',
-      time: isRTL ? '۲ روز پیش' : '2 days ago'
-    },
-  ];
+        const data = (await response.json()) as AdminReportSummary;
+        if (active) {
+          setReport(data);
+          setLastRefreshedAt(new Date());
+        }
+      } catch {
+        if (active) {
+          setReport(EMPTY_DATA);
+          setFeedback({
+            variant: 'error',
+            message: isRTL ? 'بارگذاری گزارش‌های مدیریتی با مشکل روبه‌رو شد.' : 'Admin analytics could not be loaded.',
+          });
+        }
+      } finally {
+        if (active) {
+          setIsLoading(false);
+        }
+      }
+    };
 
-  const getColorClass = (color: string) => {
-    switch (color) {
-      case 'primary': return 'bg-primary/10 text-primary';
-      case 'green': return 'bg-green-500/10 text-green-600';
-      case 'purple': return 'bg-purple-500/10 text-purple-600';
-      case 'orange': return 'bg-orange-500/10 text-orange-600';
-      default: return 'bg-primary/10 text-primary';
+    loadReport();
+
+    return () => {
+      active = false;
+    };
+  }, [isRTL, locale]);
+
+  const filteredDepartmentStats = useMemo(() => {
+    if (selectedDepartment === 'all') {
+      return report.departmentStats;
     }
+
+    return report.departmentStats.filter((department) => department.id === selectedDepartment);
+  }, [report.departmentStats, selectedDepartment]);
+
+  const visibleEnrollmentTrend = useMemo(() => {
+    if (selectedDepartment === 'all') {
+      return report.enrollmentTrend;
+    }
+
+    return report.enrollmentTrend.filter((department) => department.id === selectedDepartment);
+  }, [report.enrollmentTrend, selectedDepartment]);
+
+  const maxDepartmentStudents = Math.max(1, ...visibleEnrollmentTrend.map((item) => item.students));
+  const maxSubjectEnrollments = Math.max(1, ...report.enrollmentsBySubject.map((item) => item.enrollments));
+
+  const statCards = [
+    {
+      label: isRTL ? 'کل معلمان' : 'Total Teachers',
+      value: report.stats.totalTeachers,
+      helper: isRTL ? 'کاربران دارای نقش آموزشی' : 'Users with teaching roles',
+      icon: Users,
+      color: 'bg-primary/10 text-primary',
+    },
+    {
+      label: isRTL ? 'کل دانش‌آموزان' : 'Total Students',
+      value: report.stats.totalStudents,
+      helper: isRTL ? 'یادگیرندگان ثبت‌شده' : 'Registered learners',
+      icon: GraduationCap,
+      color: 'bg-green-500/10 text-green-600',
+    },
+    {
+      label: isRTL ? 'کل دوره‌ها' : 'Total Courses',
+      value: report.stats.totalCourses,
+      helper: isRTL ? 'دوره‌های موجود در پایگاه داده' : 'Courses currently stored',
+      icon: BookOpen,
+      color: 'bg-purple-500/10 text-purple-600',
+    },
+    {
+      label: isRTL ? 'ساعت آموزشی' : 'Teaching Hours',
+      value: report.stats.teachingHours,
+      helper: isRTL ? 'برآورد زمان درس‌ها' : 'Estimated lesson duration',
+      icon: Clock,
+      color: 'bg-orange-500/10 text-orange-600',
+    },
+  ];
+
+  const handleRefresh = async () => {
+    setFeedback({
+      variant: 'info',
+      message: isRTL ? 'در حال همگام‌سازی تازه‌ترین داده‌ها...' : 'Refreshing the latest analytics snapshot...',
+    });
+
+    try {
+      const response = await fetch(`/api/v1/admin/reports/summary?locale=${locale}`, { cache: 'no-store' });
+      if (!response.ok) {
+        throw new Error('refresh-failed');
+      }
+
+      const data = (await response.json()) as AdminReportSummary;
+      setReport(data);
+      setLastRefreshedAt(new Date());
+      setFeedback({
+        variant: 'info',
+        message: isRTL ? 'گزارش مدیریتی به‌روزرسانی شد.' : 'Admin report refreshed.',
+      });
+    } catch {
+      setFeedback({
+        variant: 'error',
+        message: isRTL ? 'به‌روزرسانی گزارش انجام نشد.' : 'Report refresh failed.',
+      });
+    }
+  };
+
+  const handleExport = () => {
+    const payload = {
+      generatedAt: new Date().toISOString(),
+      locale,
+      dateRange,
+      selectedDepartment,
+      report,
+    };
+
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `admin-report-${dateRange}-${selectedDepartment}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-lg border-b">
-        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+      <header className="sticky top-0 z-30 border-b bg-background/80 backdrop-blur-lg">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
           <div className="flex items-center gap-4">
-            <Link 
-              href={`/${locale}/admin`}
-              className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
-            >
+            <Link href={`/${locale}/admin`} className="flex items-center gap-2 text-muted-foreground hover:text-foreground">
               <Arrow className="h-5 w-5" />
               <span>{isRTL ? 'بازگشت' : 'Back'}</span>
             </Link>
@@ -190,11 +239,11 @@ export default function AdminReportsPage({ params: { locale } }: { params: { loc
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <button className="flex items-center gap-2 px-3 py-2 rounded-lg border hover:bg-muted text-sm">
+            <button type="button" onClick={handleRefresh} className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm hover:bg-muted">
               <RefreshCw className="h-4 w-4" />
               <span className="hidden sm:inline">{isRTL ? 'بروزرسانی' : 'Refresh'}</span>
             </button>
-            <button className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm">
+            <button type="button" onClick={handleExport} className="flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm text-primary-foreground">
               <Download className="h-4 w-4" />
               <span className="hidden sm:inline">{isRTL ? 'دانلود گزارش' : 'Export'}</span>
             </button>
@@ -202,193 +251,195 @@ export default function AdminReportsPage({ params: { locale } }: { params: { loc
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
-        {/* Filters */}
+      <div className="mx-auto max-w-7xl space-y-6 px-4 py-6">
+        <div>
+          <p className="text-sm text-muted-foreground">
+            {isRTL ? 'آخرین بروزرسانی:' : 'Last refreshed:'} {lastRefreshedAt.toLocaleString(isRTL ? 'fa-IR' : 'en-US')}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            {isRTL ? 'نمای مدیریتی با داده‌های واقعی کاربران، دوره‌ها و ثبت‌نام‌ها' : 'Administrative view backed by live users, courses, and enrollment data'}
+          </p>
+        </div>
+
+        {feedback ? <FeedbackBanner variant={feedback.variant} message={feedback.message} /> : null}
+
         <div className="flex flex-wrap gap-3">
-          <div className="flex items-center gap-2 bg-card border rounded-lg px-3 py-2">
+          <div className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2">
             <Calendar className="h-4 w-4 text-muted-foreground" />
-            <select 
-              value={dateRange}
-              onChange={(e) => setDateRange(e.target.value)}
-              className="bg-transparent text-sm border-none outline-none"
-            >
+            <select value={dateRange} onChange={(event) => setDateRange(event.target.value)} className="bg-transparent text-sm outline-none">
               <option value="week">{isRTL ? 'هفته جاری' : 'This Week'}</option>
               <option value="month">{isRTL ? 'ماه جاری' : 'This Month'}</option>
               <option value="quarter">{isRTL ? 'سه ماهه' : 'This Quarter'}</option>
               <option value="year">{isRTL ? 'سال جاری' : 'This Year'}</option>
             </select>
           </div>
-          <div className="flex items-center gap-2 bg-card border rounded-lg px-3 py-2">
+          <div className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2">
             <Filter className="h-4 w-4 text-muted-foreground" />
-            <select 
-              value={selectedDepartment}
-              onChange={(e) => setSelectedDepartment(e.target.value)}
-              className="bg-transparent text-sm border-none outline-none"
-            >
+            <select value={selectedDepartment} onChange={(event) => setSelectedDepartment(event.target.value)} className="bg-transparent text-sm outline-none">
               <option value="all">{isRTL ? 'همه گروه‌ها' : 'All Departments'}</option>
-              <option value="math">{isRTL ? 'ریاضی' : 'Mathematics'}</option>
-              <option value="science">{isRTL ? 'علوم' : 'Science'}</option>
-              <option value="language">{isRTL ? 'زبان' : 'Languages'}</option>
+              {report.departmentStats.map((department) => (
+                <option key={department.id} value={department.id}>{department.name}</option>
+              ))}
             </select>
           </div>
         </div>
 
-        {/* Stats Grid */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {stats.map((stat, index) => {
+          {statCards.map((stat) => {
             const Icon = stat.icon;
             return (
-              <div key={index} className="bg-card border rounded-xl p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <div className={`p-2 rounded-lg ${getColorClass(stat.color)}`}>
-                    <Icon className="h-5 w-5" />
-                  </div>
-                  <div className={`flex items-center gap-1 text-sm ${
-                    stat.trend === 'up' ? 'text-green-600' : 'text-red-600'
-                  }`}>
-                    {stat.trend === 'up' ? (
-                      <TrendingUp className="h-4 w-4" />
-                    ) : (
-                      <TrendingDown className="h-4 w-4" />
-                    )}
-                    <span>{stat.change}</span>
-                  </div>
+              <div key={stat.label} className="rounded-xl border bg-card p-4">
+                <div className={`mb-3 inline-flex rounded-lg p-2 ${stat.color}`}>
+                  <Icon className="h-5 w-5" />
                 </div>
-                <p className="text-2xl font-bold">{stat.value}</p>
+                <p className="text-2xl font-bold">{isLoading ? '—' : stat.value.toLocaleString(isRTL ? 'fa-IR' : 'en-US')}</p>
                 <p className="text-sm text-muted-foreground">{stat.label}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{stat.helper}</p>
               </div>
             );
           })}
         </div>
 
-        {/* Main Grid */}
         <div className="grid gap-6 lg:grid-cols-2">
-          {/* Top Teachers */}
-          <div className="bg-card border rounded-xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold flex items-center gap-2">
+          <div className="rounded-xl border bg-card p-6">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="flex items-center gap-2 font-semibold">
                 <Trophy className="h-5 w-5 text-yellow-500" />
                 {isRTL ? 'برترین معلمان' : 'Top Teachers'}
               </h2>
-              <Link 
-                href={`/${locale}/admin/teachers`}
-                className="text-sm text-primary hover:underline"
-              >
+              <Link href={`/${locale}/admin/teachers`} className="text-sm text-primary hover:underline">
                 {isRTL ? 'مشاهده همه' : 'View All'}
               </Link>
             </div>
             <div className="space-y-3">
-              {topTeachers.map((teacher, index) => (
-                <div 
-                  key={teacher.id}
-                  className="flex items-center gap-3 p-3 rounded-lg bg-muted/50"
-                >
-                  <div className="flex items-center justify-center h-8 w-8 rounded-full bg-primary/10 text-primary font-bold text-sm">
-                    {index + 1}
+              {report.topTeachers.length === 0 ? (
+                <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                  {isRTL ? 'هنوز داده‌ای برای نمایش معلمان برتر وجود ندارد.' : 'No teacher activity is available yet.'}
+                </p>
+              ) : (
+                report.topTeachers.map((teacher, index) => (
+                  <div key={teacher.id} className="flex items-center gap-3 rounded-lg bg-muted/40 p-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">{index + 1}</div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium">{teacher.name}</p>
+                      <p className="text-xs text-muted-foreground">{teacher.subject}</p>
+                    </div>
+                    <div className="text-right text-xs text-muted-foreground">
+                      <p>{teacher.students} {isRTL ? 'دانش‌آموز' : 'students'}</p>
+                      <p>{teacher.courses} {isRTL ? 'دوره' : 'courses'}</p>
+                    </div>
+                    <div className="rounded-full bg-emerald-500/10 px-2 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">{teacher.completionRate}%</div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate">{teacher.name}</p>
-                    <p className="text-xs text-muted-foreground">{teacher.subject}</p>
-                  </div>
-                  <div className="flex items-center gap-1 text-yellow-500">
-                    <Star className="h-4 w-4 fill-current" />
-                    <span className="text-sm font-medium">{teacher.rating}</span>
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    {teacher.students} {isRTL ? 'دانش‌آموز' : 'students'}
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
 
-          {/* Department Stats */}
-          <div className="bg-card border rounded-xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold flex items-center gap-2">
-                <Target className="h-5 w-5 text-primary" />
-                {isRTL ? 'عملکرد گروه‌ها' : 'Department Performance'}
-              </h2>
-            </div>
+          <div className="rounded-xl border bg-card p-6">
+            <h2 className="mb-4 flex items-center gap-2 font-semibold">
+              <Target className="h-5 w-5 text-primary" />
+              {isRTL ? 'عملکرد گروه‌ها' : 'Department Performance'}
+            </h2>
             <div className="space-y-4">
-              {departmentStats.map((dept, index) => (
-                <div key={index} className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="font-medium">{dept.name}</span>
-                    <span className="text-muted-foreground">{dept.completion}%</span>
+              {filteredDepartmentStats.length === 0 ? (
+                <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                  {isRTL ? 'داده‌ای برای این گروه در دسترس نیست.' : 'No department data is available for this filter.'}
+                </p>
+              ) : (
+                filteredDepartmentStats.map((department) => (
+                  <div key={department.id} className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-medium">{department.name}</span>
+                      <span className="text-muted-foreground">{department.completion}%</span>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-muted">
+                      <div className="h-full rounded-full bg-primary" style={{ width: `${department.completion}%` }} />
+                    </div>
+                    <div className="flex gap-4 text-xs text-muted-foreground">
+                      <span>{department.teachers} {isRTL ? 'معلم' : 'teachers'}</span>
+                      <span>{department.students} {isRTL ? 'دانش‌آموز' : 'students'}</span>
+                      <span>{department.courses} {isRTL ? 'دوره' : 'courses'}</span>
+                    </div>
                   </div>
-                  <div className="h-2 bg-muted rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-primary rounded-full transition-all"
-                      style={{ width: `${dept.completion}%` }}
-                    />
-                  </div>
-                  <div className="flex gap-4 text-xs text-muted-foreground">
-                    <span>{dept.teachers} {isRTL ? 'معلم' : 'teachers'}</span>
-                    <span>{dept.students} {isRTL ? 'دانش‌آموز' : 'students'}</span>
-                    <span>{dept.courses} {isRTL ? 'دوره' : 'courses'}</span>
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         </div>
 
-        {/* Recent Activities */}
-        <div className="bg-card border rounded-xl p-6">
-          <h2 className="font-semibold mb-4 flex items-center gap-2">
+        <div className="rounded-xl border bg-card p-6">
+          <h2 className="mb-4 flex items-center gap-2 font-semibold">
             <Clock className="h-5 w-5 text-primary" />
             {isRTL ? 'فعالیت‌های اخیر' : 'Recent Activities'}
           </h2>
           <div className="space-y-3">
-            {recentActivities.map((activity, index) => (
-              <div 
-                key={index}
-                className="flex items-start gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors"
-              >
-                <div className={`p-2 rounded-lg ${
-                  activity.type === 'course' ? 'bg-purple-500/10 text-purple-600' :
-                  activity.type === 'student' ? 'bg-green-500/10 text-green-600' :
-                  'bg-blue-500/10 text-blue-600'
-                }`}>
-                  {activity.type === 'course' ? <BookOpen className="h-4 w-4" /> :
-                   activity.type === 'student' ? <GraduationCap className="h-4 w-4" /> :
-                   <Users className="h-4 w-4" />}
+            {report.recentActivities.length === 0 ? (
+              <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                {isRTL ? 'فعلاً فعالیت مدیریتی تازه‌ای ثبت نشده است.' : 'No recent admin activity has been recorded yet.'}
+              </p>
+            ) : (
+              report.recentActivities.map((activity, index) => (
+                <div key={`${activity.type}-${index}`} className="flex items-start gap-3 rounded-lg p-3 transition-colors hover:bg-muted/50">
+                  <div className={`rounded-lg p-2 ${activity.type === 'course' ? 'bg-purple-500/10 text-purple-600' : activity.type === 'student' ? 'bg-green-500/10 text-green-600' : 'bg-blue-500/10 text-blue-600'}`}>
+                    {activity.type === 'course' ? <BookOpen className="h-4 w-4" /> : activity.type === 'student' ? <GraduationCap className="h-4 w-4" /> : <Users className="h-4 w-4" />}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">{activity.action}</p>
+                    <p className="text-xs text-muted-foreground">{activity.detail}</p>
+                  </div>
+                  <span className="whitespace-nowrap text-xs text-muted-foreground">{activity.time}</span>
                 </div>
-                <div className="flex-1">
-                  <p className="font-medium text-sm">{activity.action}</p>
-                  <p className="text-xs text-muted-foreground">{activity.detail}</p>
-                </div>
-                <span className="text-xs text-muted-foreground whitespace-nowrap">
-                  {activity.time}
-                </span>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 
-        {/* Charts Placeholder */}
         <div className="grid gap-6 lg:grid-cols-2">
-          <div className="bg-card border rounded-xl p-6">
-            <h2 className="font-semibold mb-4">
-              {isRTL ? 'روند ثبت‌نام دانش‌آموزان' : 'Student Enrollment Trend'}
-            </h2>
-            <div className="h-64 flex items-center justify-center bg-muted/30 rounded-lg">
-              <div className="text-center text-muted-foreground">
-                <BarChart3 className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">{isRTL ? 'نمودار ثبت‌نام' : 'Enrollment Chart'}</p>
-              </div>
+          <div className="rounded-xl border bg-card p-6">
+            <h2 className="mb-4 font-semibold">{isRTL ? 'روند ثبت‌نام بر اساس گروه' : 'Enrollment Trend by Department'}</h2>
+            <div className="space-y-4">
+              {visibleEnrollmentTrend.length === 0 ? (
+                <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                  {isRTL ? 'روندی برای نمایش موجود نیست.' : 'No trend data is available yet.'}
+                </p>
+              ) : (
+                visibleEnrollmentTrend.map((department) => (
+                  <div key={department.id} className="space-y-1">
+                    <div className="flex items-center justify-between text-sm">
+                      <span>{department.name}</span>
+                      <span className="text-muted-foreground">{department.students.toLocaleString(isRTL ? 'fa-IR' : 'en-US')}</span>
+                    </div>
+                    <div className="h-3 overflow-hidden rounded-full bg-muted">
+                      <div className="h-full rounded-full bg-blue-500" style={{ width: `${(department.students / maxDepartmentStudents) * 100}%` }} />
+                    </div>
+                    <p className="text-xs text-muted-foreground">{department.completion}% {isRTL ? 'میانگین پیشرفت' : 'average completion'}</p>
+                  </div>
+                ))
+              )}
             </div>
           </div>
-          <div className="bg-card border rounded-xl p-6">
-            <h2 className="font-semibold mb-4">
-              {isRTL ? 'پیشرفت دروس' : 'Course Progress'}
-            </h2>
-            <div className="h-64 flex items-center justify-center bg-muted/30 rounded-lg">
-              <div className="text-center text-muted-foreground">
-                <Target className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">{isRTL ? 'نمودار پیشرفت' : 'Progress Chart'}</p>
-              </div>
+
+          <div className="rounded-xl border bg-card p-6">
+            <h2 className="mb-4 font-semibold">{isRTL ? 'توزیع ثبت‌نام بر اساس موضوع' : 'Subject Distribution'}</h2>
+            <div className="space-y-4">
+              {report.enrollmentsBySubject.length === 0 ? (
+                <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                  {isRTL ? 'هنوز ثبت‌نام فعالی برای موضوعات ثبت نشده است.' : 'There are no subject enrollment signals yet.'}
+                </p>
+              ) : (
+                report.enrollmentsBySubject.map((subject) => (
+                  <div key={subject.id} className="space-y-1">
+                    <div className="flex items-center justify-between text-sm">
+                      <span>{subject.name}</span>
+                      <span className="text-muted-foreground">{subject.enrollments.toLocaleString(isRTL ? 'fa-IR' : 'en-US')}</span>
+                    </div>
+                    <div className="h-3 overflow-hidden rounded-full bg-muted">
+                      <div className="h-full rounded-full bg-emerald-500" style={{ width: `${(subject.enrollments / maxSubjectEnrollments) * 100}%` }} />
+                    </div>
+                    <p className="text-xs text-muted-foreground">{subject.courses} {isRTL ? 'دوره مرتبط' : 'related courses'}</p>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>

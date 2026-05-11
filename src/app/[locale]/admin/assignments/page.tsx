@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useTranslations } from 'next-intl';
 import Link from 'next/link';
+import { FeedbackBanner } from '@/components/ui/feedback-banner';
+import { createUserHeaders, getStoredUserId } from '@/lib/auth/demo-auth-shared';
 import { 
   ArrowLeft, ArrowRight, Search, Users, GraduationCap, 
   BookOpen, Plus, X, Check, ChevronDown, Filter,
@@ -15,6 +16,8 @@ interface Teacher {
   subject: string;
   avatar: string;
   studentsCount: number;
+  subjects?: string[];
+  assignedStudentIds?: string[];
 }
 
 interface Student {
@@ -26,32 +29,83 @@ interface Student {
 }
 
 export default function AssignmentsPage({ params: { locale } }: { params: { locale: string } }) {
-  const t = useTranslations();
   const isRTL = locale === 'fa';
   const Arrow = isRTL ? ArrowRight : ArrowLeft;
 
   const [selectedTeacher, setSelectedTeacher] = useState<string>('');
   const [searchAvailable, setSearchAvailable] = useState('');
   const [searchAssigned, setSearchAssigned] = useState('');
-  const [assignedStudents, setAssignedStudents] = useState<string[]>(['s1', 's2', 's3']);
+  const [teacherAssignments, setTeacherAssignments] = useState<Record<string, string[]>>({});
   const [pendingChanges, setPendingChanges] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [allStudents, setAllStudents] = useState<Student[]>([]);
+  const [feedback, setFeedback] = useState<{ variant: 'success' | 'error' | 'info'; message: string } | null>(null);
 
-  const teachers: Teacher[] = [
-    { id: 't1', name: isRTL ? 'دکتر احمدی' : 'Dr. Ahmadi', subject: isRTL ? 'ریاضی' : 'Math', avatar: 'A', studentsCount: 45 },
-    { id: 't2', name: isRTL ? 'استاد محمدی' : 'Prof. Mohammadi', subject: isRTL ? 'فیزیک' : 'Physics', avatar: 'M', studentsCount: 38 },
-    { id: 't3', name: isRTL ? 'خانم رضایی' : 'Ms. Rezaei', subject: isRTL ? 'انگلیسی' : 'English', avatar: 'R', studentsCount: 52 },
-  ];
+  const assignedStudents = selectedTeacher ? (teacherAssignments[selectedTeacher] || []) : [];
 
-  const allStudents: Student[] = [
-    { id: 's1', name: isRTL ? 'علی احمدی' : 'Ali Ahmadi', grade: isRTL ? 'هشتم' : '8th', avatar: 'A', email: 'ali@student.com' },
-    { id: 's2', name: isRTL ? 'سارا محمدی' : 'Sara Mohammadi', grade: isRTL ? 'هشتم' : '8th', avatar: 'S', email: 'sara@student.com' },
-    { id: 's3', name: isRTL ? 'محمد رضایی' : 'Mohammad Rezaei', grade: isRTL ? 'نهم' : '9th', avatar: 'M', email: 'mohammad@student.com' },
-    { id: 's4', name: isRTL ? 'مریم کریمی' : 'Maryam Karimi', grade: isRTL ? 'هشتم' : '8th', avatar: 'M', email: 'maryam@student.com' },
-    { id: 's5', name: isRTL ? 'حسین جعفری' : 'Hossein Jafari', grade: isRTL ? 'نهم' : '9th', avatar: 'H', email: 'hossein@student.com' },
-    { id: 's6', name: isRTL ? 'زهرا نوری' : 'Zahra Nouri', grade: isRTL ? 'هفتم' : '7th', avatar: 'Z', email: 'zahra@student.com' },
-    { id: 's7', name: isRTL ? 'امیر حسینی' : 'Amir Hosseini', grade: isRTL ? 'هشتم' : '8th', avatar: 'A', email: 'amir@student.com' },
-    { id: 's8', name: isRTL ? 'نازنین اکبری' : 'Nazanin Akbari', grade: isRTL ? 'نهم' : '9th', avatar: 'N', email: 'nazanin@student.com' },
-  ];
+  useEffect(() => {
+    const loadPageData = async () => {
+      try {
+        const [studentsResponse, teachersResponse] = await Promise.all([
+          fetch('/api/v1/admin/users', {
+            headers: createUserHeaders(getStoredUserId()),
+          }),
+          fetch(`/api/v1/admin/teachers?locale=${locale}`, {
+            headers: createUserHeaders(getStoredUserId()),
+          }),
+        ]);
+
+        if (!studentsResponse.ok || !teachersResponse.ok) {
+          throw new Error('Failed to load assignment data');
+        }
+
+        const [studentsData, teachersData] = await Promise.all([studentsResponse.json(), teachersResponse.json()]);
+
+        const students = (studentsData.users || [])
+          .filter((user: any) => Array.isArray(user.roles) && user.roles.includes('STUDENT'))
+          .map((user: any) => {
+            const displayName = user.profile?.displayName || [user.profile?.firstName, user.profile?.lastName].filter(Boolean).join(' ') || user.email || 'Student';
+            return {
+              id: user.id,
+              name: displayName,
+              grade: isRTL ? 'دانش‌آموز' : 'Student',
+              avatar: displayName[0]?.toUpperCase() || 'S',
+              email: user.email || '—',
+            } satisfies Student;
+          });
+
+        const teacherRecords = (teachersData.teachers || []).map((teacher: any) => ({
+          id: teacher.id,
+          name: teacher.name,
+          subject: teacher.subject,
+          avatar: teacher.avatar || teacher.name?.[0]?.toUpperCase() || 'T',
+          studentsCount: teacher.students || 0,
+          subjects: teacher.subjects || [],
+          assignedStudentIds: teacher.assignedStudentIds || [],
+        } satisfies Teacher));
+
+        setTeachers(teacherRecords);
+        setAllStudents(students);
+        setTeacherAssignments(
+          teacherRecords.reduce((accumulator: Record<string, string[]>, teacher: Teacher) => {
+            accumulator[teacher.id] = teacher.assignedStudentIds || [];
+            return accumulator;
+          }, {}),
+        );
+      } catch {
+        setFeedback({
+          variant: 'error',
+          message: isRTL ? 'بارگذاری معلمان و دانش‌آموزان واقعی ممکن نبود.' : 'Real teacher and student records could not be loaded.',
+        });
+        setTeachers([]);
+        setAllStudents([]);
+        setTeacherAssignments({});
+      }
+    };
+
+    void loadPageData();
+  }, [isRTL, locale]);
 
   const availableStudents = allStudents.filter(s => !assignedStudents.includes(s.id));
 
@@ -68,28 +122,96 @@ export default function AssignmentsPage({ params: { locale } }: { params: { loca
     );
 
   const handleAssign = (studentId: string) => {
-    setAssignedStudents(prev => [...prev, studentId]);
+    if (!selectedTeacher) return;
+    setTeacherAssignments((prev) => ({
+      ...prev,
+      [selectedTeacher]: [...(prev[selectedTeacher] || []), studentId],
+    }));
     setPendingChanges(true);
   };
 
   const handleUnassign = (studentId: string) => {
-    setAssignedStudents(prev => prev.filter(id => id !== studentId));
+    if (!selectedTeacher) return;
+    setTeacherAssignments((prev) => ({
+      ...prev,
+      [selectedTeacher]: (prev[selectedTeacher] || []).filter((id) => id !== studentId),
+    }));
     setPendingChanges(true);
   };
 
   const handleAssignAll = () => {
-    setAssignedStudents(allStudents.map(s => s.id));
+    if (!selectedTeacher) return;
+    setTeacherAssignments((prev) => ({
+      ...prev,
+      [selectedTeacher]: allStudents.map((student) => student.id),
+    }));
     setPendingChanges(true);
   };
 
   const handleUnassignAll = () => {
-    setAssignedStudents([]);
+    if (!selectedTeacher) return;
+    setTeacherAssignments((prev) => ({
+      ...prev,
+      [selectedTeacher]: [],
+    }));
     setPendingChanges(true);
   };
 
   const handleSave = () => {
-    // Save logic here
-    setPendingChanges(false);
+    if (!selectedTeacher) {
+      setFeedback({
+        variant: 'error',
+        message: isRTL ? 'ابتدا یک معلم را انتخاب کنید.' : 'Select a teacher first.',
+      });
+      return;
+    }
+
+    const persistAssignments = async () => {
+      setSaving(true);
+      setFeedback(null);
+
+      try {
+        const response = await fetch(`/api/v1/admin/teachers/${selectedTeacher}/assignments`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            ...createUserHeaders(getStoredUserId()),
+          },
+          body: JSON.stringify({
+            assignedStudentIds: teacherAssignments[selectedTeacher] || [],
+          }),
+        });
+
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(data.error || 'failed_to_save_assignments');
+        }
+
+        setTeachers((prev) => prev.map((teacher) => (
+          teacher.id === selectedTeacher
+            ? {
+                ...teacher,
+                studentsCount: (teacherAssignments[selectedTeacher] || []).length,
+                assignedStudentIds: teacherAssignments[selectedTeacher] || [],
+              }
+            : teacher
+        )));
+        setPendingChanges(false);
+        setFeedback({
+          variant: 'success',
+          message: isRTL ? 'تخصیص دانش‌آموزان ذخیره شد.' : 'Student assignments were saved.',
+        });
+      } catch {
+        setFeedback({
+          variant: 'error',
+          message: isRTL ? 'ذخیره تخصیص دانش‌آموزان انجام نشد.' : 'Unable to save student assignments.',
+        });
+      } finally {
+        setSaving(false);
+      }
+    };
+
+    void persistAssignments();
   };
 
   return (
@@ -111,16 +233,19 @@ export default function AssignmentsPage({ params: { locale } }: { params: { loca
           {pendingChanges && (
             <button
               onClick={handleSave}
+              disabled={saving}
               className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90"
             >
               <Save className="h-4 w-4" />
-              {isRTL ? 'ذخیره تغییرات' : 'Save Changes'}
+              {saving ? (isRTL ? 'در حال ذخیره...' : 'Saving...') : (isRTL ? 'ذخیره تغییرات' : 'Save Changes')}
             </button>
           )}
         </div>
       </header>
 
       <div className="max-w-7xl mx-auto px-4 py-6">
+        {feedback ? <FeedbackBanner className="mb-6" variant={feedback.variant} message={feedback.message} /> : null}
+
         {/* Teacher Selection */}
         <div className="bg-card border rounded-xl p-4 mb-6">
           <h2 className="font-semibold mb-4 flex items-center gap-2">
@@ -145,7 +270,7 @@ export default function AssignmentsPage({ params: { locale } }: { params: { loca
                   <p className="font-medium">{teacher.name}</p>
                   <p className="text-sm text-muted-foreground">{teacher.subject}</p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {teacher.studentsCount} {isRTL ? 'دانش‌آموز' : 'students'}
+                    {(teacherAssignments[teacher.id] || []).length} {isRTL ? 'دانش‌آموز' : 'students'}
                   </p>
                 </div>
                 {selectedTeacher === teacher.id && (

@@ -24,7 +24,7 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 import { useTheme } from 'next-themes';
 import { ImpersonationBanner } from '@/components/auth/ImpersonationBanner';
-import { AUTH_STORAGE_KEY, ORIGINAL_USER_STORAGE_KEY, USER_ID_STORAGE_KEY } from '@/lib/auth/demo-users';
+import { AUTH_STORAGE_KEY, ORIGINAL_USER_STORAGE_KEY, USER_ID_STORAGE_KEY } from '@/lib/auth/demo-auth-shared';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -62,8 +62,8 @@ export default function DashboardLayout({ children, params: { locale } }: Dashbo
 
   const user = useMemo(
     () => ({
-      name: authUser?.profile?.displayName || (isRTL ? 'علی احمدی' : 'Ali Ahmadi'),
-      email: authUser?.email || 'student.ali@danesh.app',
+      name: authUser?.profile?.displayName || [authUser?.profile?.firstName, authUser?.profile?.lastName].filter(Boolean).join(' ') || (isRTL ? 'دانش‌آموز' : 'Student'),
+      email: authUser?.email || 'student@danesh.app',
       level: 12,
       currentXP: 2450,
       nextLevelXP: 3000,

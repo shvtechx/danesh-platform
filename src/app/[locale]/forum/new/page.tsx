@@ -1,285 +1,342 @@
 'use client';
 
-import { useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { 
-  Home, ArrowLeft, ArrowRight, Send, Image, Code, Bold, Italic,
-  List, ListOrdered, Link as LinkIcon, HelpCircle, Info
+import {
+  ArrowLeft,
+  ArrowRight,
+  Bold,
+  Code,
+  HelpCircle,
+  Home,
+  Image,
+  Info,
+  Italic,
+  Link as LinkIcon,
+  List,
+  ListOrdered,
+  Send,
 } from 'lucide-react';
+import { FeedbackBanner } from '@/components/ui/feedback-banner';
+import { createUserHeaders, getStoredUserId } from '@/lib/auth/demo-auth-shared';
 
-export default function NewForumQuestionPage({ 
-  params: { locale } 
-}: { 
-  params: { locale: string } 
-}) {
-  const t = useTranslations();
+type ForumCategory = {
+  id: string;
+  name: string;
+  nameFA?: string | null;
+  icon?: string | null;
+};
+
+type SimilarThread = {
+  id: string;
+  title: string;
+  titleFA?: string | null;
+  replies: number;
+  solved: boolean;
+};
+
+type ForumOverview = {
+  categories: ForumCategory[];
+  threads: SimilarThread[];
+};
+
+export default function NewForumQuestionPage({ params: { locale } }: { params: { locale: string } }) {
   const router = useRouter();
   const isRTL = locale === 'fa';
   const Arrow = isRTL ? ArrowRight : ArrowLeft;
-
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [feedback, setFeedback] = useState<{ variant: 'success' | 'error' | 'info'; message: string } | null>(null);
+  const [categories, setCategories] = useState<ForumCategory[]>([]);
+  const [threads, setThreads] = useState<SimilarThread[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     title: '',
-    category: '',
+    categoryId: '',
     content: '',
     tags: '',
   });
 
-  const categories = [
-    { id: 'math', name: isRTL ? 'ریاضی' : 'Mathematics', icon: '📐' },
-    { id: 'physics', name: isRTL ? 'فیزیک' : 'Physics', icon: '⚡' },
-    { id: 'chemistry', name: isRTL ? 'شیمی' : 'Chemistry', icon: '🧪' },
-    { id: 'biology', name: isRTL ? 'زیست‌شناسی' : 'Biology', icon: '🧬' },
-    { id: 'programming', name: isRTL ? 'برنامه‌نویسی' : 'Programming', icon: '💻' },
-    { id: 'languages', name: isRTL ? 'زبان' : 'Languages', icon: '🌍' },
-    { id: 'other', name: isRTL ? 'سایر' : 'Other', icon: '📚' },
-  ];
+  useEffect(() => {
+    const userId = getStoredUserId();
+    setCurrentUserId(userId);
 
-  const tips = isRTL ? [
-    'عنوان واضح و مشخص بنویسید',
-    'جزئیات کافی ارائه دهید',
-    'کدها را با فرمت مناسب قرار دهید',
-    'تگ‌های مرتبط اضافه کنید',
-  ] : [
-    'Write a clear and specific title',
-    'Provide enough details',
-    'Format code properly',
-    'Add relevant tags',
-  ];
+    let active = true;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.title.trim() || !formData.content.trim() || !formData.category) return;
-    
-    setIsSubmitting(true);
-    await new Promise(r => setTimeout(r, 1500));
-    router.push(`/${locale}/forum`);
+    const loadForumMeta = async () => {
+      try {
+        const response = await fetch('/api/v1/forum', {
+          cache: 'no-store',
+          headers: createUserHeaders(userId),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to load forum metadata');
+        }
+
+        const result = (await response.json()) as { success: boolean; data?: ForumOverview };
+        if (!result.success || !result.data) {
+          throw new Error('Failed to load forum metadata');
+        }
+
+        if (active) {
+          setCategories(result.data.categories || []);
+          setThreads(result.data.threads.slice(0, 3));
+          setFormData((current) => ({
+            ...current,
+            categoryId: current.categoryId || result.data?.categories?.[0]?.id || '',
+          }));
+        }
+      } catch {
+        if (active) {
+          setFeedback({
+            variant: 'error',
+            message: isRTL ? 'بارگذاری دسته‌بندی‌های انجمن انجام نشد.' : 'Forum categories could not be loaded.',
+          });
+        }
+      }
+    };
+
+    loadForumMeta();
+
+    return () => {
+      active = false;
+    };
+  }, [isRTL]);
+
+  const tips = isRTL
+    ? [
+        'عنوان روشن و قابل جستجو بنویسید.',
+        'مسئله را با زمینه و نمونه توضیح دهید.',
+        'اگر چیزی را امتحان کرده‌اید، آن را ذکر کنید.',
+        'لحن محترمانه و رشد‌محور را حفظ کنید.',
+      ]
+    : [
+        'Write a clear, searchable title.',
+        'Explain the problem with context and examples.',
+        'Mention what you have already tried.',
+        'Keep the tone respectful and growth-oriented.',
+      ];
+
+  const similarThreads = useMemo(() => {
+    const query = formData.title.trim().toLowerCase();
+    if (!query) {
+      return threads;
+    }
+
+    return threads.filter((thread) => {
+      const title = (isRTL ? thread.titleFA || thread.title : thread.title).toLowerCase();
+      return title.includes(query) || query.includes(title.slice(0, Math.min(title.length, 10)));
+    });
+  }, [formData.title, isRTL, threads]);
+
+  const handleChange = (field: keyof typeof formData, value: string) => {
+    setFormData((current) => ({ ...current, [field]: value }));
   };
 
-  const handleChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+  const insertIntoContent = (before: string, after = '', placeholder = '') => {
+    const snippet = `${before}${placeholder}${after}`;
+    setFormData((current) => ({
+      ...current,
+      content: current.content ? `${current.content}\n${snippet}` : snippet,
+    }));
+  };
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+
+    if (!currentUserId) {
+      setFeedback({
+        variant: 'info',
+        message: isRTL ? 'برای ثبت پرسش ابتدا وارد حساب کاربری شوید.' : 'Please sign in before posting a question.',
+      });
+      return;
+    }
+
+    if (!formData.title.trim() || !formData.content.trim() || !formData.categoryId) {
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      setFeedback(null);
+
+      const response = await fetch('/api/v1/forum', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...createUserHeaders(currentUserId),
+        },
+        body: JSON.stringify({
+          title: formData.title.trim(),
+          content: formData.content.trim(),
+          categoryId: formData.categoryId,
+          locale,
+        }),
+      });
+
+      const result = (await response.json()) as { success: boolean; error?: string; data?: { id: string } };
+      if (!response.ok || !result.success || !result.data?.id) {
+        throw new Error(result.error || 'Failed to create thread');
+      }
+
+      router.push(`/${locale}/forum/${result.data.id}`);
+    } catch (error) {
+      setFeedback({
+        variant: 'error',
+        message: error instanceof Error ? error.message : isRTL ? 'ثبت پرسش انجام نشد.' : 'Question could not be submitted.',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-lg border-b">
-        <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
+      <header className="sticky top-0 z-30 border-b bg-background/80 backdrop-blur-lg">
+        <div className="mx-auto flex h-16 max-w-4xl items-center justify-between px-4">
           <div className="flex items-center gap-4">
-            <Link 
-              href={`/${locale}/forum`}
-              className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
-            >
+            <Link href={`/${locale}/forum`} className="flex items-center gap-2 text-muted-foreground hover:text-foreground">
               <Arrow className="h-5 w-5" />
               <span className="hidden sm:inline">{isRTL ? 'انجمن' : 'Forum'}</span>
             </Link>
             <div className="h-6 w-px bg-border" />
             <h1 className="font-semibold">{isRTL ? 'سوال جدید' : 'New Question'}</h1>
           </div>
-          <Link
-            href={`/${locale}`}
-            className="p-2 rounded-lg hover:bg-muted"
-            title={isRTL ? 'صفحه اصلی' : 'Home'}
-          >
+          <Link href={`/${locale}`} className="rounded-lg p-2 hover:bg-muted" title={isRTL ? 'صفحه اصلی' : 'Home'}>
             <Home className="h-5 w-5" />
           </Link>
         </div>
       </header>
 
-      <div className="max-w-4xl mx-auto px-4 py-6">
-        <div className="grid lg:grid-cols-3 gap-6">
-          {/* Main Form */}
+      <div className="mx-auto max-w-4xl px-4 py-6">
+        {feedback ? <FeedbackBanner className="mb-6" variant={feedback.variant} message={feedback.message} /> : null}
+
+        <div className="grid gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2">
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Title */}
-              <div className="bg-card border rounded-xl p-6">
-                <label className="block text-sm font-medium mb-2">
-                  {isRTL ? 'عنوان سوال' : 'Question Title'} *
-                </label>
+              <div className="rounded-xl border bg-card p-6">
+                <label className="mb-2 block text-sm font-medium">{isRTL ? 'عنوان سوال' : 'Question Title'} *</label>
                 <input
                   type="text"
                   value={formData.title}
-                  onChange={(e) => handleChange('title', e.target.value)}
-                  placeholder={isRTL ? 'مثال: چگونه معادلات درجه دوم حل می‌شوند؟' : 'Example: How to solve quadratic equations?'}
-                  className="w-full p-3 rounded-lg border bg-background"
+                  onChange={(event) => handleChange('title', event.target.value)}
+                  placeholder={isRTL ? 'مثال: چگونه معادلات درجه دوم حل می‌شوند؟' : 'Example: How do I solve quadratic equations?'}
+                  className="w-full rounded-lg border bg-background p-3"
                   required
                 />
-                <p className="text-xs text-muted-foreground mt-2">
-                  {isRTL 
-                    ? 'عنوان باید واضح و مشخص باشد تا دیگران راحت‌تر کمکتان کنند.'
-                    : 'Title should be clear and specific so others can help you better.'}
-                </p>
+                <p className="mt-2 text-xs text-muted-foreground">{isRTL ? 'عنوان روشن و دقیق باعث می‌شود پاسخ مناسب‌تری بگیرید.' : 'A clear title helps peers and teachers answer more effectively.'}</p>
               </div>
 
-              {/* Category */}
-              <div className="bg-card border rounded-xl p-6">
-                <label className="block text-sm font-medium mb-3">
-                  {isRTL ? 'دسته‌بندی' : 'Category'} *
-                </label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                  {categories.map((cat) => (
+              <div className="rounded-xl border bg-card p-6">
+                <label className="mb-3 block text-sm font-medium">{isRTL ? 'دسته‌بندی' : 'Category'} *</label>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {categories.map((category) => (
                     <button
-                      key={cat.id}
+                      key={category.id}
                       type="button"
-                      onClick={() => handleChange('category', cat.id)}
-                      className={`p-3 rounded-lg border text-sm flex flex-col items-center gap-1 transition-colors ${
-                        formData.category === cat.id
-                          ? 'bg-primary/10 border-primary text-primary'
-                          : 'hover:bg-muted'
-                      }`}
+                      onClick={() => handleChange('categoryId', category.id)}
+                      className={`rounded-lg border p-3 text-sm transition-colors ${formData.categoryId === category.id ? 'border-primary bg-primary/10 text-primary' : 'hover:bg-muted'}`}
                     >
-                      <span className="text-lg">{cat.icon}</span>
-                      <span>{cat.name}</span>
+                      <div className="text-base">{category.icon || '💬'}</div>
+                      <div className="mt-1">{isRTL ? category.nameFA || category.name : category.name}</div>
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Content */}
-              <div className="bg-card border rounded-xl p-6">
-                <label className="block text-sm font-medium mb-2">
-                  {isRTL ? 'توضیحات سوال' : 'Question Details'} *
-                </label>
-                
-                {/* Toolbar */}
-                <div className="flex items-center gap-1 p-2 border rounded-t-lg bg-muted/50 flex-wrap">
-                  <button type="button" className="p-2 rounded hover:bg-background" title="Bold">
-                    <Bold className="h-4 w-4" />
-                  </button>
-                  <button type="button" className="p-2 rounded hover:bg-background" title="Italic">
-                    <Italic className="h-4 w-4" />
-                  </button>
-                  <div className="w-px h-4 bg-border mx-1" />
-                  <button type="button" className="p-2 rounded hover:bg-background" title="Code">
-                    <Code className="h-4 w-4" />
-                  </button>
-                  <button type="button" className="p-2 rounded hover:bg-background" title="Link">
-                    <LinkIcon className="h-4 w-4" />
-                  </button>
-                  <button type="button" className="p-2 rounded hover:bg-background" title="Image">
-                    <Image className="h-4 w-4" />
-                  </button>
-                  <div className="w-px h-4 bg-border mx-1" />
-                  <button type="button" className="p-2 rounded hover:bg-background" title="Bullet List">
-                    <List className="h-4 w-4" />
-                  </button>
-                  <button type="button" className="p-2 rounded hover:bg-background" title="Numbered List">
-                    <ListOrdered className="h-4 w-4" />
-                  </button>
+              <div className="rounded-xl border bg-card p-6">
+                <label className="mb-2 block text-sm font-medium">{isRTL ? 'توضیحات سوال' : 'Question Details'} *</label>
+
+                <div className="flex flex-wrap items-center gap-1 rounded-t-lg border bg-muted/50 p-2">
+                  <button type="button" onClick={() => insertIntoContent('**', '**', isRTL ? 'متن ضخیم' : 'bold text')} className="rounded p-2 hover:bg-background"><Bold className="h-4 w-4" /></button>
+                  <button type="button" onClick={() => insertIntoContent('*', '*', isRTL ? 'متن مورب' : 'italic text')} className="rounded p-2 hover:bg-background"><Italic className="h-4 w-4" /></button>
+                  <button type="button" onClick={() => insertIntoContent('`', '`', isRTL ? 'کد' : 'code')} className="rounded p-2 hover:bg-background"><Code className="h-4 w-4" /></button>
+                  <button type="button" onClick={() => insertIntoContent('[', '](https://example.com)', isRTL ? 'متن لینک' : 'link text')} className="rounded p-2 hover:bg-background"><LinkIcon className="h-4 w-4" /></button>
+                  <button type="button" onClick={() => insertIntoContent('![', '](https://example.com/image.png)', isRTL ? 'توضیح تصویر' : 'image alt')} className="rounded p-2 hover:bg-background"><Image className="h-4 w-4" /></button>
+                  <button type="button" onClick={() => insertIntoContent('- ', '', isRTL ? 'مورد فهرست' : 'list item')} className="rounded p-2 hover:bg-background"><List className="h-4 w-4" /></button>
+                  <button type="button" onClick={() => insertIntoContent('1. ', '', isRTL ? 'مورد شماره‌دار' : 'numbered item')} className="rounded p-2 hover:bg-background"><ListOrdered className="h-4 w-4" /></button>
                 </div>
 
                 <textarea
                   value={formData.content}
-                  onChange={(e) => handleChange('content', e.target.value)}
-                  placeholder={isRTL 
-                    ? 'سوال خود را با جزئیات کامل توضیح دهید...\n\nمثال:\n- چه چیزی می‌خواهید انجام دهید؟\n- چه مشکلی دارید؟\n- چه روش‌هایی را امتحان کرده‌اید؟'
-                    : 'Explain your question in detail...\n\nExample:\n- What are you trying to do?\n- What problem are you facing?\n- What methods have you tried?'}
+                  onChange={(event) => handleChange('content', event.target.value)}
+                  placeholder={isRTL ? 'مسئله را با جزئیات توضیح دهید، آنچه امتحان کرده‌اید را بنویسید و اگر لازم است نمونه اضافه کنید.' : 'Explain the problem in detail, mention what you tried, and include examples if needed.'}
                   rows={10}
-                  className="w-full p-4 border border-t-0 rounded-b-lg bg-background resize-none"
+                  className="w-full resize-none rounded-b-lg border border-t-0 bg-background p-4"
                   required
                 />
               </div>
 
-              {/* Tags */}
-              <div className="bg-card border rounded-xl p-6">
-                <label className="block text-sm font-medium mb-2">
-                  {isRTL ? 'تگ‌ها' : 'Tags'}
-                </label>
+              <div className="rounded-xl border bg-card p-6">
+                <label className="mb-2 block text-sm font-medium">{isRTL ? 'تگ‌ها' : 'Tags'}</label>
                 <input
                   type="text"
                   value={formData.tags}
-                  onChange={(e) => handleChange('tags', e.target.value)}
-                  placeholder={isRTL ? 'مثال: ریاضی، معادله، درجه‌دوم' : 'Example: math, equation, quadratic'}
-                  className="w-full p-3 rounded-lg border bg-background"
+                  onChange={(event) => handleChange('tags', event.target.value)}
+                  placeholder={isRTL ? 'مثال: ریاضی، معادله، امتحان' : 'Example: math, equation, exam'}
+                  className="w-full rounded-lg border bg-background p-3"
                 />
-                <p className="text-xs text-muted-foreground mt-2">
-                  {isRTL 
-                    ? 'تگ‌ها را با کاما جدا کنید (حداکثر ۵ تگ)'
-                    : 'Separate tags with commas (max 5 tags)'}
-                </p>
+                <p className="mt-2 text-xs text-muted-foreground">{isRTL ? 'تگ‌ها فعلاً برای کمک به نگارش پرسش نگه داشته می‌شوند.' : 'Tags are currently kept as drafting support for better prompts.'}</p>
               </div>
 
-              {/* Submit */}
               <div className="flex items-center justify-between gap-4">
-                <Link
-                  href={`/${locale}/forum`}
-                  className="px-6 py-2.5 rounded-lg border hover:bg-muted"
-                >
-                  {isRTL ? 'انصراف' : 'Cancel'}
-                </Link>
+                <Link href={`/${locale}/forum`} className="rounded-lg border px-6 py-2.5 hover:bg-muted">{isRTL ? 'انصراف' : 'Cancel'}</Link>
                 <button
                   type="submit"
-                  disabled={isSubmitting || !formData.title.trim() || !formData.content.trim() || !formData.category}
-                  className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                  disabled={isSubmitting || !formData.title.trim() || !formData.content.trim() || !formData.categoryId}
+                  className="flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
                 >
-                  {isSubmitting ? (
-                    <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-                  ) : (
-                    <Send className="h-4 w-4" />
-                  )}
+                  {isSubmitting ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" /> : <Send className="h-4 w-4" />}
                   {isRTL ? 'ارسال سوال' : 'Submit Question'}
                 </button>
               </div>
             </form>
           </div>
 
-          {/* Sidebar */}
           <div className="space-y-6">
-            {/* Tips */}
-            <div className="bg-card border rounded-xl p-6">
-              <h3 className="font-semibold flex items-center gap-2 mb-4">
+            <div className="rounded-xl border bg-card p-6">
+              <h3 className="mb-4 flex items-center gap-2 font-semibold">
                 <HelpCircle className="h-5 w-5 text-primary" />
                 {isRTL ? 'راهنمای پرسش خوب' : 'How to Ask Well'}
               </h3>
               <ul className="space-y-3 text-sm">
-                {tips.map((tip, i) => (
-                  <li key={i} className="flex items-start gap-2">
-                    <span className="flex-shrink-0 h-5 w-5 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center">
-                      {i + 1}
-                    </span>
+                {tips.map((tip, index) => (
+                  <li key={tip} className="flex items-start gap-2">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs text-primary">{index + 1}</span>
                     <span>{tip}</span>
                   </li>
                 ))}
               </ul>
             </div>
 
-            {/* Community Guidelines */}
-            <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-xl p-6">
-              <h3 className="font-semibold flex items-center gap-2 mb-3 text-blue-700 dark:text-blue-400">
+            <div className="rounded-xl border border-blue-200 bg-blue-50 p-6 dark:border-blue-900/40 dark:bg-blue-950/20">
+              <h3 className="mb-3 flex items-center gap-2 font-semibold text-blue-700 dark:text-blue-300">
                 <Info className="h-5 w-5" />
                 {isRTL ? 'قوانین انجمن' : 'Community Guidelines'}
               </h3>
-              <ul className="space-y-2 text-sm text-blue-600 dark:text-blue-400">
-                <li>• {isRTL ? 'محترمانه صحبت کنید' : 'Be respectful'}</li>
-                <li>• {isRTL ? 'از تکرار سوالات بپرهیزید' : 'Avoid duplicate questions'}</li>
-                <li>• {isRTL ? 'بهترین پاسخ را انتخاب کنید' : 'Mark best answer'}</li>
+              <ul className="space-y-2 text-sm text-blue-700 dark:text-blue-200">
+                <li>• {isRTL ? 'با احترام و همدلی پاسخ دهید.' : 'Respond with respect and empathy.'}</li>
+                <li>• {isRTL ? 'پیش از ارسال، پرسش مشابه را بررسی کنید.' : 'Check for similar questions before posting.'}</li>
+                <li>• {isRTL ? 'پاسخ‌ها باید مشخص، رشد‌محور و کاربردی باشند.' : 'Answers should be specific, growth-oriented, and actionable.'}</li>
               </ul>
             </div>
 
-            {/* Similar Questions */}
-            <div className="bg-card border rounded-xl p-6">
-              <h3 className="font-semibold mb-4">
-                {isRTL ? 'سوالات مشابه' : 'Similar Questions'}
-              </h3>
+            <div className="rounded-xl border bg-card p-6">
+              <h3 className="mb-4 font-semibold">{isRTL ? 'بحث‌های مشابه' : 'Similar Discussions'}</h3>
               <div className="space-y-3 text-sm">
-                <Link href={`/${locale}/forum/1`} className="block p-3 rounded-lg hover:bg-muted">
-                  <span className="text-primary">
-                    {isRTL ? 'حل معادله درجه دوم با دلتا' : 'Solving quadratic with delta'}
-                  </span>
-                  <span className="block text-xs text-muted-foreground mt-1">
-                    {isRTL ? '۱۲ پاسخ • حل شده' : '12 answers • Solved'}
-                  </span>
-                </Link>
-                <Link href={`/${locale}/forum/2`} className="block p-3 rounded-lg hover:bg-muted">
-                  <span className="text-primary">
-                    {isRTL ? 'فرمول بسکارا چیست؟' : 'What is the Bhaskara formula?'}
-                  </span>
-                  <span className="block text-xs text-muted-foreground mt-1">
-                    {isRTL ? '۸ پاسخ • حل شده' : '8 answers • Solved'}
-                  </span>
-                </Link>
+                {similarThreads.length === 0 ? (
+                  <p className="text-muted-foreground">{isRTL ? 'هنوز بحثی ثبت نشده است.' : 'No discussions have been posted yet.'}</p>
+                ) : (
+                  similarThreads.map((thread) => (
+                    <Link key={thread.id} href={`/${locale}/forum/${thread.id}`} className="block rounded-lg p-3 hover:bg-muted">
+                      <span className="text-primary">{isRTL ? thread.titleFA || thread.title : thread.title}</span>
+                      <span className="mt-1 block text-xs text-muted-foreground">
+                        {thread.replies} {isRTL ? 'پاسخ' : 'replies'} • {thread.solved ? (isRTL ? 'حل شده' : 'Solved') : (isRTL ? 'باز' : 'Open')}
+                      </span>
+                    </Link>
+                  ))
+                )}
               </div>
             </div>
           </div>
