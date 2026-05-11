@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createUserHeaders, getStoredUserId } from '@/lib/auth/demo-auth-shared';
@@ -101,6 +101,15 @@ const PHASES = [
 
 const DIFFICULTIES = ['EASY', 'MEDIUM', 'HARD', 'EXPERT'];
 
+function escapePrintHtml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export default function TeacherQuestionsPage({ params: { locale } }: TeacherQuestionsPageProps) {
   const searchParams = useSearchParams();
   const isRTL = locale === 'fa';
@@ -115,6 +124,7 @@ export default function TeacherQuestionsPage({ params: { locale } }: TeacherQues
   const [teacherCourses, setTeacherCourses] = useState<TeacherCourseOption[]>([]);
   const [selectedCourseId, setSelectedCourseId] = useState('');
   const [showPrintDialog, setShowPrintDialog] = useState(false);
+  const previousCourseRef = useRef<TeacherCourseOption | null>(null);
   const [printOptions, setPrintOptions] = useState<PrintExportOptions>({
     format: 'quiz',
     title: isRTL ? 'برگه سوال' : 'Question Set',
@@ -145,20 +155,30 @@ export default function TeacherQuestionsPage({ params: { locale } }: TeacherQues
       params.append('limit', '20');
 
       const response = await fetch(`/api/v1/questions?${params.toString()}`);
+      if (!response.ok) throw new Error('Failed to load questions');
+
       const data = await response.json();
       
       setQuestions(data.questions || []);
-      setPagination(data.pagination);
+      setPagination(data.pagination || null);
     } catch (error) {
       console.error('Error loading questions:', error);
+      setQuestions([]);
+      setPagination(null);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadQuestions();
-  }, [filters.subject, filters.grade, filters.phase, filters.difficulty, selectedCourseId]);
+    const timeoutId = window.setTimeout(() => {
+      void loadQuestions(1);
+    }, filters.search ? 250 : 0);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [filters.subject, filters.grade, filters.phase, filters.difficulty, filters.search, selectedCourseId]);
 
   useEffect(() => {
     const loadTeacherCourses = async () => {
@@ -193,10 +213,29 @@ export default function TeacherQuestionsPage({ params: { locale } }: TeacherQues
   }, [locale, searchParams]);
 
   useEffect(() => {
-    if (!selectedCourseId) return;
-
     const selectedCourse = teacherCourses.find((course) => course.id === selectedCourseId);
-    if (!selectedCourse) return;
+    const previousCourse = previousCourseRef.current;
+
+    if (!selectedCourseId || !selectedCourse) {
+      if (previousCourse) {
+        setFilters((prev) => ({
+          ...prev,
+          subject: prev.subject === previousCourse.subjectCode ? '' : prev.subject,
+          grade: prev.grade === previousCourse.gradeCode ? '' : prev.grade,
+        }));
+
+        setPrintOptions((prev) => ({
+          ...prev,
+          title: prev.title === previousCourse.title ? (isRTL ? 'برگه سوال' : 'Question Set') : prev.title,
+          subtitle: prev.subtitle === `${previousCourse.subject} • ${previousCourse.gradeCode}` ? '' : prev.subtitle,
+        }));
+      }
+
+      previousCourseRef.current = null;
+      return;
+    }
+
+    previousCourseRef.current = selectedCourse;
 
     setFilters((prev) => ({
       ...prev,
@@ -206,7 +245,9 @@ export default function TeacherQuestionsPage({ params: { locale } }: TeacherQues
 
     setPrintOptions((prev) => ({
       ...prev,
-      title: prev.title === (isRTL ? 'برگه سوال' : 'Question Set') ? selectedCourse.title : prev.title,
+      title: prev.title === (isRTL ? 'برگه سوال' : 'Question Set') || prev.title === previousCourse?.title
+        ? selectedCourse.title
+        : prev.title,
       subtitle: `${selectedCourse.subject} • ${selectedCourse.gradeCode}`,
     }));
   }, [isRTL, selectedCourseId, teacherCourses]);
@@ -255,7 +296,7 @@ export default function TeacherQuestionsPage({ params: { locale } }: TeacherQues
     const selectedData = getSelectedQuestionData();
     if (selectedData.length === 0) return;
 
-    const printWindow = window.open('', '_blank', 'noopener,noreferrer,width=960,height=1080');
+    const printWindow = window.open('', '_blank', 'width=960,height=1080');
     if (!printWindow) return;
 
     const answerKey = selectedData.map((question, index) => {
@@ -263,9 +304,9 @@ export default function TeacherQuestionsPage({ params: { locale } }: TeacherQues
       return `
         <li>
           <strong>${isRTL ? 'سوال' : 'Question'} ${index + 1}:</strong>
-          ${correctOption ? (isRTL ? correctOption.textFA || correctOption.text : correctOption.text) : '—'}
+          ${correctOption ? escapePrintHtml(isRTL ? correctOption.textFA || correctOption.text : correctOption.text) : '—'}
           ${printOptions.includeAnswerKey && (isRTL ? question.explanationFA || question.explanation : question.explanation || question.explanationFA)
-            ? `<div class="answer-explanation">${isRTL ? question.explanationFA || question.explanation : question.explanation || question.explanationFA}</div>`
+            ? `<div class="answer-explanation">${escapePrintHtml(isRTL ? question.explanationFA || question.explanation || '' : question.explanation || question.explanationFA || '')}</div>`
             : ''}
         </li>`;
     }).join('');
@@ -274,13 +315,13 @@ export default function TeacherQuestionsPage({ params: { locale } }: TeacherQues
       const optionsMarkup = (question.options || []).map((option, optionIndex) => `
         <li>
           <span class="option-label">${String.fromCharCode(65 + optionIndex)}.</span>
-          <span>${isRTL ? option.textFA || option.text : option.text}</span>
+          <span>${escapePrintHtml(isRTL ? option.textFA || option.text : option.text)}</span>
         </li>`).join('');
 
       return `
         <section class="question-card">
           <div class="question-number">${isRTL ? 'سوال' : 'Question'} ${index + 1}</div>
-          <div class="question-stem">${isRTL ? question.stemFA || question.stem : question.stem}</div>
+          <div class="question-stem">${escapePrintHtml(isRTL ? question.stemFA || question.stem : question.stem)}</div>
           <ul class="options-list">${optionsMarkup}</ul>
         </section>`;
     }).join('');
@@ -291,12 +332,14 @@ export default function TeacherQuestionsPage({ params: { locale } }: TeacherQues
         ? (isRTL ? 'تمرین' : 'Practice')
         : (isRTL ? 'کوییز' : 'Quiz');
 
+    printWindow.document.open();
     printWindow.document.write(`<!DOCTYPE html>
       <html lang="${locale}" dir="${isRTL ? 'rtl' : 'ltr'}">
         <head>
           <meta charset="utf-8" />
-          <title>${printOptions.title}</title>
+          <title>${escapePrintHtml(printOptions.title)}</title>
           <style>
+            @page { margin: 14mm; }
             body { font-family: Arial, sans-serif; margin: 32px; color: #111827; }
             .header { border-bottom: 2px solid #e5e7eb; padding-bottom: 16px; margin-bottom: 24px; }
             .header h1 { margin: 0; font-size: 28px; }
@@ -320,8 +363,8 @@ export default function TeacherQuestionsPage({ params: { locale } }: TeacherQues
         </head>
         <body>
           <header class="header">
-            <h1>${printOptions.title}</h1>
-            <p>${printOptions.subtitle || formatLabel}</p>
+            <h1>${escapePrintHtml(printOptions.title)}</h1>
+            <p>${escapePrintHtml(printOptions.subtitle || formatLabel)}</p>
             <div class="meta">
               <span><strong>${isRTL ? 'نوع' : 'Format'}:</strong> ${formatLabel}</span>
               <span><strong>${isRTL ? 'تعداد سوال' : 'Questions'}:</strong> ${selectedData.length}</span>
@@ -330,14 +373,26 @@ export default function TeacherQuestionsPage({ params: { locale } }: TeacherQues
           </header>
           ${body}
           ${printOptions.includeAnswerKey ? `<section class="answer-key"><h2>${isRTL ? 'کلید پاسخ' : 'Answer Key'}</h2><ol>${answerKey}</ol></section>` : ''}
+          <script>
+            window.addEventListener('load', function () {
+              var triggerPrint = function () {
+                window.focus();
+                window.print();
+              };
+
+              if (document.fonts && document.fonts.ready) {
+                document.fonts.ready.then(function () {
+                  window.setTimeout(triggerPrint, 150);
+                });
+              } else {
+                window.setTimeout(triggerPrint, 150);
+              }
+            });
+          </script>
         </body>
       </html>`);
 
     printWindow.document.close();
-    printWindow.focus();
-    window.setTimeout(() => {
-      printWindow.print();
-    }, 250);
   };
 
   const getDifficultyColor = (difficulty: string) => {
@@ -479,7 +534,8 @@ export default function TeacherQuestionsPage({ params: { locale } }: TeacherQues
                   <select
                     value={filters.subject}
                     onChange={(e) => setFilters({ ...filters, subject: e.target.value })}
-                    className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                    disabled={Boolean(selectedCourseId)}
+                    className="w-full rounded-lg border bg-background px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <option value="">{isRTL ? 'همه موضوعات' : 'All Subjects'}</option>
                     {SUBJECTS.map(s => (
@@ -498,7 +554,8 @@ export default function TeacherQuestionsPage({ params: { locale } }: TeacherQues
                   <select
                     value={filters.grade}
                     onChange={(e) => setFilters({ ...filters, grade: e.target.value })}
-                    className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                    disabled={Boolean(selectedCourseId)}
+                    className="w-full rounded-lg border bg-background px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <option value="">{isRTL ? 'همه پایه‌ها' : 'All Grades'}</option>
                     {GRADES.map(g => (

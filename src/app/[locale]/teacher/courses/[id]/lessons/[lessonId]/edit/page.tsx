@@ -386,6 +386,8 @@ export default function LessonEditor({ params }: { params: { locale: string; id:
       },
     ]);
 
+    setActiveTab('quiz');
+
     setFeedback({
       variant: 'success',
       message: isRTL ? 'سوال از بانک سوالات به آزمون درس اضافه شد.' : 'Question imported from the bank into the lesson quiz.',
@@ -495,6 +497,13 @@ export default function LessonEditor({ params }: { params: { locale: string; id:
               <Eye className="h-4 w-4" />
               <span className="hidden sm:inline">{isRTL ? 'پیش‌نمایش' : 'Preview'}</span>
             </button>
+            <button
+              onClick={() => setShowQuestionBank(true)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg border hover:bg-muted text-sm"
+            >
+              <List className="h-4 w-4" />
+              <span className="hidden sm:inline">{isRTL ? 'بانک سوالات' : 'Question Bank'}</span>
+            </button>
             <button 
               onClick={handleSave}
               disabled={isSaving}
@@ -551,6 +560,37 @@ export default function LessonEditor({ params }: { params: { locale: string; id:
           {/* Content Tab */}
           {activeTab === 'content' && (
             <div className="max-w-3xl mx-auto space-y-4">
+              <div className="bg-card border rounded-xl p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h3 className="font-medium">{isRTL ? 'جریان طراحی سوال و ارزیابی' : 'Question & Assessment Workflow'}</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {courseContext
+                      ? (isRTL
+                          ? `بانک سوالات برای ${courseContext.title} به‌صورت خودکار فقط سوالات مرتبط با موضوع و پایه این دوره را نشان می‌دهد.`
+                          : `The question bank for ${courseContext.title} automatically shows only questions related to this course subject and grade.`)
+                      : (isRTL
+                          ? 'بانک سوالات درس را باز کنید و سوال‌های مناسب را به بخش آزمون همین درس اضافه کنید.'
+                          : 'Open the lesson question bank and add suitable items directly into this lesson quiz.')} 
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => setShowQuestionBank(true)}
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg border hover:bg-muted text-sm"
+                  >
+                    <List className="h-4 w-4" />
+                    {isRTL ? 'باز کردن بانک سوالات' : 'Open Question Bank'}
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('quiz')}
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-sm"
+                  >
+                    <HelpCircle className="h-4 w-4" />
+                    {isRTL ? 'رفتن به بخش آزمون' : 'Go to Quiz Builder'}
+                  </button>
+                </div>
+              </div>
+
               {/* Description */}
               <div className="bg-card border rounded-xl p-4">
                 <label className="text-sm text-muted-foreground mb-2 block">

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useLocale } from 'next-intl';
 import { FeedbackBanner } from '@/components/ui/feedback-banner';
@@ -85,6 +85,7 @@ export default function CreateAssessmentPage() {
   const [feedback, setFeedback] = useState<FeedbackState>(null);
   const [teacherCourses, setTeacherCourses] = useState<TeacherCourseOption[]>([]);
   const [selectedCourseId, setSelectedCourseId] = useState('');
+  const previousCourseRef = useRef<TeacherCourseOption | null>(null);
 
   // Filters for question browser
   const [filters, setFilters] = useState({
@@ -137,10 +138,22 @@ export default function CreateAssessmentPage() {
   }, [locale, searchParams]);
 
   useEffect(() => {
-    if (!selectedCourseId) return;
-
     const selectedCourse = teacherCourses.find((course) => course.id === selectedCourseId);
-    if (!selectedCourse) return;
+    const previousCourse = previousCourseRef.current;
+
+    if (!selectedCourseId || !selectedCourse) {
+      if (previousCourse) {
+        setFilters((prev) => ({
+          ...prev,
+          grade: prev.grade === previousCourse.gradeCode ? '' : prev.grade,
+        }));
+      }
+
+      previousCourseRef.current = null;
+      return;
+    }
+
+    previousCourseRef.current = selectedCourse;
 
     setFilters((prev) => ({
       ...prev,
@@ -656,7 +669,8 @@ export default function CreateAssessmentPage() {
                 <select
                   value={filters.grade}
                   onChange={(e) => setFilters({ ...filters, grade: e.target.value })}
-                  className="border rounded px-3 py-2 text-sm"
+                  disabled={Boolean(selectedCourseId)}
+                  className="border rounded px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <option value="">{isRTL ? 'همه پایه‌ها' : 'All Grades'}</option>
                   <option value="KG">KG</option>

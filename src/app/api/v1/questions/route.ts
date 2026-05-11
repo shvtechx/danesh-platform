@@ -90,19 +90,30 @@ export async function GET(request: NextRequest) {
     
     if (resolvedSubject) {
       andConditions.push({
-        metadata: {
-          path: [],
-          string_contains: `"subjectCode":"${resolvedSubject}"`
-        }
+        OR: [
+          {
+            skill: {
+              subject: {
+                code: resolvedSubject,
+              },
+            },
+          },
+          {
+            metadata: {
+              path: ['subjectCode'],
+              equals: resolvedSubject,
+            },
+          },
+        ],
       });
     }
 
     if (phase) {
       andConditions.push({
         metadata: {
-        path: [],
-          string_contains: `"phase5E":"${phase}"`
-        }
+          path: ['phase5E'],
+          equals: phase,
+        },
       });
     }
     
@@ -149,6 +160,20 @@ export async function GET(request: NextRequest) {
               nameFA: true,
               gradeBand: true
             }
+          },
+          skill: {
+            select: {
+              code: true,
+              name: true,
+              nameFA: true,
+              subject: {
+                select: {
+                  code: true,
+                  name: true,
+                  nameFA: true,
+                },
+              },
+            },
           }
         },
         orderBy: [
@@ -166,8 +191,27 @@ export async function GET(request: NextRequest) {
     const hasNext = page < totalPages;
     const hasPrev = page > 1;
     
+    const normalizedQuestions = questions.map((question) => {
+      const metadata = question.metadata && typeof question.metadata === 'object' && !Array.isArray(question.metadata)
+        ? question.metadata as Record<string, unknown>
+        : {};
+
+      return {
+        ...question,
+        metadata: {
+          ...metadata,
+          subjectCode: typeof metadata.subjectCode === 'string'
+            ? metadata.subjectCode
+            : question.skill?.subject?.code || null,
+          skillCode: typeof metadata.skillCode === 'string'
+            ? metadata.skillCode
+            : question.skill?.code || null,
+        },
+      };
+    });
+
     return NextResponse.json({
-      questions,
+      questions: normalizedQuestions,
       pagination: {
         page,
         limit,
