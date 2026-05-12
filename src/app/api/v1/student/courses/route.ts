@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
 import { resolveRequestUserId } from '@/lib/auth/request-user';
+import { canStudentEnrollInCourse } from '@/lib/learning/content-eligibility';
 
 const enrollCourseSchema = z.object({
   courseId: z.string().min(1).optional(),
@@ -116,11 +117,43 @@ export async function POST(request: NextRequest) {
         id: true,
         title: true,
         titleFA: true,
+        gradeLevel: {
+          select: {
+            gradeBand: true,
+            code: true,
+            name: true,
+          },
+        },
       },
     });
 
     if (!course) {
       return NextResponse.json({ error: 'Course not found' }, { status: 404 });
+    }
+
+    const student = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        profile: {
+          select: {
+            gradeBand: true,
+          },
+        },
+      },
+    });
+
+    const studentGradeBand = student?.profile?.gradeBand || null;
+    if (!canStudentEnrollInCourse(studentGradeBand, course.gradeLevel?.gradeBand)) {
+      return NextResponse.json(
+        {
+          error: 'Course grade level does not match the student placement',
+          details: {
+            studentGradeBand,
+            courseGradeBand: course.gradeLevel?.gradeBand || null,
+          },
+        },
+        { status: 400 },
+      );
     }
 
     const enrollment = await prisma.courseEnrollment.upsert({

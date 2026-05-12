@@ -13,11 +13,12 @@ import {
 import { ImpersonationBanner } from '@/components/auth/ImpersonationBanner';
 import {
   AUTH_STORAGE_KEY,
+  clearAuthSession,
   ORIGINAL_USER_STORAGE_KEY,
-  USER_ID_STORAGE_KEY,
   getHomeRouteForRoles,
   getPrimaryRole,
   hasPermission,
+  persistAuthSession,
 } from '@/lib/auth/demo-auth-shared';
 import { isDemoDataEnabled } from '@/lib/demo/demo-mode';
 
@@ -45,6 +46,17 @@ export default function AdminDashboard({ params: { locale } }: { params: { local
       setAuthUser(null);
     }
   }, []);
+
+  useEffect(() => {
+    if (!authUser) {
+      return;
+    }
+
+    const currentRole = getPrimaryRole(authUser.roles || []);
+    if (currentRole !== 'SUPER_ADMIN' && currentRole !== 'SUBJECT_ADMIN') {
+      router.replace(getHomeRouteForRoles(locale, authUser.roles || []));
+    }
+  }, [authUser, locale, router]);
 
   useEffect(() => {
     const loadDashboardSummary = async () => {
@@ -224,8 +236,7 @@ export default function AdminDashboard({ params: { locale } }: { params: { local
       if (!localStorage.getItem(ORIGINAL_USER_STORAGE_KEY) && currentUser) {
         localStorage.setItem(ORIGINAL_USER_STORAGE_KEY, JSON.stringify(currentUser));
       }
-      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
-      localStorage.setItem(USER_ID_STORAGE_KEY, user.id);
+      persistAuthSession(user);
       window.location.assign(getHomeRouteForRoles(locale, user.roles || []));
     } catch {
       // ignore local storage errors
@@ -251,9 +262,7 @@ export default function AdminDashboard({ params: { locale } }: { params: { local
   ] : [];
 
   const handleLogout = () => {
-    localStorage.removeItem(AUTH_STORAGE_KEY);
-    localStorage.removeItem(USER_ID_STORAGE_KEY);
-    localStorage.removeItem(ORIGINAL_USER_STORAGE_KEY);
+    clearAuthSession();
     router.push(`/${locale}/login`);
     router.refresh();
   };

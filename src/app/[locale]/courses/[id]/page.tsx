@@ -399,6 +399,9 @@ export default function CourseDetailPage({ params }: { params: { locale: string;
   const course = resolvedCourse || (demoDataEnabled ? coursesData[id] : null) || null;
   const lang = isRTL ? 'fa' : 'en';
   const hasFullCourseAccess = activeRole === 'SUPER_ADMIN' || activeRole === 'SUBJECT_ADMIN';
+  const currentLesson = course?.units
+    ?.flatMap((unit: any) => unit.lessons)
+    ?.find((lesson: any) => lesson.current) || course?.units?.flatMap((unit: any) => unit.lessons)?.find((lesson: any) => !lesson.locked) || null;
 
   if (isLoadingCourse && !course) {
     return (
@@ -495,6 +498,26 @@ export default function CourseDetailPage({ params }: { params: { locale: string;
                     +{course.xpReward} XP
                   </span>
                 </div>
+                {currentLesson ? (
+                  <div className="mt-4 flex flex-wrap items-center gap-3">
+                    <Link
+                      href={`/${locale}/student/lessons/${currentLesson.id}/learn`}
+                      className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
+                    >
+                      <Play className="h-4 w-4" />
+                      {currentLesson.completed
+                        ? isRTL
+                          ? 'مرور آخرین درس'
+                          : 'Review latest lesson'
+                        : isRTL
+                          ? 'ادامه همین درس'
+                          : 'Continue this lesson'}
+                    </Link>
+                    <span className="text-sm text-muted-foreground">
+                      {isRTL ? currentLesson.title.fa : currentLesson.title.en}
+                    </span>
+                  </div>
+                ) : null}
               </div>
             </div>
 
@@ -569,7 +592,7 @@ export default function CourseDetailPage({ params }: { params: { locale: string;
                 {unit.lessons.map((lesson: any, lessonIndex: number) => (
                   <Link
                     key={lesson.id}
-                    href={lesson.locked ? '#' : `/${locale}/courses/${id}/lessons/${lesson.id}`}
+                    href={lesson.locked ? '#' : `/${locale}/student/lessons/${lesson.id}/learn`}
                     className={`flex items-center gap-4 px-4 py-3 hover:bg-muted/50 transition-colors ${
                       lesson.locked ? 'opacity-50 cursor-not-allowed' : ''
                     } ${lesson.current ? 'bg-primary/5 border-r-4 border-primary' : ''}`}

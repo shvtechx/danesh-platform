@@ -19,7 +19,7 @@ import {
   Stars,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { getHomeRouteForRoles } from '@/lib/auth/demo-auth-shared';
+import { getHomeRouteForRoles, persistAuthSession } from '@/lib/auth/demo-auth-shared';
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -119,8 +119,7 @@ export default function LoginPage({ params: { locale } }: { params: { locale: st
 
       const result = await response.json();
       if (typeof window !== 'undefined' && result?.user?.id) {
-        localStorage.setItem('danesh.userId', result.user.id);
-        localStorage.setItem('danesh.auth.user', JSON.stringify(result.user));
+        persistAuthSession(result.user);
         localStorage.removeItem('danesh.auth.originalUser');
       }
 

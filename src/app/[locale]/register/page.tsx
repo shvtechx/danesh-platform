@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { persistAuthSession } from '@/lib/auth/demo-auth-shared';
 
 // Registration steps
 type Step = 'type' | 'stream' | 'grade' | 'info';
@@ -128,8 +129,7 @@ export default function RegisterPage({ params: { locale } }: { params: { locale:
 
       const result = await response.json();
       if (typeof window !== 'undefined' && result?.user?.id) {
-        localStorage.setItem('danesh.userId', result.user.id);
-        localStorage.setItem('danesh.auth.user', JSON.stringify(result.user));
+        persistAuthSession(result.user);
       }
 
       router.push(`/${locale}/onboarding`);

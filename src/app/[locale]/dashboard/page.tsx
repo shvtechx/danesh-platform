@@ -16,6 +16,8 @@ import {
   Play,
   CheckCircle2,
   Flame,
+  Brain,
+  Zap,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CourseCard } from '@/components/ui/card';
 import { XPProgress, StreakProgress, CircularProgress } from '@/components/ui/progress';
@@ -109,6 +111,16 @@ type StoredUser = {
   };
 };
 
+type SkillPreview = {
+  id: string;
+  name: string;
+  nameFA?: string | null;
+  masteryStatus?: string;
+  mastery?: {
+    masteryScore?: number;
+  } | null;
+};
+
 const EMPTY_PROGRESS: StudentProgress = {
   xp: {
     total: 0,
@@ -166,11 +178,23 @@ export default function StudentDashboard({ params: { locale } }: { params: { loc
   const [courses, setCourses] = useState<StudentCourse[]>([]);
   const [progress, setProgress] = useState<StudentProgress>(EMPTY_PROGRESS);
   const [leaderboard, setLeaderboard] = useState<LeaderboardPreview>({ rankings: [] });
+  const [skills, setSkills] = useState<SkillPreview[]>([]);
   const [authUser, setAuthUser] = useState<StoredUser | null>(null);
+  const [hasMounted, setHasMounted] = useState(false);
+  const [todayLabel, setTodayLabel] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [feedback, setFeedback] = useState<{ variant: 'error' | 'info'; message: string } | null>(null);
 
   useEffect(() => {
+    setHasMounted(true);
+    setTodayLabel(
+      new Date().toLocaleDateString(isRTL ? 'fa-IR' : 'en-US', {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric',
+      }),
+    );
+
     try {
       const raw = localStorage.getItem(AUTH_STORAGE_KEY);
       if (raw) {
@@ -179,7 +203,7 @@ export default function StudentDashboard({ params: { locale } }: { params: { loc
     } catch {
       setAuthUser(null);
     }
-  }, []);
+  }, [isRTL]);
 
   useEffect(() => {
     let active = true;
@@ -209,11 +233,29 @@ export default function StudentDashboard({ params: { locale } }: { params: { loc
           setProgress(progressPayload);
           setLeaderboard({ rankings: leaderboardPayload.rankings?.slice(0, 3) || [] });
         }
+
+        fetch('/api/v1/skills', { cache: 'no-store', headers })
+          .then(async (response) => {
+            if (!response.ok) {
+              return;
+            }
+
+            const payload = (await response.json()) as { skills?: SkillPreview[] };
+            if (active) {
+              setSkills(payload.skills || []);
+            }
+          })
+          .catch(() => {
+            if (active) {
+              setSkills([]);
+            }
+          });
       } catch {
         if (active) {
           setCourses([]);
           setProgress(EMPTY_PROGRESS);
           setLeaderboard({ rankings: [] });
+          setSkills([]);
           setFeedback({
             variant: 'error',
             message: isRTL ? 'بارگذاری داشبورد دانش‌آموز با مشکل روبه‌رو شد.' : 'Student dashboard data could not be loaded.',
@@ -253,17 +295,31 @@ export default function StudentDashboard({ params: { locale } }: { params: { loc
   );
 
   const courseCards = useMemo(
-    () => courses.slice(0, 3).map((course) => ({
-      id: course.id,
-      title: isRTL ? course.titleFA || course.title : course.title,
-      description: isRTL ? course.descriptionFA || course.description || (course.subject?.nameFA || course.subject?.name || '') : course.description || course.descriptionFA || course.subject?.name || '',
-      progress: course.enrollment.progress || 0,
-      grade: 'middle' as const,
-      curriculum: isRTL ? 'واقعی' : 'Live',
-      lessonsCount: course.units.reduce((sum, unit) => sum + unit.lessons.length, 0),
-    })),
+    () => courses.slice(0, 3).map((course) => {
+      const nextLesson = course.units
+        .flatMap((unit) => unit.lessons)
+        .find((lesson) => !lesson.completion?.completedAt) || course.units.flatMap((unit) => unit.lessons)[0] || null;
+
+      return {
+        id: course.id,
+        title: isRTL ? course.titleFA || course.title : course.title,
+        description: isRTL ? course.descriptionFA || course.description || (course.subject?.nameFA || course.subject?.name || '') : course.description || course.descriptionFA || course.subject?.name || '',
+        progress: course.enrollment.progress || 0,
+        grade: 'middle' as const,
+        curriculum: isRTL ? 'واقعی' : 'Live',
+        lessonsCount: course.units.reduce((sum, unit) => sum + unit.lessons.length, 0),
+        nextLessonId: nextLesson?.id || null,
+      };
+    }),
     [courses, isRTL],
   );
+
+  const masteryStats = useMemo(() => ({
+    total: skills.length,
+    mastered: skills.filter((skill) => skill.masteryStatus === 'MASTERED' || skill.masteryStatus === 'EXPERT').length,
+    proficient: skills.filter((skill) => skill.masteryStatus === 'PROFICIENT').length,
+    developing: skills.filter((skill) => skill.masteryStatus === 'DEVELOPING' || skill.masteryStatus === 'STRUGGLING' || skill.masteryStatus === 'NOT_STARTED').length,
+  }), [skills]);
 
   const continueLesson = useMemo(() => {
     for (const course of courses) {
@@ -397,11 +453,7 @@ export default function StudentDashboard({ params: { locale } }: { params: { loc
           </div>
           <Calendar className="h-5 w-5 text-muted-foreground" />
           <span className="text-sm text-muted-foreground">
-            {new Date().toLocaleDateString(isRTL ? 'fa-IR' : 'en-US', {
-              weekday: 'long',
-              month: 'long',
-              day: 'numeric',
-            })}
+            {todayLabel || (isRTL ? '—' : '—')}
           </span>
         </div>
       </div>
@@ -483,6 +535,89 @@ export default function StudentDashboard({ params: { locale } }: { params: { loc
             </div>
           </Card>
 
+          <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-600 shadow-sm">
+            <div className="p-6 text-white">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex items-start gap-4">
+                  <div className="rounded-xl bg-white/20 p-3 backdrop-blur-sm">
+                    <Brain className="h-8 w-8 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold">{isRTL ? 'سیستم ارزیابی تطبیقی' : 'Adaptive Assessment System'}</h2>
+                    <p className="mt-1 text-sm text-white/80">
+                      {isRTL ? 'تمرین هوشمند برای پیشرفت سریع‌تر و هدف‌گذاری دقیق‌تر' : 'Smart practice for faster progress and sharper mastery goals'}
+                    </p>
+                  </div>
+                </div>
+                <Link
+                  href={`/${locale}/student/skills`}
+                  className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-white/90"
+                >
+                  {isRTL ? 'مشاهده مهارت‌ها' : 'View Skills'}
+                  <Arrow className="h-4 w-4" />
+                </Link>
+              </div>
+
+              <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="rounded-xl border border-white/20 bg-white/10 p-4 backdrop-blur-sm">
+                  <div className="flex items-center justify-between">
+                    <Target className="h-5 w-5 text-white/80" />
+                    <span className="text-2xl font-bold">{masteryStats.total}</span>
+                  </div>
+                  <p className="mt-2 text-sm text-white/75">{isRTL ? 'مهارت‌های فعال' : 'Active Skills'}</p>
+                </div>
+                <div className="rounded-xl border border-white/20 bg-white/10 p-4 backdrop-blur-sm">
+                  <div className="flex items-center justify-between">
+                    <Trophy className="h-5 w-5 text-white/80" />
+                    <span className="text-2xl font-bold">{masteryStats.mastered}</span>
+                  </div>
+                  <p className="mt-2 text-sm text-white/75">{isRTL ? 'تسلط‌یافته' : 'Mastered'}</p>
+                </div>
+                <div className="rounded-xl border border-white/20 bg-white/10 p-4 backdrop-blur-sm">
+                  <div className="flex items-center justify-between">
+                    <CheckCircle2 className="h-5 w-5 text-white/80" />
+                    <span className="text-2xl font-bold">{masteryStats.proficient}</span>
+                  </div>
+                  <p className="mt-2 text-sm text-white/75">{isRTL ? 'ماهر' : 'Proficient'}</p>
+                </div>
+                <div className="rounded-xl border border-white/20 bg-white/10 p-4 backdrop-blur-sm">
+                  <div className="flex items-center justify-between">
+                    <TrendingUp className="h-5 w-5 text-white/80" />
+                    <span className="text-2xl font-bold">{masteryStats.developing}</span>
+                  </div>
+                  <p className="mt-2 text-sm text-white/75">{isRTL ? 'نیازمند تمرین' : 'Need Practice'}</p>
+                </div>
+              </div>
+
+              {skills.length > 0 ? (
+                <div className="mt-6 grid gap-3 md:grid-cols-2">
+                  {skills.slice(0, 4).map((skill) => (
+                    <Link
+                      key={skill.id}
+                      href={`/${locale}/student/practice/${skill.id}`}
+                      className="group rounded-xl border border-white/20 bg-white/10 p-4 backdrop-blur-sm transition hover:bg-white/20"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <h3 className="truncate font-semibold text-white group-hover:underline">
+                            {isRTL ? skill.nameFA || skill.name : skill.name}
+                          </h3>
+                          <p className="mt-1 text-sm text-white/75">
+                            {isRTL ? 'سطح تسلط' : 'Mastery'}: {Math.round(skill.mastery?.masteryScore || 0)}%
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 text-white/80">
+                          <Zap className="h-5 w-5 text-yellow-300" />
+                          <Arrow className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          </div>
+
           <div>
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold">{t('dashboard.recentCourses')}</h2>
@@ -500,7 +635,7 @@ export default function StudentDashboard({ params: { locale } }: { params: { loc
             ) : (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {courseCards.map((course) => (
-                  <CourseCard key={course.id} {...course} onClick={() => router.push(`/${locale}/courses/${course.id}`)} />
+                  <CourseCard key={course.id} {...course} onClick={() => router.push(course.nextLessonId ? `/${locale}/student/lessons/${course.nextLessonId}/learn` : `/${locale}/courses/${course.id}`)} />
                 ))}
               </div>
             )}
@@ -551,12 +686,21 @@ export default function StudentDashboard({ params: { locale } }: { params: { loc
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-center py-4">
-                <CircularProgress value={weeklyGoalProgress} size={120}>
-                  <div className="text-center">
-                    <span className="text-2xl font-bold">{weeklyGoalProgress}%</span>
-                    <p className="text-xs text-muted-foreground">{isRTL ? 'تکمیل‌شده' : 'Complete'}</p>
+                {hasMounted ? (
+                  <CircularProgress value={weeklyGoalProgress} size={120}>
+                    <div className="text-center">
+                      <span className="text-2xl font-bold">{weeklyGoalProgress}%</span>
+                      <p className="text-xs text-muted-foreground">{isRTL ? 'تکمیل‌شده' : 'Complete'}</p>
+                    </div>
+                  </CircularProgress>
+                ) : (
+                  <div className="flex h-[120px] w-[120px] items-center justify-center rounded-full border-8 border-muted bg-card">
+                    <div className="text-center">
+                      <span className="text-2xl font-bold">0%</span>
+                      <p className="text-xs text-muted-foreground">{isRTL ? 'تکمیل‌شده' : 'Complete'}</p>
+                    </div>
                   </div>
-                </CircularProgress>
+                )}
               </div>
               <div className="mt-4 grid grid-cols-2 gap-4 text-center">
                 <div>

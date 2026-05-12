@@ -3,8 +3,9 @@
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { BookOpen, Clock, Users, Star, Filter, Search } from 'lucide-react';
-import { PageHeader } from '@/components/ui/PageHeader';
+import { BookOpen, Clock, Users, Star, Search } from 'lucide-react';
+import { StudentShell } from '@/components/layout/StudentShell';
+import { StudentPageHeader } from '@/components/layout/StudentPageHeader';
 import { FeedbackBanner } from '@/components/ui/feedback-banner';
 import {
   Dialog,
@@ -350,18 +351,34 @@ import { isDemoDataEnabled } from '@/lib/demo/demo-mode';
     );
 
     return (
-      <div className="min-h-screen bg-background">
-        <PageHeader
-          locale={locale}
-          title={t('courses.title')}
-          backHref={`/${locale}/dashboard`}
-          backLabel={isRTL ? 'داشبورد' : 'Dashboard'}
-        />
-        <div className="space-y-6 p-6">
+        <StudentShell locale={locale}>
+          <div className="space-y-6">
+            <StudentPageHeader
+              locale={locale}
+              eyebrow={isRTL ? 'مسیرهای یادگیری' : 'Learning pathways'}
+              title={t('courses.title')}
+              description={isRTL ? 'دوره‌های فعال، پیشنهادی و ویژه را در یک نمای هماهنگ ببینید و سریع‌تر به درس بعدی برگردید.' : 'View active, recommended, and premium courses in one unified space and jump back into the next lesson faster.'}
+              stats={[
+                { label: isRTL ? 'دوره‌های من' : 'My courses', value: enrolledCourseIds.size.toLocaleString(isRTL ? 'fa-IR' : 'en-US'), icon: BookOpen, tone: 'primary', helper: isRTL ? 'ثبت‌نام‌شده' : 'Enrolled' },
+                { label: isRTL ? 'همه دوره‌ها' : 'Catalog', value: catalogCourses.length.toLocaleString(isRTL ? 'fa-IR' : 'en-US'), icon: Users, tone: 'accent', helper: isRTL ? 'دردسترس شما' : 'Available now' },
+                { label: isRTL ? 'دوره‌های ویژه' : 'Premium labs', value: catalogCourses.filter((course) => course.paid).length.toLocaleString(isRTL ? 'fa-IR' : 'en-US'), icon: Star, tone: 'warning', helper: isRTL ? 'پروژه‌محور' : 'Project-based' },
+              ]}
+              actions={
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('recommended')}
+                  className="rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                >
+                  {isRTL ? 'مشاهده پیشنهادها' : 'See recommendations'}
+                </button>
+              }
+            />
+
+            <section className="space-y-5 rounded-3xl border bg-card p-4 shadow-sm sm:p-5">
           {feedback ? <FeedbackBanner variant={feedback.variant} message={feedback.message} /> : null}
 
           {hasFullCourseAccess && (
-            <div className="rounded-xl border border-green-300 bg-green-50 px-4 py-3 text-sm text-green-800 dark:border-green-800 dark:bg-green-900/20 dark:text-green-300">
+              <div className="rounded-2xl border border-green-300 bg-green-50 px-4 py-3 text-sm text-green-800 dark:border-green-800 dark:bg-green-900/20 dark:text-green-300">
               {isRTL
                 ? 'شما با نقش مدیر به همه دوره‌ها (از جمله دوره‌های ویژه پولی) دسترسی کامل دارید.'
                 : 'You have full access to all courses (including premium paid courses) through your admin role.'}
@@ -369,7 +386,7 @@ import { isDemoDataEnabled } from '@/lib/demo/demo-mode';
           )}
 
           {!demoDataEnabled && catalogCourses.length === 0 && (
-            <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-300">
+            <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-300">
               {isRTL
                 ? 'داده‌های نمایشی غیرفعال هستند. دوره‌های واقعی را ایجاد کنید تا این بخش با داده‌های واقعی پر شود.'
                 : 'Demo data is disabled. Create real courses to populate this catalog.'}
@@ -378,112 +395,114 @@ import { isDemoDataEnabled } from '@/lib/demo/demo-mode';
 
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-muted-foreground">{isRTL ? 'دوره‌های آموزشی شما' : 'Your learning courses'}</p>
+              <p className="text-sm text-muted-foreground">{isRTL ? 'دوره‌های آموزشی شما' : 'Your learning courses'}</p>
             </div>
-            <div className="flex gap-2">
-              <div className="relative flex-1 sm:w-64">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <div className="relative flex-1 sm:max-w-xs">
+                <Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <input
                   type="search"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder={t('common.search')}
-                  className="h-10 w-full rounded-lg border border-input bg-background pl-10 pr-4 text-sm"
+                  className="h-11 w-full rounded-2xl border border-input bg-background pe-4 ps-10 text-sm"
                 />
-              </div>
-              <button
-                type="button"
-                onClick={() => setActiveTab((current) => (current === 'recommended' ? 'all' : 'recommended'))}
-                className="flex h-10 items-center gap-2 rounded-lg border border-input bg-background px-4 hover:bg-muted"
-              >
-                <Filter className="h-4 w-4" />
-                {t('common.filter')}
-              </button>
             </div>
           </div>
 
-          <div className="flex gap-2 border-b">
+          <div className="flex gap-2 overflow-x-auto rounded-2xl bg-muted/60 p-2">
             <button
               onClick={() => setActiveTab('my')}
-              className={`border-b-2 px-4 py-2 font-medium ${activeTab === 'my' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
+              className={`whitespace-nowrap rounded-2xl px-4 py-2 text-sm font-medium ${activeTab === 'my' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
             >
               {t('courses.myCourses')}
             </button>
             <button
               onClick={() => setActiveTab('all')}
-              className={`border-b-2 px-4 py-2 font-medium ${activeTab === 'all' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
+              className={`whitespace-nowrap rounded-2xl px-4 py-2 text-sm font-medium ${activeTab === 'all' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
             >
               {t('courses.allCourses')}
             </button>
             <button
               onClick={() => setActiveTab('recommended')}
-              className={`border-b-2 px-4 py-2 font-medium ${activeTab === 'recommended' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
+              className={`whitespace-nowrap rounded-2xl px-4 py-2 text-sm font-medium ${activeTab === 'recommended' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
             >
               {t('courses.recommended')}
             </button>
           </div>
 
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {visibleCourses.map((course) => (
-              <Link
-                key={course.id}
-                href={`/${locale}/courses/${course.id}`}
-                className="group overflow-hidden rounded-xl border bg-card transition-all hover:shadow-lg"
-              >
-                <div className="aspect-video flex items-center justify-center bg-gradient-to-br from-primary/20 to-primary/5">
-                  <BookOpen className="h-12 w-12 text-primary/50" />
-                </div>
-                <div className="space-y-3 p-4">
-                  <div>
-                    <h3 className="font-semibold transition-colors group-hover:text-primary">{course.title}</h3>
-                    <p className="line-clamp-2 text-sm text-muted-foreground">{course.description}</p>
-                    {course.paid && (
-                      <div className="mt-2 flex items-center justify-between">
-                        <span className="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
-                          {isRTL ? 'دوره ویژه پولی' : 'Premium Paid Course'}
-                        </span>
-                        <span className="text-xs font-semibold text-primary">{course.price}</span>
+          {visibleCourses.length === 0 ? (
+            <div className="rounded-3xl border border-dashed bg-background px-6 py-12 text-center">
+              <BookOpen className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+              <h3 className="text-lg font-semibold">{isRTL ? 'دوره‌ای پیدا نشد' : 'No courses found'}</h3>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {isRTL
+                  ? 'جستجو یا فیلترها را تغییر دهید تا دوره‌های بیشتری ببینید.'
+                  : 'Adjust your search or filters to see more courses.'}
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {visibleCourses.map((course) => (
+                <Link
+                  key={course.id}
+                  href={`/${locale}/courses/${course.id}`}
+                  className="group overflow-hidden rounded-3xl border bg-background transition-all hover:-translate-y-0.5 hover:shadow-lg"
+                >
+                  <div className="aspect-video flex items-center justify-center bg-gradient-to-br from-primary/20 to-primary/5">
+                    <BookOpen className="h-12 w-12 text-primary/50" />
+                  </div>
+                  <div className="space-y-3 p-4 sm:p-5">
+                    <div>
+                      <h3 className="font-semibold transition-colors group-hover:text-primary">{course.title}</h3>
+                      <p className="line-clamp-2 text-sm text-muted-foreground">{course.description}</p>
+                      {course.paid && (
+                        <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                          <span className="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                            {isRTL ? 'دوره ویژه پولی' : 'Premium Paid Course'}
+                          </span>
+                          <span className="text-xs font-semibold text-primary">{course.price}</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground sm:gap-4">
+                      <span className="flex items-center gap-1">
+                        <Clock className="h-4 w-4" />
+                        {course.duration}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Users className="h-4 w-4" />
+                        {course.students.toLocaleString(isRTL ? 'fa-IR' : 'en-US')}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Star className="h-4 w-4 text-amber-500" />
+                        {course.rating}
+                      </span>
+                    </div>
+                    {course.enrolled && (
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-sm">
+                          <span>{t('courses.progress')}</span>
+                          <span className="font-medium">{course.progress}%</span>
+                        </div>
+                        <div className="h-2 rounded-full bg-muted">
+                          <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${course.progress}%` }} />
+                        </div>
                       </div>
                     )}
+                    {!course.enrolled && (
+                      <button
+                        onClick={(e) => handleEnroll(course.id, e)}
+                        className="w-full rounded-2xl bg-primary py-2.5 font-medium text-primary-foreground hover:bg-primary/90"
+                      >
+                        {t('courses.enrollNow')}
+                      </button>
+                    )}
                   </div>
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-4 w-4" />
-                      {course.duration}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Users className="h-4 w-4" />
-                      {course.students}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Star className="h-4 w-4 text-amber-500" />
-                      {course.rating}
-                    </span>
-                  </div>
-                  {course.enrolled && (
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-sm">
-                        <span>{t('courses.progress')}</span>
-                        <span className="font-medium">{course.progress}%</span>
-                      </div>
-                      <div className="h-2 rounded-full bg-muted">
-                        <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${course.progress}%` }} />
-                      </div>
-                    </div>
-                  )}
-                  {!course.enrolled && (
-                    <button
-                      onClick={(e) => handleEnroll(course.id, e)}
-                      className="w-full rounded-lg bg-primary py-2 font-medium text-primary-foreground hover:bg-primary/90"
-                    >
-                      {t('courses.enrollNow')}
-                    </button>
-                  )}
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
+                </Link>
+              ))}
+            </div>
+          )}
+          </section>
 
         <Dialog open={Boolean(pendingPaidCourse)} onOpenChange={(open) => !open && setPendingPaidCourse(null)}>
           <DialogContent>
@@ -506,5 +525,6 @@ import { isDemoDataEnabled } from '@/lib/demo/demo-mode';
           </DialogContent>
         </Dialog>
       </div>
+      </StudentShell>
     );
   }

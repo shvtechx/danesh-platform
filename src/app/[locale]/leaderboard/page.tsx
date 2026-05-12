@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronUp, Crown, Flame, Medal, Star, Trophy } from 'lucide-react';
-import { PageHeader } from '@/components/ui/PageHeader';
+import Link from 'next/link';
+import { StudentShell } from '@/components/layout/StudentShell';
+import { StudentPageHeader } from '@/components/layout/StudentPageHeader';
 import { FeedbackBanner } from '@/components/ui/feedback-banner';
 import { createUserHeaders, getStoredUserId } from '@/lib/auth/demo-auth-shared';
 
@@ -123,60 +125,53 @@ export default function LeaderboardPage({ params: { locale } }: { params: { loca
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <PageHeader
-        locale={locale}
-        title={isRTL ? 'جدول رتبه‌بندی' : 'Leaderboard'}
-        backHref={`/${locale}/dashboard`}
-        backLabel={isRTL ? 'داشبورد' : 'Dashboard'}
-      />
+    <StudentShell locale={locale}>
+      <div className="space-y-6">
+        <StudentPageHeader
+          locale={locale}
+          eyebrow={isRTL ? 'رشد فردی' : 'Personal growth'}
+          title={isRTL ? 'جدول رتبه‌بندی' : 'Leaderboard'}
+          description={isRTL ? 'رتبه‌بندی با تمرکز بر XP، تداوم و تسلط طراحی شده تا رشد سالم و انگیزه‌بخش را تقویت کند.' : 'Rankings are designed around XP, consistency, and mastery to encourage healthy motivation and sustained growth.'}
+          stats={[
+            { label: isRTL ? 'شرکت‌کنندگان فعال' : 'Active participants', value: isLoading ? '—' : leaderboard.summary.totalParticipants.toLocaleString(isRTL ? 'fa-IR' : 'en-US'), icon: Trophy, tone: 'primary', helper: isRTL ? 'در بازه انتخابی' : 'In the selected range' },
+            { label: isRTL ? 'بیشترین XP' : 'Highest XP', value: isLoading ? '—' : leaderboard.summary.maxXP.toLocaleString(isRTL ? 'fa-IR' : 'en-US'), icon: Star, tone: 'warning', helper: isRTL ? 'بالاترین امتیاز' : 'Top earned score' },
+            { label: isRTL ? 'بازه فعال' : 'Selected range', value: activeRange === 'week' ? (isRTL ? 'این هفته' : 'This week') : activeRange === 'month' ? (isRTL ? 'این ماه' : 'This month') : (isRTL ? 'همه زمان‌ها' : 'All time'), icon: Flame, tone: 'accent', helper: isRTL ? 'قابل تغییر از فیلتر' : 'Change with the filters' },
+          ]}
+          actions={
+            <Link href={`/${locale}/achievements`} className="rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+              {isRTL ? 'دستاوردهای من' : 'My achievements'}
+            </Link>
+          }
+        />
 
-      <div className="mx-auto max-w-7xl space-y-8 p-6">
-        <div>
-          <p className="mt-2 text-muted-foreground">
-            {isRTL ? 'رتبه‌بندی دانش‌آموزان بر پایه XP، تداوم فعالیت و تسلط مهارتی' : 'Student rankings based on XP, learning streaks, and mastery signals'}
-          </p>
-        </div>
+        <div className="space-y-6">
 
         {feedback ? <FeedbackBanner variant={feedback.variant} message={feedback.message} /> : null}
 
-        <div className="grid gap-4 md:grid-cols-3">
-          <div className="rounded-2xl border bg-card p-5">
-            <p className="text-sm text-muted-foreground">{isRTL ? 'شرکت‌کنندگان فعال' : 'Active participants'}</p>
-            <p className="mt-2 text-3xl font-bold">{isLoading ? '—' : leaderboard.summary.totalParticipants.toLocaleString(isRTL ? 'fa-IR' : 'en-US')}</p>
-          </div>
-          <div className="rounded-2xl border bg-card p-5">
-            <p className="text-sm text-muted-foreground">{isRTL ? 'بیشترین XP در بازه' : 'Highest XP in range'}</p>
-            <p className="mt-2 text-3xl font-bold">{isLoading ? '—' : leaderboard.summary.maxXP.toLocaleString(isRTL ? 'fa-IR' : 'en-US')}</p>
-          </div>
-          <div className="rounded-2xl border bg-card p-5">
-            <p className="text-sm text-muted-foreground">{isRTL ? 'بازه فعال' : 'Selected range'}</p>
-            <p className="mt-2 text-lg font-semibold">{activeRange === 'week' ? (isRTL ? 'این هفته' : 'This Week') : activeRange === 'month' ? (isRTL ? 'این ماه' : 'This Month') : (isRTL ? 'همه زمان‌ها' : 'All Time')}</p>
-          </div>
-        </div>
-
-        <div className="flex gap-2 border-b">
+        <div className="rounded-3xl border bg-card/95 p-3 shadow-sm">
+          <div className="flex gap-2 overflow-x-auto rounded-2xl bg-muted/60 p-1.5">
           <button
             type="button"
             onClick={() => setActiveRange('week')}
-            className={`border-b-2 px-4 py-2 font-medium ${activeRange === 'week' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
+            className={`whitespace-nowrap rounded-2xl px-4 py-2 text-sm font-medium ${activeRange === 'week' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
           >
             {isRTL ? 'این هفته' : 'This Week'}
           </button>
           <button
             type="button"
             onClick={() => setActiveRange('month')}
-            className={`border-b-2 px-4 py-2 ${activeRange === 'month' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
+            className={`whitespace-nowrap rounded-2xl px-4 py-2 text-sm font-medium ${activeRange === 'month' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
           >
             {isRTL ? 'این ماه' : 'This Month'}
           </button>
           <button
             type="button"
             onClick={() => setActiveRange('all')}
-            className={`border-b-2 px-4 py-2 ${activeRange === 'all' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
+            className={`whitespace-nowrap rounded-2xl px-4 py-2 text-sm font-medium ${activeRange === 'all' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
           >
             {isRTL ? 'همه زمان‌ها' : 'All Time'}
           </button>
+          </div>
         </div>
 
         {topUsers.length > 0 ? (
@@ -184,7 +179,7 @@ export default function LeaderboardPage({ params: { locale } }: { params: { loca
             {topUsers.map((user) => (
               <div
                 key={user.id}
-                className={`rounded-2xl border bg-card p-6 text-center ${
+                className={`rounded-3xl border bg-card p-6 text-center shadow-sm ${
                   user.rank === 1 ? 'sm:order-2 sm:-mt-4' : user.rank === 2 ? 'sm:order-1' : 'sm:order-3'
                 }`}
               >
@@ -215,7 +210,7 @@ export default function LeaderboardPage({ params: { locale } }: { params: { loca
           </div>
         )}
 
-        <div className="overflow-hidden rounded-2xl border bg-card">
+        <div className="overflow-hidden rounded-3xl border bg-card shadow-sm">
           <div className="grid grid-cols-12 gap-4 border-b bg-muted/50 p-4 text-sm font-medium text-muted-foreground">
             <div className="col-span-1">{isRTL ? 'رتبه' : 'Rank'}</div>
             <div className="col-span-4">{isRTL ? 'کاربر' : 'User'}</div>
@@ -282,7 +277,7 @@ export default function LeaderboardPage({ params: { locale } }: { params: { loca
         </div>
 
         {topUsers.length > 0 ? (
-          <div className="rounded-2xl border bg-card p-5">
+          <div className="rounded-3xl border bg-card p-5 shadow-sm">
             <div className="mb-3 flex items-center gap-2">
               <Trophy className="h-5 w-5 text-primary" />
               <h2 className="font-semibold">{isRTL ? 'جمع‌بندی رقابت سالم' : 'Growth-focused summary'}</h2>
@@ -294,7 +289,8 @@ export default function LeaderboardPage({ params: { locale } }: { params: { loca
             </p>
           </div>
         ) : null}
+        </div>
       </div>
-    </div>
+    </StudentShell>
   );
 }

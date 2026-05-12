@@ -219,7 +219,7 @@ export default function LearnLessonPage() {
     } else if (!completion?.completedAt) {
       completeLesson();
     } else {
-      router.push(`/${locale}/student/dashboard`);
+      router.push(`/${locale}/dashboard`);
     }
   };
 
@@ -232,7 +232,7 @@ export default function LearnLessonPage() {
 
   const completeLesson = async () => {
     if (!completion) return;
-    if (completion.completedAt) { router.push(`/${locale}/student/dashboard`); return; }
+    if (completion.completedAt) { router.push(`/${locale}/dashboard`); return; }
     const timeSpent = Math.floor((Date.now() - new Date(completion.startedAt).getTime()) / 1000);
     try {
       const res = await fetch(`/api/v1/lessons/${lessonId}/completion`, {
@@ -242,7 +242,7 @@ export default function LearnLessonPage() {
       });
       if (res.ok) {
         setFeedback({ variant: 'success', message: isRTL ? '🎉 تبریک! درس را به پایان رساندید.' : '🎉 Congratulations! You completed the lesson.' });
-        setTimeout(() => router.push(`/${locale}/student/dashboard`), 2000);
+        setTimeout(() => router.push(`/${locale}/dashboard`), 2000);
       }
     } catch {}
   };
@@ -262,7 +262,7 @@ export default function LearnLessonPage() {
         <p className="text-xl font-semibold text-muted-foreground">
           {isRTL ? 'درس یافت نشد' : 'Lesson not found'}
         </p>
-        <Link href={`/${locale}/student/dashboard`} className="rounded-xl border px-5 py-2.5 text-sm hover:bg-muted">
+        <Link href={`/${locale}/dashboard`} className="rounded-xl border px-5 py-2.5 text-sm hover:bg-muted">
           {isRTL ? 'بازگشت به داشبورد' : 'Back to Dashboard'}
         </Link>
       </div>
@@ -290,7 +290,7 @@ export default function LearnLessonPage() {
         <div className="mx-auto flex h-14 max-w-4xl items-center gap-3 px-4">
           {/* Home & Back */}
           <Link
-            href={`/${locale}/student/dashboard`}
+            href={`/${locale}/dashboard`}
             className="flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
           >
             <Home className="h-4 w-4" />
@@ -300,7 +300,7 @@ export default function LearnLessonPage() {
 
           {/* Breadcrumb */}
           <Link
-            href={`/${locale}/student/dashboard`}
+            href={`/${locale}/dashboard`}
             className="truncate text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:block"
           >
             {lesson.unit.course.title}
@@ -605,8 +605,114 @@ function AssessmentRenderer({
   onComplete: () => void;
   onNotify: (message: string, variant?: 'success' | 'error' | 'info') => void;
 }) {
+  const normalizedQuestions = (assessment.questions || []).map((item: any, index: number) => {
+    const question = item.question || item;
+    return {
+      ...question,
+      sequence: item.sequence ?? index,
+      options: question.options || [],
+    };
+  });
+
   const [timeRemaining, setTimeRemaining] = useState(assessment.timeLimit ? assessment.timeLimit * 60 : null);
+  const [attemptId, setAttemptId] = useState<string | null>(null);
+  const [answers, setAnswers] = useState<Record<string, any>>({});
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [submissionResult, setSubmissionResult] = useState<{
+    hasPendingReview: boolean;
+    percentage: number | null;
+    autoGradedScore: number;
+    maxScore: number;
+  } | null>(null);
+
+  const currentQuestion = normalizedQuestions[currentQuestionIndex];
+
+  const startAttempt = async () => {
+    try {
+      const userId = getStoredUserId();
+      const response = await fetch(`/api/v1/assessments/${assessment.id}/start`, {
+        method: 'POST',
+        headers: createUserHeaders(userId),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to start assessment');
+      }
+
+      const data = await response.json();
+      setAttemptId(data.attemptId || null);
+
+      if (Array.isArray(data.savedAnswers)) {
+        const restored = Object.fromEntries(
+          data.savedAnswers.map((answer: any) => {
+            const responseValue = answer.response && typeof answer.response === 'object'
+              ? (answer.response.value ?? answer.response)
+              : answer.response;
+            return [answer.questionId, responseValue];
+          }),
+        );
+        setAnswers(restored);
+      }
+    } catch (error) {
+      console.error('Error starting assessment:', error);
+      onNotify(isRTL ? 'شروع ارزیابی ممکن نبود.' : 'Could not start the assessment.', 'error');
+    }
+  };
+
+  useEffect(() => {
+    void startAttempt();
+  }, [assessment.id]);
+
+  const handleSubmit = async () => {
+    if (!attemptId || submitting) {
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+
+      const payload = normalizedQuestions.map((question: any) => ({
+        questionId: question.id,
+        response: answers[question.id] ?? null,
+      }));
+
+      const response = await fetch(`/api/v1/attempts/${attemptId}/submit`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...createUserHeaders(getStoredUserId()),
+        },
+        body: JSON.stringify({ answers: payload }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to submit assessment');
+      }
+
+      const result = await response.json();
+      setSubmissionResult({
+        hasPendingReview: Boolean(result.hasPendingReview),
+        percentage: result.percentage,
+        autoGradedScore: result.autoGradedScore || 0,
+        maxScore: result.maxScore || 0,
+      });
+      setSubmitted(true);
+      onComplete();
+      onNotify(
+        result.hasPendingReview
+          ? (isRTL ? 'بخش‌های تشریحی برای بررسی معلم ارسال شد.' : 'Written responses were sent for teacher review.')
+          : (isRTL ? 'ارزیابی با موفقیت ارسال شد.' : 'Assessment submitted successfully.'),
+        'success',
+      );
+    } catch (error) {
+      console.error('Error submitting assessment:', error);
+      onNotify(isRTL ? 'ارسال ارزیابی ممکن نبود.' : 'Could not submit the assessment.', 'error');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   useEffect(() => {
     if (!timeRemaining || submitted) return;
@@ -614,7 +720,7 @@ function AssessmentRenderer({
     const interval = setInterval(() => {
       setTimeRemaining((prev) => {
         if (prev && prev <= 1) {
-          handleSubmit();
+          void handleSubmit();
           return 0;
         }
         return prev ? prev - 1 : null;
@@ -622,12 +728,13 @@ function AssessmentRenderer({
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [timeRemaining, submitted]);
+  }, [submitted, timeRemaining, attemptId, answers]);
 
-  const handleSubmit = () => {
-    setSubmitted(true);
-    onComplete();
-    onNotify(isRTL ? 'ارزیابی ارسال شد!' : 'Assessment submitted!', 'success');
+  const updateAnswer = (questionId: string, value: any) => {
+    setAnswers((prev) => ({
+      ...prev,
+      [questionId]: value,
+    }));
   };
 
   const formatTime = (seconds: number) => {
@@ -674,36 +781,135 @@ function AssessmentRenderer({
           <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
             <p className="text-yellow-700">
               {isRTL
-                ? 'این ارزیابی پیشرفت شما را اندازه‌گیری می‌کند. بهترین تلاش خود را انجام دهید!'
-                : 'This assessment measures your progress. Do your best!'}
+                ? 'این ارزیابی با سوالات چندگزینه‌ای و تشریحی، میزان تسلط و کیفیت استدلال شما را می‌سنجد.'
+                : 'This assessment combines selected-response and written-response questions to measure mastery and the quality of your reasoning.'}
             </p>
           </div>
 
-          {/* Question placeholder */}
+          <div className="mb-4 flex flex-wrap gap-2">
+            {normalizedQuestions.map((question: any, index: number) => {
+              const answered = answers[question.id] !== undefined && answers[question.id] !== null && answers[question.id] !== '';
+              return (
+                <button
+                  key={question.id}
+                  type="button"
+                  onClick={() => setCurrentQuestionIndex(index)}
+                  className={`rounded-full px-3 py-1.5 text-sm transition ${
+                    currentQuestionIndex === index
+                      ? 'bg-primary text-primary-foreground'
+                      : answered
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : 'bg-muted text-muted-foreground'
+                  }`}
+                >
+                  {isRTL ? `سوال ${index + 1}` : `Q${index + 1}`}
+                </button>
+              );
+            })}
+          </div>
+
           <div className="space-y-6">
-            {[1, 2, 3].map((q) => (
-              <div key={q} className="border rounded-lg p-6">
-                <p className="font-medium mb-4">
-                  {isRTL ? `سوال ${q}` : `Question ${q}`}: {isRTL ? 'محتوای سوال...' : 'Question content...'}
-                </p>
-                <div className="space-y-2">
-                  {['A', 'B', 'C', 'D'].map((opt) => (
-                    <label key={opt} className="flex items-center gap-3 p-3 border rounded hover:bg-gray-50 cursor-pointer">
-                      <input type="radio" name={`q${q}`} className="w-4 h-4" />
-                      <span>{isRTL ? `گزینه ${opt}` : `Option ${opt}`}</span>
-                    </label>
-                  ))}
+            {currentQuestion ? (
+              <div className="border rounded-lg p-6">
+                <div className="mb-4 flex items-start justify-between gap-3">
+                  <p className="font-medium">
+                    {isRTL ? `سوال ${currentQuestionIndex + 1}` : `Question ${currentQuestionIndex + 1}`}: {isRTL && currentQuestion.stemFA ? currentQuestion.stemFA : currentQuestion.stem}
+                  </p>
+                  <span className="rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground">
+                    {currentQuestion.points || 1} {isRTL ? 'امتیاز' : 'pts'}
+                  </span>
                 </div>
+
+                {(currentQuestion.type === 'MULTIPLE_CHOICE' || currentQuestion.type === 'TRUE_FALSE') ? (
+                  <div className="space-y-2">
+                    {currentQuestion.options.map((option: any) => (
+                      <label key={option.id} className="flex items-center gap-3 p-3 border rounded hover:bg-gray-50 cursor-pointer">
+                        <input
+                          type="radio"
+                          name={`q-${currentQuestion.id}`}
+                          className="w-4 h-4"
+                          checked={answers[currentQuestion.id]?.optionId === option.id}
+                          onChange={() => updateAnswer(currentQuestion.id, { optionId: option.id, value: option.text })}
+                        />
+                        <span>{isRTL && option.textFA ? option.textFA : option.text}</span>
+                      </label>
+                    ))}
+                  </div>
+                ) : currentQuestion.type === 'MULTIPLE_SELECT' ? (
+                  <div className="space-y-2">
+                    {currentQuestion.options.map((option: any) => {
+                      const selectedIds = Array.isArray(answers[currentQuestion.id]?.optionIds) ? answers[currentQuestion.id].optionIds : [];
+                      const checked = selectedIds.includes(option.id);
+                      return (
+                        <label key={option.id} className="flex items-center gap-3 p-3 border rounded hover:bg-gray-50 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            className="w-4 h-4"
+                            checked={checked}
+                            onChange={() => {
+                              const nextIds = checked
+                                ? selectedIds.filter((id: string) => id !== option.id)
+                                : [...selectedIds, option.id];
+                              updateAnswer(currentQuestion.id, { optionIds: nextIds });
+                            }}
+                          />
+                          <span>{isRTL && option.textFA ? option.textFA : option.text}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <textarea
+                      rows={currentQuestion.type === 'LONG_ANSWER' ? 8 : 4}
+                      value={answers[currentQuestion.id]?.value || answers[currentQuestion.id] || ''}
+                      onChange={(event) => updateAnswer(currentQuestion.id, { value: event.target.value })}
+                      placeholder={isRTL ? 'پاسخ خود را با استدلال و شواهد بنویسید...' : 'Write your answer with reasoning and evidence...'}
+                      className="w-full rounded-xl border bg-background px-4 py-3 text-sm leading-7"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      {isRTL
+                        ? 'پاسخ‌های تشریحی ابتدا توسط دستیار هوش مصنوعی بررسی و سپس با تأیید نهایی معلم ثبت می‌شوند.'
+                        : 'Written responses receive an AI draft review first and become official after teacher approval.'}
+                    </p>
+                  </div>
+                )}
               </div>
-            ))}
+            ) : (
+              <div className="border rounded-lg p-6 text-muted-foreground">
+                {isRTL ? 'سوالی برای این ارزیابی ثبت نشده است.' : 'No questions are available for this assessment.'}
+              </div>
+            )}
+
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => setCurrentQuestionIndex((prev) => Math.max(0, prev - 1))}
+                disabled={currentQuestionIndex === 0}
+                className="rounded-xl border px-4 py-2 text-sm disabled:opacity-50"
+              >
+                {isRTL ? 'سوال قبلی' : 'Previous question'}
+              </button>
+
+              {currentQuestionIndex < normalizedQuestions.length - 1 ? (
+                <button
+                  type="button"
+                  onClick={() => setCurrentQuestionIndex((prev) => Math.min(normalizedQuestions.length - 1, prev + 1))}
+                  className="rounded-xl bg-muted px-4 py-2 text-sm"
+                >
+                  {isRTL ? 'سوال بعدی' : 'Next question'}
+                </button>
+              ) : null}
+            </div>
           </div>
 
           <button
-            onClick={handleSubmit}
-            className="mt-6 w-full bg-green-500 text-white px-6 py-3 rounded-lg font-medium hover:bg-green-600 flex items-center justify-center gap-2"
+            onClick={() => void handleSubmit()}
+            disabled={!attemptId || submitting || normalizedQuestions.length === 0}
+            className="mt-6 w-full bg-green-500 text-white px-6 py-3 rounded-lg font-medium hover:bg-green-600 flex items-center justify-center gap-2 disabled:opacity-60"
           >
             <CheckCircle className="w-5 h-5" />
-            {isRTL ? 'ارسال ارزیابی' : 'Submit Assessment'}
+            {submitting ? (isRTL ? 'در حال ارسال...' : 'Submitting...') : (isRTL ? 'ارسال ارزیابی' : 'Submit Assessment')}
           </button>
         </div>
       ) : (
@@ -712,11 +918,24 @@ function AssessmentRenderer({
           <h3 className="text-2xl font-bold text-gray-900 mb-2">
             {isRTL ? 'عالی کار!' : 'Great Work!'}
           </h3>
-          <p className="text-gray-600">
-            {isRTL
-              ? 'ارزیابی شما ارسال شد. نتایج به زودی در دسترس خواهد بود.'
-              : 'Your assessment has been submitted. Results will be available soon.'}
-          </p>
+          <div className="mx-auto max-w-2xl space-y-3 text-gray-600">
+            <p>
+              {submissionResult?.hasPendingReview
+                ? (isRTL
+                    ? 'بخش‌های تشریحی شما برای بررسی نهایی معلم ارسال شد. پس از تأیید معلم، نتیجه رسمی در کارنامه نمایش داده می‌شود.'
+                    : 'Your written responses were sent for final teacher review. The official result will appear in the marksheet after approval.')
+                : (isRTL
+                    ? 'ارزیابی شما نمره‌گذاری شد و نتیجه در کارنامه قابل مشاهده است.'
+                    : 'Your assessment was graded and the result is now available in the marksheet.')}
+            </p>
+            {submissionResult ? (
+              <p className="font-medium text-foreground">
+                {submissionResult.percentage !== null
+                  ? `${isRTL ? 'نتیجه فعلی' : 'Current result'}: ${submissionResult.autoGradedScore}/${submissionResult.maxScore} • ${submissionResult.percentage}%`
+                  : `${isRTL ? 'امتیاز خودکار فعلی' : 'Current auto-graded score'}: ${submissionResult.autoGradedScore}/${submissionResult.maxScore}`}
+              </p>
+            ) : null}
+          </div>
         </div>
       )}
     </div>

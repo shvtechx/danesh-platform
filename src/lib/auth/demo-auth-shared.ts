@@ -27,6 +27,78 @@ export type DemoPermission =
 export const AUTH_STORAGE_KEY = 'danesh.auth.user';
 export const USER_ID_STORAGE_KEY = 'danesh.userId';
 export const ORIGINAL_USER_STORAGE_KEY = 'danesh.auth.originalUser';
+export const AUTH_ROLES_COOKIE = 'danesh.auth.roles';
+export const AUTH_USER_ID_COOKIE = 'danesh.auth.uid';
+
+const AUTH_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 8;
+
+function setBrowserCookie(name: string, value: string, maxAge = AUTH_COOKIE_MAX_AGE_SECONDS) {
+  if (typeof document === 'undefined') {
+    return;
+  }
+
+  document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; SameSite=Lax`;
+}
+
+function clearBrowserCookie(name: string) {
+  if (typeof document === 'undefined') {
+    return;
+  }
+
+  document.cookie = `${name}=; path=/; max-age=0; SameSite=Lax`;
+}
+
+export function parseRolesPayload(raw: string | null | undefined) {
+  if (!raw) {
+    return [] as string[];
+  }
+
+  const decoded = (() => {
+    try {
+      return decodeURIComponent(raw);
+    } catch {
+      return raw;
+    }
+  })();
+
+  try {
+    const parsed = JSON.parse(decoded);
+    if (Array.isArray(parsed)) {
+      return parsed.filter((value): value is string => typeof value === 'string');
+    }
+  } catch {
+    // Ignore JSON parse failure and fall back to comma-separated parsing.
+  }
+
+  return decoded
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+}
+
+export function persistAuthSession(user: { id?: string | null; roles?: string[] } | null | undefined) {
+  if (typeof window === 'undefined' || !user?.id) {
+    return;
+  }
+
+  window.localStorage.setItem(USER_ID_STORAGE_KEY, user.id);
+  window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
+
+  const roles = Array.isArray(user.roles) ? user.roles : [];
+  setBrowserCookie(AUTH_ROLES_COOKIE, JSON.stringify(roles));
+  setBrowserCookie(AUTH_USER_ID_COOKIE, user.id);
+}
+
+export function clearAuthSession() {
+  if (typeof window !== 'undefined') {
+    window.localStorage.removeItem(AUTH_STORAGE_KEY);
+    window.localStorage.removeItem(USER_ID_STORAGE_KEY);
+    window.localStorage.removeItem(ORIGINAL_USER_STORAGE_KEY);
+  }
+
+  clearBrowserCookie(AUTH_ROLES_COOKIE);
+  clearBrowserCookie(AUTH_USER_ID_COOKIE);
+}
 
 export function getStoredUserId() {
   if (typeof window === 'undefined') {

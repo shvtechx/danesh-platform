@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Heart, Smile, Meh, Frown, Battery, Wind, BookHeart, Coffee, PenLine, AlertCircle, X } from 'lucide-react';
-import Link from 'next/link';
-import { PageHeader } from '@/components/ui/PageHeader';
+import { Heart, Battery, Wind, BookHeart, Coffee, PenLine, AlertCircle, X } from 'lucide-react';
+import { StudentShell } from '@/components/layout/StudentShell';
+import { StudentPageHeader } from '@/components/layout/StudentPageHeader';
 import { FeedbackBanner } from '@/components/ui/feedback-banner';
 
 type WellbeingState = {
@@ -218,30 +218,31 @@ export default function WellbeingPage({ params: { locale } }: { params: { locale
   ];
 
   return (
-    <div className="space-y-8 p-6">
-      <PageHeader
-        locale={locale}
-        title={t('wellbeing.title')}
-        backHref={`/${locale}/dashboard`}
-        backLabel={isRTL ? 'داشبورد' : 'Dashboard'}
-      />
+    <StudentShell locale={locale}>
+      <div className="space-y-6">
+        <StudentPageHeader
+          locale={locale}
+          eyebrow={isRTL ? 'سلامت و حمایت' : 'Wellbeing and support'}
+          title={t('wellbeing.title')}
+          description={isRTL ? 'ثبت روزانه احساس، انرژی و فشار ذهنی شما به معلمان و تیم پشتیبانی کمک می‌کند حمایت مناسب‌تری ارائه دهند.' : 'Daily check-ins on mood, energy, and stress help teachers and the support team offer better care.'}
+          stats={[
+            { label: isRTL ? 'حال امروز' : 'Today’s mood', value: state.mood ? moods.find((mood) => mood.value === state.mood)?.icon || '—' : '—', icon: Heart, tone: 'primary', helper: state.mood ? (isRTL ? 'ثبت شده' : 'Selected') : (isRTL ? 'در انتظار انتخاب' : 'Awaiting selection') },
+            { label: isRTL ? 'انرژی' : 'Energy', value: state.energy ? t(`wellbeing.${state.energy}`) : '—', icon: Battery, tone: 'warning', helper: isRTL ? 'سطح فعلی' : 'Current level' },
+            { label: isRTL ? 'فشار ذهنی' : 'Stress', value: state.stress ? t(`wellbeing.${state.stress}`) : '—', icon: BookHeart, tone: 'accent', helper: state.draftSavedAt ? (isRTL ? 'پیش‌نویس ذخیره شد' : 'Draft saved locally') : (isRTL ? 'بدون پیش‌نویس' : 'No local draft yet') },
+          ]}
+          actions={
+            <button onClick={handleSubmitCheckin} disabled={isSubmitting} className="rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60">
+              {isSubmitting ? (isRTL ? 'در حال ثبت...' : 'Submitting...') : (isRTL ? 'ثبت سلامت روان امروز' : "Submit today's wellbeing")}
+            </button>
+          }
+        />
 
-      <div>
-        <h1 className="text-3xl font-bold">{t('wellbeing.title')}</h1>
-        <p className="text-muted-foreground mt-2">
-          {isRTL ? 'سلامت روان شما برای ما مهم است' : 'Your mental health matters to us'}
-        </p>
-        {state.draftSavedAt && (
-          <p className="text-xs text-muted-foreground mt-2">
-            {isRTL ? 'پیش‌نویس انتخاب‌ها ذخیره شده است' : 'Draft selections are saved locally'}
-          </p>
-        )}
-      </div>
-
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="space-y-6">
       {/* Mood Check */}
-      <div className="rounded-2xl border bg-card p-6">
-        <h2 className="text-xl font-semibold mb-4">{t('wellbeing.howAreYou')}</h2>
-        <div className="grid grid-cols-5 gap-4">
+      <div className="rounded-3xl border bg-card p-5 shadow-sm sm:p-6">
+        <h2 className="mb-4 text-xl font-semibold">{t('wellbeing.howAreYou')}</h2>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5">
           {moods.map((mood) => (
             <button
               key={mood.value}
@@ -261,14 +262,14 @@ export default function WellbeingPage({ params: { locale } }: { params: { locale
 
       {/* Energy & Stress Level */}
       <div className="grid gap-6 md:grid-cols-2">
-        <div className="rounded-2xl border bg-card p-6">
-          <div className="flex items-center gap-3 mb-4">
+        <div className="rounded-3xl border bg-card p-5 shadow-sm sm:p-6">
+          <div className="mb-4 flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-500/10">
               <Battery className="h-5 w-5 text-amber-500" />
             </div>
             <h2 className="text-lg font-semibold">{t('wellbeing.energyLevel')}</h2>
           </div>
-          <div className="flex gap-3">
+          <div className="grid gap-3 sm:grid-cols-3">
             <button
               onClick={() => saveSelection({ energy: 'high' })}
               className={`flex-1 rounded-lg border px-4 py-3 text-sm font-medium transition-colors ${
@@ -302,14 +303,14 @@ export default function WellbeingPage({ params: { locale } }: { params: { locale
           </div>
         </div>
 
-        <div className="rounded-2xl border bg-card p-6">
-          <div className="flex items-center gap-3 mb-4">
+        <div className="rounded-3xl border bg-card p-5 shadow-sm sm:p-6">
+          <div className="mb-4 flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-500/10">
               <BookHeart className="h-5 w-5 text-purple-500" />
             </div>
             <h2 className="text-lg font-semibold">{t('wellbeing.stressLevel')}</h2>
           </div>
-          <div className="flex gap-3">
+          <div className="grid gap-3 sm:grid-cols-3">
             <button
               onClick={() => saveSelection({ stress: 'relaxed' })}
               className={`flex-1 rounded-lg border px-4 py-3 text-sm font-medium transition-colors ${
@@ -345,22 +346,16 @@ export default function WellbeingPage({ params: { locale } }: { params: { locale
       </div>
 
       {/* Submit Check-in */}
-      <div className="rounded-2xl border bg-card p-6 space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div className="space-y-3 rounded-3xl border bg-card p-5 shadow-sm sm:p-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-muted-foreground">
             {isRTL
               ? 'پس از انتخاب موارد بالا، برای ثبت نهایی روی دکمه زیر بزنید.'
               : 'After making your selections above, use the button to submit your daily check-in.'}
           </p>
-          <button
-            onClick={handleSubmitCheckin}
-            disabled={isSubmitting}
-            className="rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
-          >
-            {isSubmitting
-              ? (isRTL ? 'در حال ثبت...' : 'Submitting...')
-              : (isRTL ? 'ثبت سلامت روان امروز' : "Submit Today's Wellbeing")}
-          </button>
+          <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+            {state.draftSavedAt ? (isRTL ? 'پیش‌نویس آماده ثبت است' : 'Draft is ready to submit') : (isRTL ? 'پس از انتخاب‌ها ثبت کنید' : 'Submit after making your selections')}
+          </span>
         </div>
 
         {submitMessage && (
@@ -371,31 +366,15 @@ export default function WellbeingPage({ params: { locale } }: { params: { locale
         )}
       </div>
 
-      {/* Quick Navigation */}
-      <div className="rounded-2xl border bg-card p-6">
-        <h2 className="text-lg font-semibold mb-4">{isRTL ? 'ناوبری سریع' : 'Quick Navigation'}</h2>
-        <div className="grid gap-3 sm:grid-cols-3">
-          <Link href={`/${locale}/dashboard`} className="rounded-lg border px-4 py-3 hover:bg-muted transition-colors text-center">
-            {isRTL ? 'داشبورد' : 'Dashboard'}
-          </Link>
-          <Link href={`/${locale}/profile`} className="rounded-lg border px-4 py-3 hover:bg-muted transition-colors text-center">
-            {isRTL ? 'پروفایل' : 'Profile'}
-          </Link>
-          <Link href={`/${locale}/settings`} className="rounded-lg border px-4 py-3 hover:bg-muted transition-colors text-center">
-            {isRTL ? 'تنظیمات' : 'Settings'}
-          </Link>
-        </div>
-      </div>
-
       {/* Resources */}
-      <div>
-        <h2 className="text-xl font-semibold mb-4">{t('wellbeing.resources')}</h2>
+      <div className="space-y-4">
+        <h2 className="mb-4 text-xl font-semibold">{t('wellbeing.resources')}</h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {resources.map((resource) => (
             <button
               key={resource.id}
               onClick={() => handleResourceAction(resource.id)}
-              className="rounded-xl border bg-card p-4 text-left hover:shadow-md transition-shadow"
+              className="rounded-3xl border bg-card p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
             >
               <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${resource.color}`}>
                 <resource.icon className="h-6 w-6" />
@@ -408,10 +387,10 @@ export default function WellbeingPage({ params: { locale } }: { params: { locale
       </div>
 
       {/* Concern Report */}
-      <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-6">
+      <div className="rounded-3xl border border-amber-500/20 bg-amber-500/5 p-5 shadow-sm sm:p-6">
         {reportSuccess ? <FeedbackBanner className="mb-4" variant="success" message={reportSuccess} /> : null}
 
-        <div className="flex items-start gap-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/10">
             <AlertCircle className="h-6 w-6 text-amber-500" />
           </div>
@@ -427,7 +406,7 @@ export default function WellbeingPage({ params: { locale } }: { params: { locale
                 setShowReportModal(true);
                 setReportError(null);
               }}
-              className="mt-4 rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-white hover:bg-amber-600"
+              className="mt-4 w-full rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-amber-600 sm:w-auto"
             >
               {t('wellbeing.anonymous')}
             </button>
@@ -435,10 +414,29 @@ export default function WellbeingPage({ params: { locale } }: { params: { locale
         </div>
       </div>
 
+          </div>
+
+          <aside className="space-y-4">
+            <div className="rounded-3xl border bg-card p-5 shadow-sm">
+              <h2 className="text-lg font-semibold">{isRTL ? 'یادآور حمایت' : 'Support reminder'}</h2>
+              <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                {isRTL ? 'اگر چند روز پشت‌سرهم احساس خوبی نداشتید، مربی یا مشاور می‌تواند با رویکردی حمایتی با شما ارتباط بگیرد.' : 'If you have several difficult days in a row, a teacher or counselor can follow up with a supportive approach.'}
+              </p>
+            </div>
+
+            <div className="rounded-3xl border bg-card p-5 shadow-sm">
+              <h2 className="text-lg font-semibold">{isRTL ? 'پیشنهاد امروز' : 'Today’s suggestion'}</h2>
+              <div className="mt-4 rounded-2xl bg-muted/50 p-4 text-sm leading-6 text-muted-foreground">
+                {isRTL ? 'پس از ثبت حال، یکی از تمرین‌های تنفس یا نوشتن احساسات را انتخاب کنید تا ذهن شما آرام‌تر شود.' : 'After your check-in, try one breathing or journaling activity to help regulate and reset.'}
+              </div>
+            </div>
+          </aside>
+        </div>
+
       {/* Anonymous Report Modal */}
       {showReportModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-background rounded-2xl border max-w-lg w-full p-6 space-y-4">
+          <div className="w-full max-w-lg space-y-4 rounded-2xl border bg-background p-5 shadow-lg max-h-[85vh] overflow-y-auto sm:p-6">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold">
                 {isRTL ? 'گزارش ناشناس' : 'Anonymous Report'}
@@ -451,7 +449,7 @@ export default function WellbeingPage({ params: { locale } }: { params: { locale
               </button>
             </div>
             
-            <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-900/20">
               <p className="text-sm text-amber-900 dark:text-amber-100">
                 {isRTL
                   ? 'این گزارش کاملاً محرمانه و ناشناس است. هیچ‌کس نمی‌تواند هویت شما را ببیند.'
@@ -460,7 +458,7 @@ export default function WellbeingPage({ params: { locale } }: { params: { locale
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">
+              <label className="mb-2 block text-sm font-medium">
                 {isRTL ? 'لطفاً نگرانی خود را شرح دهید' : 'Please describe your concern'}
               </label>
               {reportError ? <FeedbackBanner className="mb-3" variant="error" message={reportError} /> : null}
@@ -475,20 +473,20 @@ export default function WellbeingPage({ params: { locale } }: { params: { locale
               />
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex flex-col-reverse gap-2 sm:flex-row">
               <button
                 onClick={() => {
                   setShowReportModal(false);
                   setReportText('');
                 }}
-                className="flex-1 px-4 py-2 rounded-lg border hover:bg-muted"
+                className="flex-1 rounded-lg border px-4 py-2 hover:bg-muted"
               >
                 {isRTL ? 'انصراف' : 'Cancel'}
               </button>
               <button
                 onClick={handleSubmitAnonymousReport}
                 disabled={isSubmittingReport || !reportText.trim()}
-                className="flex-1 px-4 py-2 rounded-lg bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-50"
+                className="flex-1 rounded-lg bg-amber-500 px-4 py-2 text-white hover:bg-amber-600 disabled:opacity-50"
               >
                 {isSubmittingReport ? (
                   <span className="flex items-center justify-center gap-2">
@@ -503,6 +501,7 @@ export default function WellbeingPage({ params: { locale } }: { params: { locale
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </StudentShell>
   );
 }

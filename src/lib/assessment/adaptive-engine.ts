@@ -16,6 +16,53 @@
 import prisma from '@/lib/db';
 import { MasteryStatus } from '@prisma/client';
 
+function normalizeHints(raw: unknown): string[] {
+  if (!raw) {
+    return [];
+  }
+
+  if (Array.isArray(raw)) {
+    return raw.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
+  }
+
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return parsed.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
+      }
+    } catch {
+      return raw.trim() ? [raw.trim()] : [];
+    }
+  }
+
+  return [];
+}
+
+function toPracticeQuestion(question: any) {
+  if (!question) {
+    return null;
+  }
+
+  return {
+    id: question.id,
+    text: question.text || question.stem || '',
+    textFA: question.textFA || question.stemFA || null,
+    explanation: question.explanation || '',
+    explanationFA: question.explanationFA || null,
+    irtDifficulty: question.irtDifficulty,
+    hints: normalizeHints(question.hints),
+    options: Array.isArray(question.options)
+      ? question.options.map((option: any) => ({
+          id: option.id,
+          text: option.text,
+          textFA: option.textFA || null,
+          isCorrect: option.isCorrect,
+        }))
+      : [],
+  };
+}
+
 /**
  * Calculate probability of correct response using 2PL IRT model
  */
@@ -204,7 +251,7 @@ export async function startPracticeSession(
     sessionId: session.id,
     currentMastery: mastery.masteryScore,
     currentAbility: mastery.abilityEstimate,
-    firstQuestion,
+    firstQuestion: toPracticeQuestion(firstQuestion),
   };
 }
 
@@ -264,7 +311,10 @@ export async function submitAnswer(
   
   // Check if answer is correct
   const correctOption = question.options.find(opt => opt.isCorrect);
-  const isCorrect = correctOption?.text === answer;
+  const normalizedAnswer = typeof answer === 'string' ? answer.trim() : answer;
+  const isCorrect =
+    correctOption?.id === normalizedAnswer ||
+    correctOption?.text === normalizedAnswer;
   
   // Update ability estimate
   const difficulty = question.irtDifficulty || 0;
@@ -306,6 +356,11 @@ export async function submitAnswer(
           : undefined,
     },
   });
+
+  // Calculate XP earned
+  const difficultyMultiplier = 1 + (difficulty + 3) / 6; // 1.0 to 2.0
+  const firstAttemptBonus = isCorrect && hintsUsed === 0 ? 1.5 : 1.0;
+  const xpEarned = Math.round(10 * difficultyMultiplier * firstAttemptBonus);
   
   // Update session
   await prisma.practiceSession.update({
@@ -315,13 +370,9 @@ export async function submitAnswer(
       questionsCorrect: isCorrect ? { increment: 1 } : undefined,
       durationSeconds: { increment: timeSpentSeconds },
       masteryAfter: newMasteryScore,
+      xpEarned: { increment: xpEarned },
     },
   });
-  
-  // Calculate XP earned
-  const difficultyMultiplier = 1 + (difficulty + 3) / 6; // 1.0 to 2.0
-  const firstAttemptBonus = isCorrect && hintsUsed === 0 ? 1.5 : 1.0;
-  const xpEarned = Math.round(10 * difficultyMultiplier * firstAttemptBonus);
   
   // Get all attempted questions in this session
   const attempts = await prisma.questionAttempt.findMany({
@@ -332,7 +383,7 @@ export async function submitAnswer(
   
   // Determine if session should continue
   const sessionComplete =
-    session.questionsAttempted >= 20 || // Max 20 questions per session
+    session.questionsAttempted + 1 >= 20 || // Max 20 questions per session
     newMasteryScore >= 85; // Mastery achieved
   
   let nextQuestion = null;
@@ -351,7 +402,7 @@ export async function submitAnswer(
     explanationFA: question.explanationFA,
     newAbility,
     newMastery: newMasteryScore,
-    nextQuestion,
+    nextQuestion: toPracticeQuestion(nextQuestion),
     sessionComplete: sessionComplete || !nextQuestion,
     xpEarned,
   };

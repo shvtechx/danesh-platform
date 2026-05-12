@@ -3,13 +3,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
-  ArrowLeft,
-  ArrowRight,
   CheckCircle,
   Clock,
   Eye,
   HelpCircle,
-  Home,
   MessageSquare,
   Plus,
   Search,
@@ -18,6 +15,8 @@ import {
   TrendingUp,
   Users,
 } from 'lucide-react';
+import { StudentShell } from '@/components/layout/StudentShell';
+import { StudentPageHeader } from '@/components/layout/StudentPageHeader';
 import { FeedbackBanner } from '@/components/ui/feedback-banner';
 import { createUserHeaders, getStoredUserId } from '@/lib/auth/demo-auth-shared';
 
@@ -104,7 +103,6 @@ function formatRelativeTime(value: string, isRTL: boolean) {
 
 export default function ForumPage({ params: { locale } }: { params: { locale: string } }) {
   const isRTL = locale === 'fa';
-  const Arrow = isRTL ? ArrowRight : ArrowLeft;
   const [activeTab, setActiveTab] = useState<'recent' | 'popular' | 'unanswered' | 'my'>('recent');
   const [activeCategory, setActiveCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -223,128 +221,33 @@ export default function ForumPage({ params: { locale } }: { params: { locale: st
   }, [activeCategory, activeTab, currentUserId, forum.threads, isRTL, searchQuery]);
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-30 border-b bg-background/80 backdrop-blur-lg">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
-          <div className="flex items-center gap-4">
-            <Link href={`/${locale}/dashboard`} className="flex items-center gap-2 text-muted-foreground hover:text-foreground">
-              <Arrow className="h-5 w-5" />
-              <span className="hidden sm:inline">{isRTL ? 'بازگشت' : 'Back'}</span>
-            </Link>
-            <div className="h-6 w-px bg-border" />
-            <div className="flex items-center gap-2">
-              <MessageSquare className="h-5 w-5 text-primary" />
-              <h1 className="font-semibold">{isRTL ? 'انجمن گفتگو' : 'Forum'}</h1>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <Link href={`/${locale}`} className="rounded-lg p-2 hover:bg-muted" title={isRTL ? 'صفحه اصلی' : 'Home'}>
-              <Home className="h-5 w-5" />
-            </Link>
-            <Link href={`/${locale}/forum/new`} className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90">
+    <StudentShell locale={locale}>
+      <div className="space-y-6">
+        <StudentPageHeader
+          locale={locale}
+          eyebrow={isRTL ? 'جامعه یادگیری' : 'Learning community'}
+          title={isRTL ? 'انجمن گفتگو' : 'Forum'}
+          description={isRTL ? 'پرسش‌ها، بحث‌های همدلانه و پاسخ‌های همیارانه را در یک فضای منسجم و ایمن دنبال کنید.' : 'Follow questions, thoughtful discussions, and peer support in a cohesive and safe community space.'}
+          stats={[
+            { label: isRTL ? 'کل بحث‌ها' : 'Total discussions', value: isLoading ? '—' : forum.stats.totalDiscussions.toLocaleString(isRTL ? 'fa-IR' : 'en-US'), icon: MessageSquare, tone: 'primary', helper: isRTL ? 'گفتگوهای ثبت‌شده' : 'Posted discussions' },
+            { label: isRTL ? 'حل شده' : 'Solved', value: isLoading ? '—' : forum.stats.solvedDiscussions.toLocaleString(isRTL ? 'fa-IR' : 'en-US'), icon: CheckCircle, tone: 'success', helper: isRTL ? 'پرسش‌های پاسخ‌گرفته' : 'Questions with answers' },
+            { label: isRTL ? 'اعضای فعال' : 'Active members', value: isLoading ? '—' : forum.stats.activeMembers.toLocaleString(isRTL ? 'fa-IR' : 'en-US'), icon: Users, tone: 'accent', helper: isRTL ? 'همیاری زنده' : 'Community participation' },
+          ]}
+          actions={
+            <Link href={`/${locale}/forum/new`} className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90">
               <Plus className="h-4 w-4" />
-              <span className="hidden sm:inline">{isRTL ? 'سوال جدید' : 'Ask Question'}</span>
+              {isRTL ? 'سوال جدید' : 'Ask question'}
             </Link>
-          </div>
-        </div>
-      </header>
+          }
+        />
 
-      <div className="mx-auto max-w-6xl px-4 py-6">
+        <div>
         {feedback ? <FeedbackBanner className="mb-6" variant="error" message={feedback} /> : null}
 
-        <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <div className="rounded-xl border bg-card p-4">
-            <div className="mb-1 flex items-center gap-2 text-primary">
-              <MessageSquare className="h-4 w-4" />
-              <span className="text-sm">{isRTL ? 'کل بحث‌ها' : 'Total Discussions'}</span>
-            </div>
-            <p className="text-2xl font-bold">{isLoading ? '—' : forum.stats.totalDiscussions.toLocaleString(isRTL ? 'fa-IR' : 'en-US')}</p>
-          </div>
-          <div className="rounded-xl border bg-card p-4">
-            <div className="mb-1 flex items-center gap-2 text-green-600">
-              <CheckCircle className="h-4 w-4" />
-              <span className="text-sm">{isRTL ? 'حل شده' : 'Solved'}</span>
-            </div>
-            <p className="text-2xl font-bold">{isLoading ? '—' : forum.stats.solvedDiscussions.toLocaleString(isRTL ? 'fa-IR' : 'en-US')}</p>
-          </div>
-          <div className="rounded-xl border bg-card p-4">
-            <div className="mb-1 flex items-center gap-2 text-purple-600">
-              <Users className="h-4 w-4" />
-              <span className="text-sm">{isRTL ? 'اعضای فعال' : 'Active Members'}</span>
-            </div>
-            <p className="text-2xl font-bold">{isLoading ? '—' : forum.stats.activeMembers.toLocaleString(isRTL ? 'fa-IR' : 'en-US')}</p>
-          </div>
-          <div className="rounded-xl border bg-card p-4">
-            <div className="mb-1 flex items-center gap-2 text-orange-600">
-              <ThumbsUp className="h-4 w-4" />
-              <span className="text-sm">{isRTL ? 'پاسخ‌ها' : 'Total Replies'}</span>
-            </div>
-            <p className="text-2xl font-bold">{isLoading ? '—' : forum.stats.totalReplies.toLocaleString(isRTL ? 'fa-IR' : 'en-US')}</p>
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-6 lg:flex-row">
-          <div className="space-y-4 lg:w-64">
-            <div className="relative">
-              <Search className="absolute top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground start-3" />
-              <input
-                type="search"
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder={isRTL ? 'جستجو در انجمن...' : 'Search forum...'}
-                className="w-full rounded-xl border bg-background py-2.5 ps-10 pe-4 text-sm"
-              />
-            </div>
-
-            <div className="rounded-xl border bg-card p-4">
-              <h3 className="mb-3 flex items-center gap-2 font-semibold">
-                <Tag className="h-4 w-4" />
-                {isRTL ? 'دسته‌بندی‌ها' : 'Categories'}
-              </h3>
-              <div className="space-y-1">
-                {categories.map((category) => (
-                  <button
-                    key={category.id}
-                    type="button"
-                    onClick={() => setActiveCategory(category.id)}
-                    className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors ${activeCategory === category.id ? 'bg-primary/10 text-primary' : 'hover:bg-muted'}`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className={`h-2 w-2 rounded-full ${category.color}`} />
-                      <span>{category.name}</span>
-                    </div>
-                    <span className="text-xs text-muted-foreground">{category.count.toLocaleString(isRTL ? 'fa-IR' : 'en-US')}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="rounded-xl border bg-card p-4">
-              <h3 className="mb-3 font-semibold">{isRTL ? 'برترین پاسخ‌دهندگان' : 'Top Contributors'}</h3>
-              <div className="space-y-2">
-                {forum.topContributors.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">{isRTL ? 'با اولین پاسخ‌ها، این بخش زنده می‌شود.' : 'This section will come alive as replies are posted.'}</p>
-                ) : (
-                  forum.topContributors.map((user) => (
-                    <div key={user.id} className="flex items-center gap-3 rounded-lg p-2 hover:bg-muted">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
-                        {user.avatar}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium">{user.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {user.answers.toLocaleString(isRTL ? 'fa-IR' : 'en-US')} {isRTL ? 'پاسخ' : 'answers'}
-                        </p>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="flex-1 space-y-4">
-            <div className="flex gap-1 overflow-x-auto rounded-xl bg-muted p-1">
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="space-y-4">
+            <div className="rounded-3xl border bg-card p-3 shadow-sm">
+              <div className="flex gap-1 overflow-x-auto rounded-2xl bg-muted p-1">
               {tabs.map((tab) => {
                 const Icon = tab.icon;
                 return (
@@ -352,18 +255,19 @@ export default function ForumPage({ params: { locale } }: { params: { locale: st
                     key={tab.id}
                     type="button"
                     onClick={() => setActiveTab(tab.id)}
-                    className={`flex items-center gap-2 whitespace-nowrap rounded-lg px-4 py-2 text-sm transition-colors ${activeTab === tab.id ? 'bg-background font-medium shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                    className={`flex items-center gap-2 whitespace-nowrap rounded-2xl px-4 py-2 text-sm transition-colors ${activeTab === tab.id ? 'bg-background font-medium shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
                   >
                     <Icon className="h-4 w-4" />
                     {tab.name}
                   </button>
                 );
               })}
+              </div>
             </div>
 
             <div className="space-y-3">
               {filteredThreads.map((thread) => (
-                <Link key={thread.id} href={`/${locale}/forum/${thread.id}`} className="block rounded-xl border bg-card p-4 transition-all hover:border-primary/50">
+                <Link key={thread.id} href={`/${locale}/forum/${thread.id}`} className="block rounded-3xl border bg-card p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-md">
                   <div className="flex gap-4">
                     <div className="hidden h-12 w-12 items-center justify-center rounded-full bg-primary/10 font-bold text-primary sm:flex">
                       {thread.avatar}
@@ -413,7 +317,7 @@ export default function ForumPage({ params: { locale } }: { params: { locale: st
             </div>
 
             {!isLoading && filteredThreads.length === 0 ? (
-              <div className="py-12 text-center">
+              <div className="rounded-3xl border border-dashed bg-card py-12 text-center">
                 <MessageSquare className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
                 <h3 className="mb-2 font-semibold">{isRTL ? 'بحثی یافت نشد' : 'No discussions found'}</h3>
                 <p className="mb-4 text-sm text-muted-foreground">{isRTL ? 'اولین نفری باشید که یک پرسش روشن و دقیق مطرح می‌کند.' : 'Be the first to post a clear and thoughtful question.'}</p>
@@ -424,8 +328,68 @@ export default function ForumPage({ params: { locale } }: { params: { locale: st
               </div>
             ) : null}
           </div>
+
+          <aside className="space-y-4 xl:w-[320px]">
+            <div className="relative rounded-3xl border bg-card p-3 shadow-sm">
+              <Search className="absolute top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground start-3" />
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder={isRTL ? 'جستجو در انجمن...' : 'Search forum...'}
+                className="w-full rounded-2xl border bg-background py-2.5 ps-10 pe-4 text-sm"
+              />
+            </div>
+
+            <div className="rounded-3xl border bg-card p-4 shadow-sm">
+              <h3 className="mb-3 flex items-center gap-2 font-semibold">
+                <Tag className="h-4 w-4" />
+                {isRTL ? 'دسته‌بندی‌ها' : 'Categories'}
+              </h3>
+              <div className="space-y-1">
+                {categories.map((category) => (
+                  <button
+                    key={category.id}
+                    type="button"
+                    onClick={() => setActiveCategory(category.id)}
+                    className={`flex w-full items-center justify-between rounded-2xl px-3 py-2.5 text-sm transition-colors ${activeCategory === category.id ? 'bg-primary/10 text-primary' : 'hover:bg-muted'}`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className={`h-2 w-2 rounded-full ${category.color}`} />
+                      <span>{category.name}</span>
+                    </div>
+                    <span className="text-xs text-muted-foreground">{category.count.toLocaleString(isRTL ? 'fa-IR' : 'en-US')}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-3xl border bg-card p-4 shadow-sm">
+              <h3 className="mb-3 font-semibold">{isRTL ? 'برترین پاسخ‌دهندگان' : 'Top Contributors'}</h3>
+              <div className="space-y-2">
+                {forum.topContributors.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">{isRTL ? 'با اولین پاسخ‌ها، این بخش زنده می‌شود.' : 'This section will come alive as replies are posted.'}</p>
+                ) : (
+                  forum.topContributors.map((user) => (
+                    <div key={user.id} className="flex items-center gap-3 rounded-2xl p-2 hover:bg-muted">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                        {user.avatar}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium">{user.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {user.answers.toLocaleString(isRTL ? 'fa-IR' : 'en-US')} {isRTL ? 'پاسخ' : 'answers'}
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </aside>
+        </div>
         </div>
       </div>
-    </div>
+    </StudentShell>
   );
 }

@@ -7,7 +7,7 @@ import { FeedbackBanner } from '@/components/ui/feedback-banner';
 import { createUserHeaders, getStoredUserId } from '@/lib/auth/demo-auth-shared';
 import { 
   Users, ArrowLeft, ArrowRight, Search, Filter, Mail, MessageSquare,
-  TrendingUp, Award, Clock, BarChart, Eye, ChevronRight, ChevronLeft
+  TrendingUp, Award, Clock, BarChart, Eye, ChevronRight, ChevronLeft, Heart, AlertTriangle
 } from 'lucide-react';
 
 interface Student {
@@ -19,6 +19,14 @@ interface Student {
   lastActive: string;
   courses: number;
   avgScore: number;
+  wellbeing: {
+    status: 'stable' | 'watch' | 'support' | 'urgent';
+    score: number;
+    lastCheckinAt: string | null;
+    averageMood: number | null;
+    averageStress: number | null;
+    openConcernReports: number;
+  };
 }
 
 function formatLastActive(value: string | undefined, locale: string) {
@@ -28,6 +36,42 @@ function formatLastActive(value: string | undefined, locale: string) {
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
+  }).format(new Date(value));
+}
+
+function getWellbeingBadge(status: Student['wellbeing']['status'], isRTL: boolean) {
+  switch (status) {
+    case 'urgent':
+      return {
+        label: isRTL ? 'نیاز فوری به پیگیری' : 'Urgent follow-up',
+        className: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
+      };
+    case 'support':
+      return {
+        label: isRTL ? 'نیازمند حمایت' : 'Needs support',
+        className: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
+      };
+    case 'watch':
+      return {
+        label: isRTL ? 'نیازمند پایش' : 'Watch list',
+        className: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+      };
+    default:
+      return {
+        label: isRTL ? 'پایدار' : 'Stable',
+        className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+      };
+  }
+}
+
+function formatWellbeingCheckin(value: string | null, locale: string) {
+  if (!value) {
+    return locale === 'fa' ? 'ثبت نشده' : 'No recent check-in';
+  }
+
+  return new Intl.DateTimeFormat(locale === 'fa' ? 'fa-IR' : 'en-US', {
+    month: 'short',
+    day: 'numeric',
   }).format(new Date(value));
 }
 
@@ -81,6 +125,14 @@ export default function TeacherStudents({ params: { locale } }: { params: { loca
           lastActive: formatLastActive(lastSession?.startedAt, locale),
           courses: Array.from(new Set((student.skills || []).map((skill: any) => skill.subject))).length,
           avgScore,
+          wellbeing: {
+            status: student.wellbeing?.status || 'stable',
+            score: student.wellbeing?.score || 0,
+            lastCheckinAt: student.wellbeing?.lastCheckinAt || null,
+            averageMood: student.wellbeing?.averageMood ?? null,
+            averageStress: student.wellbeing?.averageStress ?? null,
+            openConcernReports: student.wellbeing?.openConcernReports || 0,
+          },
         };
       });
 
@@ -129,7 +181,7 @@ export default function TeacherStudents({ params: { locale } }: { params: { loca
         {feedback ? <FeedbackBanner className="mb-6" variant={feedback.variant} message={feedback.message} /> : null}
 
         {/* Stats Overview */}
-        <div className="grid gap-4 sm:grid-cols-4 mb-6">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5 mb-6">
           <div className="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/20 dark:to-cyan-950/20 border-2 border-blue-200 dark:border-blue-800 rounded-xl p-4">
             <div className="flex items-center justify-between">
               <Users className="h-8 w-8 text-blue-600" />
@@ -167,6 +219,16 @@ export default function TeacherStudents({ params: { locale } }: { params: { loca
             </div>
             <p className="text-sm text-amber-700 dark:text-amber-300 mt-2">{isRTL ? 'میانگین نمرات' : 'Avg Score'}</p>
           </div>
+
+          <div className="bg-gradient-to-br from-rose-50 to-orange-50 dark:from-rose-950/20 dark:to-orange-950/20 border-2 border-rose-200 dark:border-rose-800 rounded-xl p-4">
+            <div className="flex items-center justify-between">
+              <AlertTriangle className="h-8 w-8 text-rose-600" />
+              <p className="text-2xl font-bold text-rose-900 dark:text-rose-100">
+                {students.filter((student) => student.wellbeing.status === 'support' || student.wellbeing.status === 'urgent').length}
+              </p>
+            </div>
+            <p className="text-sm text-rose-700 dark:text-rose-300 mt-2">{isRTL ? 'نیازمند حمایت' : 'Need Support'}</p>
+          </div>
         </div>
 
         {/* Search & Filters */}
@@ -197,49 +259,66 @@ export default function TeacherStudents({ params: { locale } }: { params: { loca
           </div>
         ) : (
           <div className="space-y-4">
-            {filteredStudents.length > 0 ? filteredStudents.map((student) => (
-              <Link
-                key={student.id}
-                href={`/${locale}/teacher/students/${student.id}`}
-                className="block bg-card border rounded-xl p-6 hover:shadow-md transition-shadow"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-white font-bold text-lg">
-                      {student.name[0]}
+            {filteredStudents.length > 0 ? filteredStudents.map((student) => {
+              const wellbeingBadge = getWellbeingBadge(student.wellbeing.status, isRTL);
+
+              return (
+                <Link
+                  key={student.id}
+                  href={`/${locale}/teacher/students/${student.id}`}
+                  className="block bg-card border rounded-xl p-6 hover:shadow-md transition-shadow"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="h-12 w-12 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-white font-bold text-lg">
+                        {student.name[0]}
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-lg">{student.name}</h3>
+                        <p className="text-sm text-muted-foreground">{student.email}</p>
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${wellbeingBadge.className}`}>
+                            <Heart className="h-3.5 w-3.5" />
+                            {wellbeingBadge.label}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {isRTL ? 'آخرین پایش:' : 'Last check-in:'} {formatWellbeingCheckin(student.wellbeing.lastCheckinAt, locale)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <NavArrow className="h-5 w-5 text-muted-foreground" />
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-6 gap-4 mt-4 pt-4 border-t">
+                    <div>
+                      <p className="text-xs text-muted-foreground">{isRTL ? 'پیشرفت' : 'Progress'}</p>
+                      <p className="text-lg font-semibold text-emerald-600">{student.progress}%</p>
                     </div>
                     <div>
-                      <h3 className="font-semibold text-lg">{student.name}</h3>
-                      <p className="text-sm text-muted-foreground">{student.email}</p>
+                      <p className="text-xs text-muted-foreground">XP</p>
+                      <p className="text-lg font-semibold text-purple-600">{student.xp}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">{isRTL ? 'میانگین نمره' : 'Avg Score'}</p>
+                      <p className="text-lg font-semibold text-blue-600">{student.avgScore}%</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">{isRTL ? 'دوره‌ها' : 'Courses'}</p>
+                      <p className="text-lg font-semibold">{student.courses}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">{isRTL ? 'بهزیستی' : 'Wellbeing'}</p>
+                      <p className="text-lg font-semibold text-rose-600">{student.wellbeing.score}%</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">{isRTL ? 'آخرین فعالیت' : 'Last Active'}</p>
+                      <p className="text-sm font-medium">{student.lastActive}</p>
                     </div>
                   </div>
-                  <NavArrow className="h-5 w-5 text-muted-foreground" />
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mt-4 pt-4 border-t">
-                  <div>
-                    <p className="text-xs text-muted-foreground">{isRTL ? 'پیشرفت' : 'Progress'}</p>
-                    <p className="text-lg font-semibold text-emerald-600">{student.progress}%</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">XP</p>
-                    <p className="text-lg font-semibold text-purple-600">{student.xp}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">{isRTL ? 'میانگین نمره' : 'Avg Score'}</p>
-                    <p className="text-lg font-semibold text-blue-600">{student.avgScore}%</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">{isRTL ? 'دوره‌ها' : 'Courses'}</p>
-                    <p className="text-lg font-semibold">{student.courses}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">{isRTL ? 'آخرین فعالیت' : 'Last Active'}</p>
-                    <p className="text-sm font-medium">{student.lastActive}</p>
-                  </div>
-                </div>
-              </Link>
-            )) : (
+                </Link>
+              );
+            }) : (
               <div className="rounded-xl border border-dashed bg-card p-10 text-center text-muted-foreground">
                 <Users className="mx-auto mb-3 h-10 w-10 opacity-60" />
                 <p>{isRTL ? 'هیچ دانش‌آموز واقعی با این فیلترها پیدا نشد.' : 'No real students matched these filters.'}</p>

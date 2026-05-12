@@ -3,7 +3,8 @@
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { Trophy, Medal, Star, Crown, Target, Zap, Award, Flame } from 'lucide-react';
-import { PageHeader } from '@/components/ui/PageHeader';
+import { StudentShell } from '@/components/layout/StudentShell';
+import { StudentPageHeader } from '@/components/layout/StudentPageHeader';
 
 export default function AchievementsPage({ params: { locale } }: { params: { locale: string } }) {
   const t = useTranslations();
@@ -67,134 +68,107 @@ export default function AchievementsPage({ params: { locale } }: { params: { loc
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <PageHeader 
-        locale={locale} 
-        title={t('gamification.achievements')}
-        backHref={`/${locale}/dashboard`}
-        backLabel={isRTL ? 'داشبورد' : 'Dashboard'}
-      />
-      <div className="space-y-8 p-6">
-        <div>
-          <p className="text-muted-foreground mt-2">
-            {isRTL ? 'دستاوردها و نشان‌های شما' : 'Your achievements and badges'}
-          </p>
-        </div>
+    <StudentShell locale={locale}>
+      <div className="space-y-6">
+        <StudentPageHeader
+          locale={locale}
+          eyebrow={isRTL ? 'پیشرفت بازی‌وار' : 'Gamified progress'}
+          title={t('gamification.achievements')}
+          description={isRTL ? 'نشان‌ها، XP و دستاوردهای شما در یک نمای الهام‌بخش برای پیگیری رشد فردی نمایش داده می‌شوند.' : 'Badges, XP, and milestone achievements are gathered in one inspiring view for personal growth.'}
+          stats={[
+            { label: isRTL ? 'دستاورد کسب شده' : 'Achievements earned', value: '12', icon: Trophy, tone: 'primary', helper: isRTL ? 'از شروع ترم' : 'Since the start of term' },
+            { label: isRTL ? 'نشان کسب شده' : 'Badges earned', value: '8', icon: Medal, tone: 'warning', helper: isRTL ? 'باز شده در این ماه' : 'Unlocked this month' },
+            { label: t('gamification.xp'), value: '2,450', icon: Zap, tone: 'accent', helper: isRTL ? 'نزدیک به سطح بعدی' : 'Close to the next level' },
+            { label: t('gamification.currentStreak'), value: '14', icon: Flame, tone: 'success', helper: isRTL ? 'تداوم یادگیری' : 'Consistent learning' },
+          ]}
+          actions={
+            <Link href={`/${locale}/leaderboard`} className="rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+              {isRTL ? 'مشاهده جدول رتبه‌بندی' : 'View leaderboard'}
+            </Link>
+          }
+        />
 
-      {/* Stats */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-xl border bg-card p-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-              <Trophy className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">12</p>
-              <p className="text-sm text-muted-foreground">{isRTL ? 'دستاورد کسب شده' : 'Achievements Earned'}</p>
-            </div>
-          </div>
-        </div>
-        <div className="rounded-xl border bg-card p-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-500/10">
-              <Medal className="h-5 w-5 text-amber-500" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">8</p>
-              <p className="text-sm text-muted-foreground">{isRTL ? 'نشان کسب شده' : 'Badges Earned'}</p>
-            </div>
-          </div>
-        </div>
-        <div className="rounded-xl border bg-card p-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-500/10">
-              <Zap className="h-5 w-5 text-purple-500" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">2,450</p>
-              <p className="text-sm text-muted-foreground">{t('gamification.xp')}</p>
-            </div>
-          </div>
-        </div>
-        <div className="rounded-xl border bg-card p-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-500/10">
-              <Flame className="h-5 w-5 text-orange-500" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">14</p>
-              <p className="text-sm text-muted-foreground">{t('gamification.currentStreak')}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Badges */}
-      <div>
-        <h2 className="text-xl font-semibold mb-4">{t('gamification.badges')}</h2>
-        <div className="grid gap-4 grid-cols-2 sm:grid-cols-4 lg:grid-cols-6">
-          {badges.map((badge) => (
-            <div
-              key={badge.id}
-              className={`rounded-xl border p-4 text-center ${
-                badge.earned ? 'bg-card' : 'bg-muted/50 opacity-50'
-              }`}
-            >
-              <div className={`mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full ${
-                badge.earned ? 'bg-primary/10' : 'bg-muted'
-              }`}>
-                <badge.icon className={`h-6 w-6 ${badge.earned ? 'text-primary' : 'text-muted-foreground'}`} />
+        <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="space-y-6">
+            <section className="rounded-3xl border bg-card p-5 shadow-sm sm:p-6">
+              <div className="mb-5 flex items-center justify-between gap-3">
+                <h2 className="text-xl font-semibold">{t('gamification.badges')}</h2>
+                <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+                  {isRTL ? 'کلکسیون شما' : 'Your collection'}
+                </span>
               </div>
-              <p className="text-sm font-medium">{badge.name}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Achievements */}
-      <div>
-        <h2 className="text-xl font-semibold mb-4">{t('gamification.achievements')}</h2>
-        <div className="grid gap-4 sm:grid-cols-2">
-          {achievements.map((achievement) => (
-            <div
-              key={achievement.id}
-              className={`rounded-xl border p-4 ${
-                achievement.earned ? 'bg-card' : 'bg-card/50'
-              }`}
-            >
-              <div className="flex items-start gap-4">
-                <div className={`flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br ${
-                  rarityColors[achievement.rarity as keyof typeof rarityColors]
-                } ${!achievement.earned && 'opacity-50'}`}>
-                  <achievement.icon className="h-6 w-6 text-white" />
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-semibold">{achievement.title}</h3>
-                    <span className="text-sm text-primary font-medium">+{achievement.xp} XP</span>
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-6">
+                {badges.map((badge) => (
+                  <div key={badge.id} className={`rounded-3xl border p-4 text-center shadow-sm transition-transform hover:-translate-y-0.5 ${badge.earned ? 'bg-background' : 'bg-muted/40 opacity-70'}`}>
+                    <div className={`mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl ${badge.earned ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
+                      <badge.icon className="h-6 w-6" />
+                    </div>
+                    <p className="text-sm font-medium">{badge.name}</p>
                   </div>
-                  <p className="text-sm text-muted-foreground mt-1">{achievement.description}</p>
-                  <div className="mt-3">
-                    <div className="flex items-center justify-between text-sm mb-1">
-                      <span className="text-muted-foreground">{isRTL ? 'پیشرفت' : 'Progress'}</span>
-                      <span className="font-medium">{achievement.progress}%</span>
+                ))}
+              </div>
+            </section>
+
+            <section className="rounded-3xl border bg-card p-5 shadow-sm sm:p-6">
+              <div className="mb-5 flex items-center justify-between gap-3">
+                <h2 className="text-xl font-semibold">{t('gamification.achievements')}</h2>
+                <span className="text-sm text-muted-foreground">{isRTL ? 'اهداف فعال و تکمیل‌شده' : 'Active and completed milestones'}</span>
+              </div>
+              <div className="grid gap-4 lg:grid-cols-2">
+                {achievements.map((achievement) => (
+                  <div key={achievement.id} className={`rounded-3xl border p-5 ${achievement.earned ? 'bg-background' : 'bg-muted/30'}`}>
+                    <div className="flex items-start gap-4">
+                      <div className={`flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br ${rarityColors[achievement.rarity as keyof typeof rarityColors]} ${achievement.earned ? '' : 'opacity-60'}`}>
+                        <achievement.icon className="h-6 w-6 text-white" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <h3 className="font-semibold">{achievement.title}</h3>
+                          <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">+{achievement.xp} XP</span>
+                        </div>
+                        <p className="mt-2 text-sm leading-6 text-muted-foreground">{achievement.description}</p>
+                        <div className="mt-4 space-y-2">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">{isRTL ? 'پیشرفت' : 'Progress'}</span>
+                            <span className="font-medium">{achievement.progress}%</span>
+                          </div>
+                          <div className="h-2.5 rounded-full bg-muted">
+                            <div className={`h-full rounded-full bg-gradient-to-r ${rarityColors[achievement.rarity as keyof typeof rarityColors]}`} style={{ width: `${achievement.progress}%` }} />
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="h-2 rounded-full bg-muted">
-                      <div
-                        className={`h-full rounded-full bg-gradient-to-r ${
-                          rarityColors[achievement.rarity as keyof typeof rarityColors]
-                        }`}
-                        style={{ width: `${achievement.progress}%` }}
-                      />
-                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </div>
+
+          <aside className="space-y-4 xl:w-[320px]">
+            <section className="rounded-3xl border bg-card p-5 shadow-sm">
+              <h2 className="text-lg font-semibold">{isRTL ? 'تمرکز این هفته' : 'Focus this week'}</h2>
+              <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                {isRTL ? 'برای باز کردن نشان‌های جدید، روی تمرین‌های ریاضی و حفظ تداوم مطالعه روزانه تمرکز کنید.' : 'To unlock new badges, focus on math practice and sustaining your daily learning streak.'}
+              </p>
+            </section>
+
+            <section className="rounded-3xl border bg-card p-5 shadow-sm">
+              <h2 className="text-lg font-semibold">{isRTL ? 'گام بعدی' : 'Next milestone'}</h2>
+              <div className="mt-4 rounded-2xl bg-muted/50 p-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-orange-500/10 text-orange-500">
+                    <Crown className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="font-medium">{isRTL ? 'نابغه' : 'Genius'}</p>
+                    <p className="text-sm text-muted-foreground">{isRTL ? '۷ آزمون دیگر تا امتیاز کامل' : '7 more perfect scores to unlock'}</p>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            </section>
+          </aside>
         </div>
       </div>
-      </div>
-    </div>
+    </StudentShell>
   );
 }

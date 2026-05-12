@@ -10,6 +10,7 @@ import {
   SUBJECT_SCOPE_PREFIX,
 } from '@/lib/admin/teacher-assignments';
 import { normalizeSubjectKey } from '@/lib/admin/teacher-metadata';
+import { canStudentEnrollInCourse } from '@/lib/learning/content-eligibility';
 
 const teacherRoleNames = [RoleName.SUPPORT_TEACHER, RoleName.TUTOR, RoleName.COUNSELOR];
 
@@ -110,6 +111,15 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         },
         select: {
           id: true,
+          email: true,
+          profile: {
+            select: {
+              firstName: true,
+              lastName: true,
+              displayName: true,
+              gradeBand: true,
+            },
+          },
         },
       }),
       prisma.course.findMany({
@@ -120,9 +130,18 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         },
         select: {
           id: true,
+          title: true,
+          titleFA: true,
           subject: {
             select: {
               code: true,
+            },
+          },
+          gradeLevel: {
+            select: {
+              gradeBand: true,
+              code: true,
+              name: true,
             },
           },
         },
@@ -155,6 +174,36 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
     if (subjects.length !== nextRequestedSubjectCodes.length) {
       return NextResponse.json({ error: 'One or more assigned subjects are invalid' }, { status: 400 });
+    }
+
+    const invalidStudentCourseAssignments = nextAssignedCourseIds.length === 0
+      ? []
+      : students.flatMap((student) =>
+          courses
+            .filter((course) => !canStudentEnrollInCourse(student.profile?.gradeBand || null, course.gradeLevel?.gradeBand || null))
+            .map((course) => ({
+              studentId: student.id,
+              studentDisplayName:
+                student.profile?.displayName ||
+                [student.profile?.firstName, student.profile?.lastName].filter(Boolean).join(' ') ||
+                student.email ||
+                'Student',
+              studentGradeBand: student.profile?.gradeBand || null,
+              courseId: course.id,
+              courseTitle: course.title,
+              courseTitleFA: course.titleFA,
+              courseGradeBand: course.gradeLevel?.gradeBand || null,
+            })),
+        );
+
+    if (invalidStudentCourseAssignments.length > 0) {
+      return NextResponse.json(
+        {
+          error: 'One or more assigned students are outside the grade band of the assigned courses',
+          invalidStudentCourseAssignments,
+        },
+        { status: 400 },
+      );
     }
 
     const subjectCodeMap = new Map(subjects.map((subject) => [normalizeSubjectKey(subject.code), subject.code]));

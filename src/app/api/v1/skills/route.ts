@@ -1,8 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { resolveRequestUserId } from '@/lib/auth/request-user';
+import { isGradeBandInRange, shouldExposePrerequisiteSupport } from '@/lib/learning/content-eligibility';
 
 const prismaClient = prisma as any;
+
+function isMeaningfulSkill(skill: {
+  code?: string | null;
+  name?: string | null;
+  nameFA?: string | null;
+  description?: string | null;
+  descriptionFA?: string | null;
+}) {
+  const value = [skill.code, skill.name, skill.nameFA, skill.description, skill.descriptionFA]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+
+  return !/(^|\b)(test|demo|dummy|placeholder|sample)(\b|_)/i.test(value);
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,6 +28,36 @@ export async function GET(request: NextRequest) {
     const subjectId = searchParams.get('subjectId') || undefined;
     const subjectCode = searchParams.get('subject') || undefined;
     const strandId = searchParams.get('strandId') || undefined;
+    const userProfile = userId
+      ? await prismaClient.user.findUnique({
+          where: { id: userId },
+          select: {
+            profile: {
+              select: {
+                gradeBand: true,
+              },
+            },
+          },
+        })
+      : null;
+
+    const enrolledSubjects = userId
+      ? await prismaClient.courseEnrollment.findMany({
+          where: { userId },
+          select: {
+            course: {
+              select: {
+                subjectId: true,
+              },
+            },
+          },
+        })
+      : [];
+
+    const preferredSubjectIds = new Set(
+      enrolledSubjects.map((enrollment: any) => enrollment.course?.subjectId).filter(Boolean),
+    );
+
     // Build where clause
     const where: any = {};
     if (subjectId) {
@@ -31,6 +77,16 @@ export async function GET(request: NextRequest) {
       where: {
         ...where,
         isActive: true,
+        questions: {
+          some: {
+            stem: {
+              not: '',
+            },
+            options: {
+              some: {},
+            },
+          },
+        },
       },
       include: {
         subject: true,
@@ -47,6 +103,11 @@ export async function GET(request: NextRequest) {
                 },
               }
             : {}),
+        },
+        _count: {
+          select: {
+            questions: true,
+          },
         },
       },
       orderBy: [
@@ -86,7 +147,8 @@ export async function GET(request: NextRequest) {
     );
 
     // Enrich skills with prerequisite status
-    const enrichedSkills = skills.map((skill: any) => {
+    const enrichedSkills = skills
+      .map((skill: any) => {
       const mastery = skill.masteryRecords[0];
       const strand = (skill.strandId ? strandMap.get(skill.strandId) ?? null : null) as any;
       
@@ -107,6 +169,7 @@ export async function GET(request: NextRequest) {
         gradeBandMax: skill.gradeBandMax,
         subject: {
           id: skill.subject.id,
+          code: skill.subject.code,
           name: skill.subject.name,
           nameFA: skill.subject.nameFA,
         },
@@ -125,17 +188,97 @@ export async function GET(request: NextRequest) {
         } : null,
         masteryStatus: mastery?.status || 'NOT_STARTED',
         prerequisitesMet,
+        questionCount: skill._count?.questions || 0,
+        recommendedForStudent: preferredSubjectIds.has(skill.subjectId),
         prerequisites: skill.prerequisites.map((p: any) => ({
           id: p.prerequisite.id,
           name: p.prerequisite.name,
           nameFA: p.prerequisite.nameFA,
+          gradeBandMin: p.prerequisite.gradeBandMin,
+          gradeBandMax: p.prerequisite.gradeBandMax,
           isRequired: p.isRequired,
           mastery: masteryMap.get(p.prerequisiteId) || 0,
         })),
       };
-    });
+      })
+      .filter((skill: any) => isMeaningfulSkill(skill))
+      .filter((skill: any) => skill.questionCount > 0);
 
-    return NextResponse.json({ skills: enrichedSkills });
+    const studentGradeBand = userProfile?.profile?.gradeBand || null;
+    const onGradeSkillIds = new Set(
+      enrichedSkills
+        .filter((skill: any) => isGradeBandInRange(studentGradeBand, skill.gradeBandMin, skill.gradeBandMax))
+        .map((skill: any) => skill.id),
+    );
+
+    const prerequisiteSupportIds = new Set<string>();
+    enrichedSkills
+      .filter((skill: any) => onGradeSkillIds.has(skill.id))
+      .forEach((skill: any) => {
+        skill.prerequisites.forEach((prerequisite: any) => {
+          if (
+            shouldExposePrerequisiteSupport({
+              studentGradeBand,
+              prerequisiteGradeBandMax: prerequisite.gradeBandMax,
+              prerequisiteMastery: prerequisite.mastery,
+              isRequired: prerequisite.isRequired,
+            })
+          ) {
+            prerequisiteSupportIds.add(prerequisite.id);
+          }
+        });
+      });
+
+    const visibleSkillIds = new Set([...Array.from(onGradeSkillIds), ...Array.from(prerequisiteSupportIds)]);
+
+    const visibleSkills = enrichedSkills
+      .filter((skill: any) => visibleSkillIds.has(skill.id))
+      .map((skill: any) => ({
+        ...skill,
+        visibilityMode: onGradeSkillIds.has(skill.id) ? 'ON_GRADE' : 'PREREQUISITE_SUPPORT',
+      }))
+      .sort((left: any, right: any) => {
+        if (left.recommendedForStudent !== right.recommendedForStudent) {
+          return left.recommendedForStudent ? -1 : 1;
+        }
+
+        if (left.visibilityMode !== right.visibilityMode) {
+          return left.visibilityMode === 'ON_GRADE' ? -1 : 1;
+        }
+
+        if (left.prerequisitesMet !== right.prerequisitesMet) {
+          return left.prerequisitesMet ? -1 : 1;
+        }
+
+        if ((left.subject?.name || '') !== (right.subject?.name || '')) {
+          return (left.subject?.name || '').localeCompare(right.subject?.name || '');
+        }
+
+        return (left.name || '').localeCompare(right.name || '');
+      });
+
+    const availableSubjects = Array.from(
+      new Map(
+        visibleSkills.map((skill: any) => [
+          skill.subject.id,
+          {
+            id: skill.subject.id,
+            code: skill.subject.code,
+            name: skill.subject.name,
+            nameFA: skill.subject.nameFA,
+          },
+        ]),
+      ).values(),
+    );
+
+    return NextResponse.json({
+      skills: visibleSkills,
+      meta: {
+        studentGradeBand,
+        prerequisiteSupportEnabled: true,
+        availableSubjects,
+      },
+    });
   } catch (error: any) {
     console.error('Error fetching skills:', error);
     return NextResponse.json(

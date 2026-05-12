@@ -8,11 +8,11 @@ import {
   BookOpen, Users, FileText, BarChart, MessageSquare, 
   Plus, Edit, Eye, Clock, TrendingUp, Award, Calendar,
   ChevronRight, ChevronLeft, Settings, Bell, User, LogOut,
-  Brain, Target, CheckCircle
+  Brain, Target, CheckCircle, Heart, AlertTriangle
 } from 'lucide-react';
 import { ImpersonationBanner } from '@/components/auth/ImpersonationBanner';
 import { getLocalizedSubjectName } from '@/lib/admin/teacher-metadata';
-import { AUTH_STORAGE_KEY, ORIGINAL_USER_STORAGE_KEY, USER_ID_STORAGE_KEY, createUserHeaders, getStoredUserId } from '@/lib/auth/demo-auth-shared';
+import { AUTH_STORAGE_KEY, clearAuthSession, createUserHeaders, getHomeRouteForRoles, getPrimaryRole, getStoredUserId } from '@/lib/auth/demo-auth-shared';
 import { isDemoDataEnabled } from '@/lib/demo/demo-mode';
 
 function formatDashboardDate(value: string | Date | null | undefined, locale: string) {
@@ -54,6 +54,17 @@ export default function TeacherDashboard({ params: { locale } }: { params: { loc
     
     loadStudentProgress();
   }, []);
+
+  useEffect(() => {
+    if (!authUser) {
+      return;
+    }
+
+    const primaryRole = getPrimaryRole(authUser.roles || []);
+    if (primaryRole !== 'TEACHER') {
+      router.replace(getHomeRouteForRoles(locale, authUser.roles || []));
+    }
+  }, [authUser, locale, router]);
 
   const loadStudentProgress = async () => {
     try {
@@ -99,6 +110,7 @@ export default function TeacherDashboard({ params: { locale } }: { params: { loc
     pendingReviews: 12,
     avgProgress: 67,
     thisWeekXP: 2450,
+    wellbeingAlerts: 6,
   } : {
     totalStudents: studentProgress?.summary?.totalStudents || 0,
     activeCourses: studentProgress?.courseSummaries?.length || 0,
@@ -106,7 +118,43 @@ export default function TeacherDashboard({ params: { locale } }: { params: { loc
     pendingReviews: 0,
     avgProgress: studentProgress?.summary?.averageMastery || 0,
     thisWeekXP: 0,
+    wellbeingAlerts: studentProgress?.wellbeingSummary?.studentsNeedingSupport || 0,
   };
+
+  const wellbeingSummary = shouldUseDemoFallback ? {
+    studentsNeedingSupport: 6,
+    urgentAlerts: 2,
+    watchList: 4,
+    alerts: [
+      {
+        studentId: 'demo-w1',
+        studentName: isRTL ? 'علی رضایی' : 'Ali Rezaei',
+        status: 'urgent',
+        score: 42,
+        lastCheckinAt: new Date().toISOString(),
+        averageMood: 2.1,
+        averageStress: 4.4,
+        openConcernReports: 1,
+        recommendedAction: 'escalate',
+      },
+      {
+        studentId: 'demo-w2',
+        studentName: isRTL ? 'سارا محمدی' : 'Sara Mohammadi',
+        status: 'support',
+        score: 58,
+        lastCheckinAt: new Date().toISOString(),
+        averageMood: 2.7,
+        averageStress: 3.9,
+        openConcernReports: 0,
+        recommendedAction: 'check-in',
+      },
+    ],
+  } : (studentProgress?.wellbeingSummary || {
+    studentsNeedingSupport: 0,
+    urgentAlerts: 0,
+    watchList: 0,
+    alerts: [],
+  });
 
   const myCourses = shouldUseDemoFallback ? [
     {
@@ -200,18 +248,25 @@ export default function TeacherDashboard({ params: { locale } }: { params: { loc
       title: isRTL ? 'برنامه هفتگی به‌روزرسانی شد' : 'Weekly schedule updated',
       time: isRTL ? 'دیروز' : 'Yesterday',
     },
-  ] : (studentProgress?.recentSessions || []).slice(0, 3).map((session: any) => ({
-    id: session.id,
-    title: isRTL
-      ? `${session.studentName} تمرین ${session.skillName} را تکمیل کرد`
-      : `${session.studentName} completed ${session.skillName} practice`,
-    time: formatDashboardDate(session.startedAt, locale),
-  }));
+  ] : [
+    ...wellbeingSummary.alerts.slice(0, 2).map((alert: any) => ({
+      id: `wellbeing-${alert.studentId}`,
+      title: isRTL
+        ? `${alert.studentName} در فهرست ${alert.status === 'urgent' ? 'پیگیری فوری' : alert.status === 'support' ? 'حمایت' : 'پایش'} قرار گرفت`
+        : `${alert.studentName} moved to the ${alert.status} wellbeing list`,
+      time: formatDashboardDate(alert.lastCheckinAt, locale),
+    })),
+    ...(studentProgress?.recentSessions || []).slice(0, 3).map((session: any) => ({
+      id: session.id,
+      title: isRTL
+        ? `${session.studentName} تمرین ${session.skillName} را تکمیل کرد`
+        : `${session.studentName} completed ${session.skillName} practice`,
+      time: formatDashboardDate(session.startedAt, locale),
+    })),
+  ].slice(0, 5);
 
   const handleLogout = () => {
-    localStorage.removeItem(AUTH_STORAGE_KEY);
-    localStorage.removeItem(USER_ID_STORAGE_KEY);
-    localStorage.removeItem(ORIGINAL_USER_STORAGE_KEY);
+    clearAuthSession();
     router.push(`/${locale}/login`);
     router.refresh();
   };
@@ -337,7 +392,7 @@ export default function TeacherDashboard({ params: { locale } }: { params: { loc
         </div>
 
         {/* Quick Stats */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5 mb-8">
           <div className="bg-card border rounded-xl p-4">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
@@ -382,6 +437,18 @@ export default function TeacherDashboard({ params: { locale } }: { params: { loc
               <div>
                 <p className="text-sm text-muted-foreground">{isRTL ? 'میانگین پیشرفت' : 'Avg Progress'}</p>
                 <p className="text-2xl font-bold">{stats.avgProgress}%</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-card border rounded-xl p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-rose-100 dark:bg-rose-900/30">
+                <Heart className="h-5 w-5 text-rose-600" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">{isRTL ? 'هشدارهای بهزیستی' : 'Wellbeing Alerts'}</p>
+                <p className="text-2xl font-bold">{stats.wellbeingAlerts}</p>
               </div>
             </div>
           </div>
@@ -741,6 +808,71 @@ export default function TeacherDashboard({ params: { locale } }: { params: { loc
                 <span className="text-sm">{isRTL ? 'گزارش‌ها' : 'Reports'}</span>
                 <Arrow className="h-4 w-4" />
               </Link>
+            </div>
+
+            <div className="bg-card border rounded-xl p-4">
+              <div className="mb-3 flex items-center gap-2">
+                <Heart className="h-5 w-5 text-rose-500" />
+                <h2 className="font-semibold">{isRTL ? 'پایش بهزیستی' : 'Wellbeing Watch'}</h2>
+              </div>
+              <div className="grid grid-cols-3 gap-3 mb-4 text-center text-sm">
+                <div className="rounded-lg bg-rose-50 p-3 dark:bg-rose-950/20">
+                  <p className="text-lg font-bold text-rose-600">{wellbeingSummary.urgentAlerts}</p>
+                  <p className="text-muted-foreground">{isRTL ? 'فوری' : 'Urgent'}</p>
+                </div>
+                <div className="rounded-lg bg-orange-50 p-3 dark:bg-orange-950/20">
+                  <p className="text-lg font-bold text-orange-600">{wellbeingSummary.studentsNeedingSupport}</p>
+                  <p className="text-muted-foreground">{isRTL ? 'حمایت' : 'Support'}</p>
+                </div>
+                <div className="rounded-lg bg-amber-50 p-3 dark:bg-amber-950/20">
+                  <p className="text-lg font-bold text-amber-600">{wellbeingSummary.watchList}</p>
+                  <p className="text-muted-foreground">{isRTL ? 'پایش' : 'Watch'}</p>
+                </div>
+              </div>
+
+              {wellbeingSummary.alerts.length > 0 ? (
+                <div className="space-y-3">
+                  {wellbeingSummary.alerts.slice(0, 3).map((alert: any) => (
+                    <div key={alert.studentId} className="rounded-lg border p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="font-medium">{alert.studentName}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {isRTL ? 'میانگین خلق‌وخو' : 'Avg mood'}: {alert.averageMood ?? '—'} • {isRTL ? 'استرس' : 'Stress'}: {alert.averageStress ?? '—'}
+                          </p>
+                        </div>
+                        <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
+                          alert.status === 'urgent'
+                            ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+                            : alert.status === 'support'
+                              ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'
+                              : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+                        }`}>
+                          {alert.status === 'urgent'
+                            ? isRTL
+                              ? 'فوری'
+                              : 'Urgent'
+                            : alert.status === 'support'
+                              ? isRTL
+                                ? 'حمایت'
+                                : 'Support'
+                              : isRTL
+                                ? 'پایش'
+                                : 'Watch'}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                  <Link href={`/${locale}/teacher/students`} className="inline-flex items-center gap-1 text-sm text-primary hover:underline">
+                    {isRTL ? 'مشاهده فهرست دانش‌آموزان' : 'Open student wellbeing list'}
+                    <Arrow className="h-4 w-4" />
+                  </Link>
+                </div>
+              ) : (
+                <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                  {isRTL ? 'در حال حاضر هشدار فعالی برای بهزیستی ثبت نشده است.' : 'No active wellbeing alerts right now.'}
+                </div>
+              )}
             </div>
 
             {/* Calendar */}

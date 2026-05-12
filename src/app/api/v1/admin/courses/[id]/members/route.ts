@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { RoleName } from '@prisma/client';
 import prisma from '@/lib/db';
+import { canStudentEnrollInCourse } from '@/lib/learning/content-eligibility';
 
 export async function GET(
   _request: NextRequest,
@@ -76,8 +77,70 @@ export async function POST(
       return NextResponse.json({ error: 'userIds array required' }, { status: 400 });
     }
 
-    const course = await prisma.course.findUnique({ where: { id: params.id } });
+    const course = await prisma.course.findUnique({
+      where: { id: params.id },
+      include: {
+        gradeLevel: {
+          select: {
+            gradeBand: true,
+            code: true,
+            name: true,
+          },
+        },
+      },
+    });
     if (!course) return NextResponse.json({ error: 'Course not found' }, { status: 404 });
+
+    const users = await prisma.user.findMany({
+      where: { id: { in: userIds } },
+      include: {
+        profile: {
+          select: {
+            gradeBand: true,
+            firstName: true,
+            lastName: true,
+            displayName: true,
+          },
+        },
+        userRoles: {
+          include: {
+            role: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (users.length !== userIds.length) {
+      return NextResponse.json({ error: 'One or more users are invalid' }, { status: 400 });
+    }
+
+    const invalidStudents = users
+      .filter((user) => user.userRoles.some((userRole) => userRole.role.name === RoleName.STUDENT))
+      .filter((user) => !canStudentEnrollInCourse(user.profile?.gradeBand || null, course.gradeLevel?.gradeBand || null))
+      .map((user) => ({
+        userId: user.id,
+        displayName:
+          user.profile?.displayName ||
+          [user.profile?.firstName, user.profile?.lastName].filter(Boolean).join(' ') ||
+          user.email ||
+          'Student',
+        studentGradeBand: user.profile?.gradeBand || null,
+        courseGradeBand: course.gradeLevel?.gradeBand || null,
+      }));
+
+    if (invalidStudents.length > 0) {
+      return NextResponse.json(
+        {
+          error: 'One or more students are outside the course grade band',
+          invalidStudents,
+        },
+        { status: 400 },
+      );
+    }
 
     // Upsert enrollments
     const results = await Promise.allSettled(

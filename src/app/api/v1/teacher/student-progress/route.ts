@@ -51,6 +51,132 @@ function getLocalizedSubjectName(subject: { name?: string | null; nameFA?: strin
   return locale === 'fa' ? (subject.nameFA || subject.name || '—') : (subject.name || subject.nameFA || '—');
 }
 
+function average(values: Array<number | null | undefined>) {
+  const valid = values.filter((value): value is number => typeof value === 'number' && !Number.isNaN(value));
+  if (valid.length === 0) {
+    return null;
+  }
+
+  return Number((valid.reduce((sum, value) => sum + value, 0) / valid.length).toFixed(1));
+}
+
+function buildWellbeingStatus(checkins: any[], concernReports: any[]) {
+  const sortedCheckins = [...checkins].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  );
+  const latestCheckin = sortedCheckins[0] || null;
+  const now = Date.now();
+  const fourteenDaysAgo = now - 14 * 24 * 60 * 60 * 1000;
+  const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
+  const recentCheckins = sortedCheckins.filter((checkin) => new Date(checkin.createdAt).getTime() >= fourteenDaysAgo);
+  const weeklyCheckins = recentCheckins.filter((checkin) => new Date(checkin.createdAt).getTime() >= sevenDaysAgo);
+  const latestOpenConcern = concernReports[0] || null;
+  const avgMood = average(recentCheckins.map((checkin) => checkin.moodScore));
+  const avgEnergy = average(recentCheckins.map((checkin) => checkin.energyLevel));
+  const avgStress = average(recentCheckins.map((checkin) => checkin.stressLevel));
+  const avgBelonging = average(recentCheckins.map((checkin) => checkin.belongingScore));
+  const avgConfidence = average(recentCheckins.map((checkin) => checkin.confidenceScore));
+  const lowMoodStreak = sortedCheckins.reduce((count, checkin) => {
+    if (checkin.moodScore <= 2 || (typeof checkin.stressLevel === 'number' && checkin.stressLevel >= 4)) {
+      return count + 1;
+    }
+
+    return count;
+  }, 0);
+  const consecutiveLowMood = (() => {
+    let count = 0;
+    for (const checkin of sortedCheckins) {
+      if (checkin.moodScore <= 2 || (typeof checkin.stressLevel === 'number' && checkin.stressLevel >= 4)) {
+        count += 1;
+      } else {
+        break;
+      }
+    }
+
+    return count;
+  })();
+  const recentRiskFlags = recentCheckins.filter(
+    (checkin) => checkin.riskFlag || checkin.riskLevel === 'HIGH' || checkin.riskLevel === 'CRITICAL',
+  ).length;
+  const daysSinceLatestCheckin = latestCheckin
+    ? Math.floor((now - new Date(latestCheckin.createdAt).getTime()) / (24 * 60 * 60 * 1000))
+    : null;
+  const hasUrgentConcern = concernReports.some((report) => report.priority === 'URGENT');
+  const hasElevatedConcern = concernReports.some((report) => report.priority === 'HIGH' || report.priority === 'URGENT');
+  const supportSignals = [
+    avgMood !== null && avgMood <= 2.5,
+    avgStress !== null && avgStress >= 4,
+    avgBelonging !== null && avgBelonging <= 2.5,
+    avgConfidence !== null && avgConfidence <= 2.5,
+    concernReports.length > 0,
+  ].filter(Boolean).length;
+
+  let status: 'stable' | 'watch' | 'support' | 'urgent' = 'stable';
+  let recommendedAction: 'celebrate' | 'monitor' | 'check-in' | 'escalate' = 'celebrate';
+
+  if (
+    hasUrgentConcern ||
+    recentRiskFlags > 0 ||
+    consecutiveLowMood >= 3 ||
+    (weeklyCheckins.length >= 3 && avgMood !== null && avgMood <= 2)
+  ) {
+    status = 'urgent';
+    recommendedAction = 'escalate';
+  } else if (
+    hasElevatedConcern ||
+    supportSignals >= 2 ||
+    (recentCheckins.length >= 3 && avgMood !== null && avgMood <= 2.5) ||
+    (recentCheckins.length >= 2 && avgStress !== null && avgStress >= 4)
+  ) {
+    status = 'support';
+    recommendedAction = 'check-in';
+  } else if (
+    (avgMood !== null && avgMood < 3.5) ||
+    (avgStress !== null && avgStress >= 3.5) ||
+    lowMoodStreak >= 2 ||
+    daysSinceLatestCheckin === null ||
+    daysSinceLatestCheckin > 7
+  ) {
+    status = 'watch';
+    recommendedAction = 'monitor';
+  }
+
+  const wellbeingScore = Math.max(
+    0,
+    Math.min(
+      100,
+      Math.round(
+        ((avgMood ?? 3) / 5) * 35 +
+          ((avgEnergy ?? 3) / 5) * 20 +
+          ((avgBelonging ?? 3) / 5) * 15 +
+          ((avgConfidence ?? 3) / 5) * 15 +
+          (((6 - (avgStress ?? 3)) / 5) * 15) -
+          concernReports.length * 8 -
+          recentRiskFlags * 12,
+      ),
+    ),
+  );
+
+  return {
+    status,
+    recommendedAction,
+    score: wellbeingScore,
+    checkinsLast14Days: recentCheckins.length,
+    daysSinceLatestCheckin,
+    latestMoodScore: latestCheckin?.moodScore ?? null,
+    averageMood: avgMood,
+    averageEnergy: avgEnergy,
+    averageStress: avgStress,
+    averageBelonging: avgBelonging,
+    averageConfidence: avgConfidence,
+    lastCheckinAt: latestCheckin?.createdAt ?? null,
+    recentRiskFlags,
+    consecutiveLowMood,
+    openConcernReports: concernReports.length,
+    latestConcernType: latestOpenConcern?.concernType ?? null,
+  };
+}
+
 /**
  * GET /api/v1/teacher/student-progress
  * Get adaptive assessment progress for all students
@@ -294,6 +420,66 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    const visibleStudentIds = studentUsers.map((student) => student.id);
+    const [wellbeingCheckins, concernReports] = visibleStudentIds.length > 0
+      ? await Promise.all([
+          prisma.wellbeingCheckin.findMany({
+            where: {
+              userId: {
+                in: visibleStudentIds,
+              },
+            },
+            orderBy: {
+              createdAt: 'desc',
+            },
+            take: Math.max(visibleStudentIds.length * 8, 20),
+          }),
+          prisma.concernReport.findMany({
+            where: {
+              targetUserId: {
+                in: visibleStudentIds,
+              },
+              status: {
+                in: ['NEW', 'IN_PROGRESS', 'ESCALATED'],
+              },
+            },
+            orderBy: [
+              { priority: 'desc' },
+              { createdAt: 'desc' },
+            ],
+          }),
+        ])
+      : [[], []];
+
+    const wellbeingByStudent = new Map<string, any[]>();
+    wellbeingCheckins.forEach((checkin) => {
+      const bucket = wellbeingByStudent.get(checkin.userId) || [];
+      bucket.push(checkin);
+      wellbeingByStudent.set(checkin.userId, bucket);
+    });
+
+    const concernReportsByStudent = new Map<string, any[]>();
+    concernReports.forEach((report) => {
+      if (!report.targetUserId) {
+        return;
+      }
+
+      const bucket = concernReportsByStudent.get(report.targetUserId) || [];
+      bucket.push(report);
+      concernReportsByStudent.set(report.targetUserId, bucket);
+    });
+
+    const wellbeingSummaries = new Map<string, ReturnType<typeof buildWellbeingStatus>>();
+    visibleStudentIds.forEach((studentId) => {
+      wellbeingSummaries.set(
+        studentId,
+        buildWellbeingStatus(
+          wellbeingByStudent.get(studentId) || [],
+          concernReportsByStudent.get(studentId) || [],
+        ),
+      );
+    });
+
     // Group by student
     const studentMap = new Map<string, any>();
 
@@ -313,6 +499,7 @@ export async function GET(request: NextRequest) {
         totalPracticeTime: 0,
         totalAttempts: 0,
         recentSessions: [],
+        wellbeing: wellbeingSummaries.get(student.id) || buildWellbeingStatus([], []),
       });
     }
 
@@ -334,6 +521,7 @@ export async function GET(request: NextRequest) {
           averageMastery: 0,
           totalPracticeTime: 0,
           totalAttempts: 0,
+          wellbeing: wellbeingSummaries.get(studentId) || buildWellbeingStatus([], []),
         });
       }
 
@@ -416,11 +604,36 @@ export async function GET(request: NextRequest) {
       studentsWithProgress: students.filter((s) => s.totalSkills > 0).length,
     };
 
+    const wellbeingAlerts = students
+      .filter((student) => student.wellbeing.status === 'urgent' || student.wellbeing.status === 'support' || student.wellbeing.status === 'watch')
+      .sort((a, b) => {
+        const priorityOrder = { urgent: 0, support: 1, watch: 2, stable: 3 } as const;
+        return priorityOrder[a.wellbeing.status as keyof typeof priorityOrder] - priorityOrder[b.wellbeing.status as keyof typeof priorityOrder];
+      })
+      .slice(0, 8)
+      .map((student) => ({
+        studentId: student.studentId,
+        studentName: student.studentName,
+        status: student.wellbeing.status,
+        score: student.wellbeing.score,
+        lastCheckinAt: student.wellbeing.lastCheckinAt,
+        averageMood: student.wellbeing.averageMood,
+        averageStress: student.wellbeing.averageStress,
+        openConcernReports: student.wellbeing.openConcernReports,
+        recommendedAction: student.wellbeing.recommendedAction,
+      }));
+
     return NextResponse.json({
       success: true,
       students,
       generatedAt: new Date().toISOString(),
       summary,
+      wellbeingSummary: {
+        studentsNeedingSupport: students.filter((student) => student.wellbeing.status === 'support' || student.wellbeing.status === 'urgent').length,
+        urgentAlerts: students.filter((student) => student.wellbeing.status === 'urgent').length,
+        watchList: students.filter((student) => student.wellbeing.status === 'watch').length,
+        alerts: wellbeingAlerts,
+      },
       recentSessions: sessions.slice(0, 20).map((s: any) => ({
         id: s.id,
         studentName: getDisplayName(s.user),

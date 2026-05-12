@@ -321,7 +321,9 @@
     "navigation": {
                    "dashboard": "Dashboard",
                    "courses": "Courses",
+                   "practice": "Practice",
                    "assessments": "Assessments",
+                   "marksheet": "Marksheet",
                    "achievements": "Achievements",
                    "forum": "Community",
                    "wellbeing": "Wellbeing",

@@ -3,10 +3,9 @@
 import { useEffect, useState } from 'react';
 import { ArrowLeftRight, RotateCcw } from 'lucide-react';
 import {
-  AUTH_STORAGE_KEY,
   ORIGINAL_USER_STORAGE_KEY,
-  USER_ID_STORAGE_KEY,
   getHomeRouteForRoles,
+  persistAuthSession,
 } from '@/lib/auth/demo-auth-shared';
 
 interface StoredUser {
@@ -34,8 +33,7 @@ export function ImpersonationBanner({ locale }: { locale: string }) {
   }
 
   const handleReturn = () => {
-    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(originalUser));
-    localStorage.setItem(USER_ID_STORAGE_KEY, originalUser.id);
+    persistAuthSession(originalUser);
     localStorage.removeItem(ORIGINAL_USER_STORAGE_KEY);
     const targetRoute = getHomeRouteForRoles(locale, originalUser.roles || ['SUPER_ADMIN']);
     window.location.assign(targetRoute);

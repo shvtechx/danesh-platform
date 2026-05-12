@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BookOpen, FileText, GraduationCap, LayoutDashboard, LineChart, Settings, Users } from 'lucide-react';
+import { Award, BookOpen, FileText, GraduationCap, LayoutDashboard, LineChart, Settings, Users } from 'lucide-react';
 
 interface SectionNavProps {
   locale: string;
@@ -28,6 +28,7 @@ export function SectionNav({ locale, section }: SectionNavProps) {
         { href: `/${locale}/teacher/courses`, label: isRTL ? 'دوره‌ها' : 'Courses', icon: BookOpen },
         { href: `/${locale}/teacher/content`, label: isRTL ? 'محتوا' : 'Content', icon: FileText },
         { href: `/${locale}/teacher/students`, label: isRTL ? 'دانش‌آموزان' : 'Students', icon: Users },
+        { href: `/${locale}/teacher/gradebook`, label: isRTL ? 'دفتر نمره' : 'Gradebook', icon: Award },
         { href: `/${locale}/teacher/reports`, label: isRTL ? 'گزارش‌ها' : 'Reports', icon: LineChart },
         { href: `/${locale}/teacher/settings`, label: isRTL ? 'تنظیمات' : 'Settings', icon: Settings },
       ];
