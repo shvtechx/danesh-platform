@@ -26,11 +26,39 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 import { useTheme } from 'next-themes';
 import { ImpersonationBanner } from '@/components/auth/ImpersonationBanner';
-import { AUTH_STORAGE_KEY, clearAuthSession, getHomeRouteForRoles, getPrimaryRole } from '@/lib/auth/demo-auth-shared';
+import { AUTH_STORAGE_KEY, clearAuthSession, createUserHeaders, getHomeRouteForRoles, getPrimaryRole } from '@/lib/auth/demo-auth-shared';
 
 interface StudentShellProps {
   children: React.ReactNode;
   locale: string;
+}
+
+type LiveAnnouncement = {
+  id: string;
+  title: string;
+  teacherName?: string | null;
+  startedAt: string;
+  joinPath: string;
+};
+
+type NotificationItem = {
+  id: string;
+  title: string;
+  time: string;
+  href?: string;
+  tone?: 'default' | 'live';
+};
+
+const LIVE_ANNOUNCEMENT_POLL_INTERVAL_MS = 10000;
+
+function formatLiveNotificationTime(startedAt: string, isRTL: boolean) {
+  const diffMinutes = Math.max(0, Math.round((Date.now() - new Date(startedAt).getTime()) / 60000));
+
+  if (diffMinutes < 1) {
+    return isRTL ? 'همین حالا' : 'Just now';
+  }
+
+  return isRTL ? `${diffMinutes} دقیقه پیش` : `${diffMinutes} min ago`;
 }
 
 export function StudentShell({ children, locale }: StudentShellProps) {
@@ -51,6 +79,7 @@ export function StudentShell({ children, locale }: StudentShellProps) {
     profile?: { displayName?: string; firstName?: string; lastName?: string };
     roles?: string[];
   } | null>(null);
+  const [liveAnnouncements, setLiveAnnouncements] = useState<LiveAnnouncement[]>([]);
 
   useEffect(() => {
     setHasMounted(true);
@@ -75,6 +104,45 @@ export function StudentShell({ children, locale }: StudentShellProps) {
       router.replace(getHomeRouteForRoles(locale, authUser.roles || []));
     }
   }, [authUser, locale, router]);
+
+  useEffect(() => {
+    if (!authUser?.id) {
+      setLiveAnnouncements([]);
+      return;
+    }
+
+    let active = true;
+
+    const loadLiveAnnouncements = async () => {
+      try {
+        const response = await fetch(`/api/v1/live/announcements?locale=${locale}`, {
+          cache: 'no-store',
+          headers: createUserHeaders(authUser.id),
+        });
+
+        if (!response.ok) {
+          throw new Error('live-announcements-failed');
+        }
+
+        const payload = (await response.json()) as { announcements?: LiveAnnouncement[] };
+        if (active) {
+          setLiveAnnouncements(payload.announcements || []);
+        }
+      } catch {
+        if (active) {
+          setLiveAnnouncements([]);
+        }
+      }
+    };
+
+    loadLiveAnnouncements();
+    const interval = window.setInterval(loadLiveAnnouncements, LIVE_ANNOUNCEMENT_POLL_INTERVAL_MS);
+
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
+  }, [authUser?.id, locale]);
 
   const user = useMemo(
     () => ({
@@ -112,23 +180,41 @@ export function StudentShell({ children, locale }: StudentShellProps) {
     router.refresh();
   };
 
-  const notifications = [
-    {
-      id: 'n1',
-      title: isRTL ? 'تکلیف جدید اضافه شد' : 'New assignment added',
-      time: isRTL ? '۱۰ دقیقه پیش' : '10 min ago',
-    },
-    {
-      id: 'n2',
-      title: isRTL ? '۱۰ امتیاز برای حضور روزانه دریافت کردید' : 'You earned 10 XP for daily check-in',
-      time: isRTL ? '۱ ساعت پیش' : '1 hour ago',
-    },
-    {
-      id: 'n3',
-      title: isRTL ? 'پاسخ جدید در انجمن' : 'New reply in forum',
-      time: isRTL ? 'دیروز' : 'Yesterday',
-    },
-  ];
+  const notifications = useMemo<NotificationItem[]>(() => {
+    const liveItems = liveAnnouncements.map((announcement) => ({
+      id: `live-${announcement.id}`,
+      title: isRTL
+        ? `کلاس زنده فعال شد: ${announcement.title}`
+        : `Live class started: ${announcement.title}`,
+      time: announcement.teacherName
+        ? `${announcement.teacherName} • ${formatLiveNotificationTime(announcement.startedAt, isRTL)}`
+        : formatLiveNotificationTime(announcement.startedAt, isRTL),
+      href: announcement.joinPath,
+      tone: 'live' as const,
+    }));
+
+    return [
+      ...liveItems,
+      {
+        id: 'n1',
+        title: isRTL ? 'تکلیف جدید اضافه شد' : 'New assignment added',
+        time: isRTL ? '۱۰ دقیقه پیش' : '10 min ago',
+        tone: 'default',
+      },
+      {
+        id: 'n2',
+        title: isRTL ? '۱۰ امتیاز برای حضور روزانه دریافت کردید' : 'You earned 10 XP for daily check-in',
+        time: isRTL ? '۱ ساعت پیش' : '1 hour ago',
+        tone: 'default',
+      },
+      {
+        id: 'n3',
+        title: isRTL ? 'پاسخ جدید در انجمن' : 'New reply in forum',
+        time: isRTL ? 'دیروز' : 'Yesterday',
+        tone: 'default',
+      },
+    ];
+  }, [isRTL, liveAnnouncements]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -260,7 +346,11 @@ export function StudentShell({ children, locale }: StudentShellProps) {
                 className="relative rounded-lg p-2 hover:bg-muted"
               >
                 <Bell className="h-5 w-5" />
-                <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-destructive" />
+                {notifications.length > 0 ? (
+                  <span className="absolute right-0 top-0 flex min-h-[1rem] min-w-[1rem] items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground">
+                    {notifications.length > 9 ? '9+' : notifications.length}
+                  </span>
+                ) : null}
               </button>
 
               {notificationsOpen ? (
@@ -271,16 +361,21 @@ export function StudentShell({ children, locale }: StudentShellProps) {
                       <p className="font-semibold">{isRTL ? 'اعلان‌ها' : 'Notifications'}</p>
                     </div>
                     <div className="max-h-80 overflow-y-auto">
-                      {notifications.map((item) => (
-                        <button
-                          key={item.id}
-                          className="w-full border-b px-3 py-3 text-start transition-colors last:border-0 hover:bg-muted"
-                          onClick={() => setNotificationsOpen(false)}
-                        >
-                          <p className="text-sm font-medium">{item.title}</p>
-                          <p className="mt-1 text-xs text-muted-foreground">{item.time}</p>
-                        </button>
-                      ))}
+                      {notifications.map((item) => {
+                        const itemClassName = `block w-full border-b px-3 py-3 text-start transition-colors last:border-0 hover:bg-muted ${item.tone === 'live' ? 'bg-emerald-500/5' : ''}`;
+
+                        return item.href ? (
+                          <Link key={item.id} href={item.href} className={itemClassName} onClick={() => setNotificationsOpen(false)}>
+                            <p className="text-sm font-medium">{item.title}</p>
+                            <p className="mt-1 text-xs text-muted-foreground">{item.time}</p>
+                          </Link>
+                        ) : (
+                          <button key={item.id} className={itemClassName} onClick={() => setNotificationsOpen(false)}>
+                            <p className="text-sm font-medium">{item.title}</p>
+                            <p className="mt-1 text-xs text-muted-foreground">{item.time}</p>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 </>

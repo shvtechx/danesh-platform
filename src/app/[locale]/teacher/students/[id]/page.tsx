@@ -182,7 +182,7 @@ export default function TeacherStudentDetailPage() {
                     <p className="mt-2 text-3xl font-bold text-primary">{student.averageMastery}%</p>
                   </div>
                   <div className="rounded-2xl bg-rose-50 p-4 dark:bg-rose-950/20">
-                    <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">{isRTL ? 'بهزیستی' : 'Wellbeing'}</p>
+                    <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">{isRTL ? 'سلامت روان' : 'Wellbeing'}</p>
                     <p className="mt-2 text-3xl font-bold text-rose-600">{student.wellbeing.score}%</p>
                   </div>
                 </div>
@@ -316,7 +316,7 @@ export default function TeacherStudentDetailPage() {
                 <section className="rounded-3xl border bg-card p-5 shadow-sm">
                   <div className="mb-3 flex items-center gap-2">
                     <Heart className="h-5 w-5 text-rose-600" />
-                    <h2 className="text-lg font-semibold">{isRTL ? 'وضعیت بهزیستی' : 'Wellbeing snapshot'}</h2>
+                    <h2 className="text-lg font-semibold">{isRTL ? 'وضعیت سلامت روان' : 'Wellbeing snapshot'}</h2>
                   </div>
                   <div className="space-y-3 text-sm text-muted-foreground">
                     <p>{isRTL ? 'امتیاز کلی:' : 'Overall score:'} <span className="font-semibold text-foreground">{student.wellbeing.score}%</span></p>

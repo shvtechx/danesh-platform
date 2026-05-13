@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { 
   BookOpen, Clock, Users, Star, Play, CheckCircle2, Lock, 
-  ChevronRight, ChevronLeft, User, Award, BarChart 
+  ChevronRight, ChevronLeft, User, Award, BarChart, Sparkles,
+  ExternalLink, FlaskConical, Sigma, Languages, Bot
 } from 'lucide-react';
 import { AUTH_STORAGE_KEY, createUserHeaders, getPrimaryRole, getStoredUserId } from '@/lib/auth/demo-auth-shared';
 import { isDemoDataEnabled } from '@/lib/demo/demo-mode';
@@ -262,6 +263,275 @@ const coursesData: Record<string, any> = {
   },
 };
 
+type SimulationRecommendation = {
+  id: string;
+  title: { fa: string; en: string };
+  description: { fa: string; en: string };
+  provider: string;
+  url: string;
+  bestFor: { fa: string; en: string };
+  tags: { fa: string[]; en: string[] };
+  cta: { fa: string; en: string };
+  icon: any;
+  accent: string;
+};
+
+function getLocalizedText(value: any, locale: 'fa' | 'en', fallback = '') {
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  if (value && typeof value === 'object') {
+    const localizedValue = value[locale] || value.en || value.fa;
+    if (typeof localizedValue === 'string') {
+      return localizedValue;
+    }
+  }
+
+  return fallback;
+}
+
+function getSimulationRecommendations(courseId: string, course: any): SimulationRecommendation[] {
+  const titleText = `${course?.title?.fa || ''} ${course?.title?.en || ''}`.toLowerCase();
+
+  if (courseId === '1' || /math|ریاضی|algebra|geometry|equation/.test(titleText)) {
+    return [
+      {
+        id: 'geogebra-graphing',
+        title: { fa: 'آزمایشگاه جبر و نمودار GeoGebra', en: 'GeoGebra Algebra & Graphing Lab' },
+        description: {
+          fa: 'معادله‌ها، نمودارها و الگوها را با دست‌کاری زنده ببینید و حدس‌های خود را سریع آزمایش کنید.',
+          en: 'Manipulate equations, graphs, and patterns live to test mathematical ideas quickly.',
+        },
+        provider: 'GeoGebra',
+        url: 'https://www.geogebra.org/graphing',
+        bestFor: { fa: 'بهترین زمان: فصل معادلات و نمایش بصری رابطه‌ها', en: 'Best for: equations and visualizing relationships' },
+        tags: { fa: ['کاوش', 'نمایش بصری', 'حل مسئله'], en: ['Explore', 'Visualize', 'Problem solving'] },
+        cta: { fa: 'ورود به آزمایشگاه', en: 'Open lab' },
+        icon: Sigma,
+        accent: 'from-sky-500/15 to-indigo-500/10 border-sky-200/70 dark:border-sky-800/70',
+      },
+      {
+        id: 'phet-area-builder',
+        title: { fa: 'شبیه‌ساز مساحت‌ساز PhET', en: 'PhET Area Builder' },
+        description: {
+          fa: 'شکل بسازید، مساحت را تغییر دهید و از راه مشاهده به فرمول برسید.',
+          en: 'Build shapes, vary dimensions, and discover area relationships through exploration.',
+        },
+        provider: 'PhET',
+        url: 'https://phet.colorado.edu/en/simulations/area-builder',
+        bestFor: { fa: 'بهترین زمان: هندسه، مساحت و استدلال فضایی', en: 'Best for: geometry, area, and spatial reasoning' },
+        tags: { fa: ['هندسه', 'کشف فرمول', '۵ت/تحقیق'], en: ['Geometry', 'Formula discovery', 'Explore'] },
+        cta: { fa: 'اجرای شبیه‌ساز', en: 'Launch simulation' },
+        icon: Sparkles,
+        accent: 'from-emerald-500/15 to-teal-500/10 border-emerald-200/70 dark:border-emerald-800/70',
+      },
+      {
+        id: 'mathigon-polypad',
+        title: { fa: 'Mathigon Polypad', en: 'Mathigon Polypad' },
+        description: {
+          fa: 'با ابزارک‌های عددی و هندسی، الگوها و مدل‌ها را به‌صورت تعاملی بسازید.',
+          en: 'Use digital manipulatives to build number models, patterns, and geometric ideas interactively.',
+        },
+        provider: 'Mathigon',
+        url: 'https://mathigon.org/polypad',
+        bestFor: { fa: 'بهترین زمان: تمرین ترکیبی و مدل‌سازی مفهومی', en: 'Best for: mixed practice and conceptual modeling' },
+        tags: { fa: ['مدل‌سازی', 'تمرین فعال', 'بازنمایی چندگانه'], en: ['Modeling', 'Active practice', 'Multiple representations'] },
+        cta: { fa: 'باز کردن Polypad', en: 'Open Polypad' },
+        icon: Sigma,
+        accent: 'from-violet-500/15 to-fuchsia-500/10 border-violet-200/70 dark:border-violet-800/70',
+      },
+    ];
+  }
+
+  if (courseId === '2' || /science|علوم|atom|force|motion|energy/.test(titleText)) {
+    return [
+      {
+        id: 'phet-build-an-atom',
+        title: { fa: 'PhET: ساختن اتم', en: 'PhET: Build an Atom' },
+        description: {
+          fa: 'با جابه‌جا کردن پروتون، نوترون و الکترون، ساختار اتم و تغییرات بار را تجربه کنید.',
+          en: 'Experiment with protons, neutrons, and electrons to understand atomic structure and charge.',
+        },
+        provider: 'PhET',
+        url: 'https://phet.colorado.edu/en/simulations/build-an-atom',
+        bestFor: { fa: 'بهترین زمان: ساختار اتم و جدول تناوبی', en: 'Best for: atomic structure and periodic thinking' },
+        tags: { fa: ['شیمی', 'مدل‌سازی', 'کشف'], en: ['Chemistry', 'Modeling', 'Discovery'] },
+        cta: { fa: 'اجرای شبیه‌ساز', en: 'Launch simulation' },
+        icon: FlaskConical,
+        accent: 'from-cyan-500/15 to-blue-500/10 border-cyan-200/70 dark:border-cyan-800/70',
+      },
+      {
+        id: 'phet-forces-motion',
+        title: { fa: 'PhET: نیرو و حرکت', en: 'PhET: Forces and Motion Basics' },
+        description: {
+          fa: 'تأثیر نیرو، اصطکاک و جرم را با سناریوهای واقعی و تغییرپذیر ببینید.',
+          en: 'Test how force, friction, and mass change motion in interactive scenarios.',
+        },
+        provider: 'PhET',
+        url: 'https://phet.colorado.edu/en/simulations/forces-and-motion-basics',
+        bestFor: { fa: 'بهترین زمان: قوانین حرکت و استدلال علت-معلولی', en: 'Best for: motion laws and cause-effect reasoning' },
+        tags: { fa: ['فیزیک', 'آزمایش مجازی', 'استدلال'], en: ['Physics', 'Virtual experiment', 'Reasoning'] },
+        cta: { fa: 'آغاز آزمایش', en: 'Start experiment' },
+        icon: FlaskConical,
+        accent: 'from-amber-500/15 to-orange-500/10 border-amber-200/70 dark:border-amber-800/70',
+      },
+      {
+        id: 'phet-energy-forms',
+        title: { fa: 'PhET: شکل‌های انرژی', en: 'PhET: Energy Forms and Changes' },
+        description: {
+          fa: 'تبدیل انرژی و انتقال گرما را در یک محیط بصری و مرحله‌به‌مرحله بررسی کنید.',
+          en: 'Explore heat transfer and energy transformation with visual, step-by-step interactions.',
+        },
+        provider: 'PhET',
+        url: 'https://phet.colorado.edu/en/simulations/energy-forms-and-changes',
+        bestFor: { fa: 'بهترین زمان: کار، انرژی و پیوند با زندگی روزمره', en: 'Best for: work, energy, and real-life transfer examples' },
+        tags: { fa: ['انرژی', 'زندگی واقعی', 'تعمیم'], en: ['Energy', 'Real world', 'Elaborate'] },
+        cta: { fa: 'مشاهده تعاملی', en: 'Open interactive' },
+        icon: Sparkles,
+        accent: 'from-rose-500/15 to-red-500/10 border-rose-200/70 dark:border-rose-800/70',
+      },
+    ];
+  }
+
+  if (courseId === '3' || /english|زبان انگلیسی|conversation|grammar/.test(titleText)) {
+    return [
+      {
+        id: 'bc-grammar',
+        title: { fa: 'آزمایشگاه گرامر British Council', en: 'British Council Grammar Lab' },
+        description: {
+          fa: 'گرامر را با تمرین‌های کوتاه، بازخورد فوری و سناریوهای قابل‌فهم تمرین کنید.',
+          en: 'Practice grammar through short interactions, instant feedback, and clear scenarios.',
+        },
+        provider: 'British Council',
+        url: 'https://learnenglish.britishcouncil.org/grammar',
+        bestFor: { fa: 'بهترین زمان: تثبیت ساختار جمله و زمان‌ها', en: 'Best for: sentence structure and tense reinforcement' },
+        tags: { fa: ['گرامر', 'بازخورد فوری', 'تمرین هدایت‌شده'], en: ['Grammar', 'Instant feedback', 'Guided practice'] },
+        cta: { fa: 'شروع تمرین', en: 'Start practice' },
+        icon: Languages,
+        accent: 'from-indigo-500/15 to-blue-500/10 border-indigo-200/70 dark:border-indigo-800/70',
+      },
+      {
+        id: 'bc-listening',
+        title: { fa: 'آزمایشگاه شنیداری LearnEnglish', en: 'LearnEnglish Listening Lab' },
+        description: {
+          fa: 'مکالمه و درک مطلب شنیداری را با فایل، تمرین و پرسش پیگیری کنید.',
+          en: 'Strengthen listening comprehension with audio-supported tasks and follow-up questions.',
+        },
+        provider: 'British Council',
+        url: 'https://learnenglish.britishcouncil.org/skills/listening',
+        bestFor: { fa: 'بهترین زمان: مکالمه و درک گفتار واقعی', en: 'Best for: conversation and real-world listening' },
+        tags: { fa: ['شنیداری', 'مکالمه', 'درک مطلب'], en: ['Listening', 'Conversation', 'Comprehension'] },
+        cta: { fa: 'باز کردن فعالیت', en: 'Open activity' },
+        icon: Languages,
+        accent: 'from-emerald-500/15 to-lime-500/10 border-emerald-200/70 dark:border-emerald-800/70',
+      },
+      {
+        id: 'lyrics-training',
+        title: { fa: 'LyricsTraining', en: 'LyricsTraining' },
+        description: {
+          fa: 'شنیدن، تکمیل واژه‌ها و توجه به تلفظ را در یک تجربه بازی‌وار ترکیب کنید.',
+          en: 'Blend listening, word completion, and pronunciation awareness in a game-like experience.',
+        },
+        provider: 'LyricsTraining',
+        url: 'https://lyricstraining.com/',
+        bestFor: { fa: 'بهترین زمان: تقویت واژگان، املا و ریتم زبان', en: 'Best for: vocabulary, spelling, and language rhythm' },
+        tags: { fa: ['واژگان', 'تلفظ', 'بازی‌وار'], en: ['Vocabulary', 'Pronunciation', 'Gamified'] },
+        cta: { fa: 'ورود به فعالیت', en: 'Enter activity' },
+        icon: Sparkles,
+        accent: 'from-pink-500/15 to-rose-500/10 border-pink-200/70 dark:border-pink-800/70',
+      },
+    ];
+  }
+
+  if (courseId === '4' || /ادبیات|literature|poetry|writing/.test(titleText)) {
+    return [
+      {
+        id: 'storymap',
+        title: { fa: 'StoryMapJS', en: 'StoryMapJS' },
+        description: {
+          fa: 'روایت، مکان و خط زمانی متن را در یک نقشه تعاملی کنار هم ببینید.',
+          en: 'Map narrative, setting, and sequence visually through an interactive story journey.',
+        },
+        provider: 'Knight Lab',
+        url: 'https://storymap.knightlab.com/',
+        bestFor: { fa: 'بهترین زمان: تحلیل روایت و بازسازی سیر داستان', en: 'Best for: narrative analysis and sequencing ideas' },
+        tags: { fa: ['روایت', 'تحلیل متن', 'بازنمایی بصری'], en: ['Narrative', 'Text analysis', 'Visual mapping'] },
+        cta: { fa: 'باز کردن ابزار', en: 'Open tool' },
+        icon: BookOpen,
+        accent: 'from-amber-500/15 to-yellow-500/10 border-amber-200/70 dark:border-amber-800/70',
+      },
+      {
+        id: 'mindmup',
+        title: { fa: 'MindMup برای نقشه‌برداری مفهومی', en: 'MindMup Concept Mapping' },
+        description: {
+          fa: 'تصویرسازی رابطه شخصیت‌ها، مضامین و صنایع ادبی را به‌صورت ذهن‌نقشه انجام دهید.',
+          en: 'Build concept maps for themes, characters, and literary devices in a visual workspace.',
+        },
+        provider: 'MindMup',
+        url: 'https://www.mindmup.com/',
+        bestFor: { fa: 'بهترین زمان: توضیح و تعمیم ایده‌های ادبی', en: 'Best for: explaining and extending literary ideas' },
+        tags: { fa: ['مضمون', 'نقشه ذهنی', 'تعمیم'], en: ['Theme', 'Mind map', 'Elaborate'] },
+        cta: { fa: 'ساخت نقشه', en: 'Build map' },
+        icon: Sparkles,
+        accent: 'from-orange-500/15 to-amber-500/10 border-orange-200/70 dark:border-orange-800/70',
+      },
+    ];
+  }
+
+  if (courseId === '5' || /robot|ai|هوش مصنوعی|ربات/.test(titleText)) {
+    return [
+      {
+        id: 'tinkercad-circuits',
+        title: { fa: 'Tinkercad Circuits', en: 'Tinkercad Circuits' },
+        description: {
+          fa: 'مدار، حسگر و منطق کنترلی را پیش از کار با سخت‌افزار واقعی شبیه‌سازی کنید.',
+          en: 'Prototype circuits, sensors, and control logic before touching real hardware.',
+        },
+        provider: 'Autodesk',
+        url: 'https://www.tinkercad.com/circuits',
+        bestFor: { fa: 'بهترین زمان: طراحی اولیه رباتیک و آزمون سریع ایده', en: 'Best for: early robotics prototyping and rapid idea testing' },
+        tags: { fa: ['مدار', 'نمونه‌سازی', 'رباتیک'], en: ['Circuits', 'Prototype', 'Robotics'] },
+        cta: { fa: 'ورود به شبیه‌ساز', en: 'Open simulator' },
+        icon: Bot,
+        accent: 'from-cyan-500/15 to-teal-500/10 border-cyan-200/70 dark:border-cyan-800/70',
+      },
+      {
+        id: 'ml-kids',
+        title: { fa: 'Machine Learning for Kids', en: 'Machine Learning for Kids' },
+        description: {
+          fa: 'مدل‌های ساده هوش مصنوعی بسازید و آن‌ها را به پروژه‌های کدنویسی وصل کنید.',
+          en: 'Train simple machine learning models and connect them to coding projects.',
+        },
+        provider: 'ML for Kids',
+        url: 'https://machinelearningforkids.co.uk/',
+        bestFor: { fa: 'بهترین زمان: شروع یادگیری AI کاربردی برای دانش‌آموزان', en: 'Best for: student-friendly applied AI projects' },
+        tags: { fa: ['هوش مصنوعی', 'پروژه‌محور', 'داده'], en: ['AI', 'Project-based', 'Data'] },
+        cta: { fa: 'شروع پروژه', en: 'Start project' },
+        icon: Bot,
+        accent: 'from-violet-500/15 to-indigo-500/10 border-violet-200/70 dark:border-violet-800/70',
+      },
+      {
+        id: 'teachable-machine',
+        title: { fa: 'Teachable Machine', en: 'Teachable Machine' },
+        description: {
+          fa: 'با تصویر، صدا یا حرکت یک مدل هوش مصنوعی سریع بسازید و ایده محصول را تست کنید.',
+          en: 'Build a quick AI model with images, sound, or poses to test product concepts fast.',
+        },
+        provider: 'Google',
+        url: 'https://teachablemachine.withgoogle.com/',
+        bestFor: { fa: 'بهترین زمان: اعتبارسنجی MVP و دموی سریع', en: 'Best for: MVP validation and fast demos' },
+        tags: { fa: ['MVP', 'بینایی ماشین', 'دمو'], en: ['MVP', 'Computer vision', 'Demo'] },
+        cta: { fa: 'ساخت مدل', en: 'Build model' },
+        icon: Bot,
+        accent: 'from-fuchsia-500/15 to-rose-500/10 border-fuchsia-200/70 dark:border-fuchsia-800/70',
+      },
+    ];
+  }
+
+  return [];
+}
+
 export default function CourseDetailPage({ params }: { params: { locale: string; id: string } }) {
   const { locale, id } = params;
   const t = useTranslations();
@@ -399,6 +669,7 @@ export default function CourseDetailPage({ params }: { params: { locale: string;
   const course = resolvedCourse || (demoDataEnabled ? coursesData[id] : null) || null;
   const lang = isRTL ? 'fa' : 'en';
   const hasFullCourseAccess = activeRole === 'SUPER_ADMIN' || activeRole === 'SUBJECT_ADMIN';
+  const simulationRecommendations = course ? getSimulationRecommendations(id, course) : [];
   const currentLesson = course?.units
     ?.flatMap((unit: any) => unit.lessons)
     ?.find((lesson: any) => lesson.current) || course?.units?.flatMap((unit: any) => unit.lessons)?.find((lesson: any) => !lesson.locked) || null;
@@ -421,6 +692,10 @@ export default function CourseDetailPage({ params }: { params: { locale: string;
     );
   }
 
+  const courseTitle = getLocalizedText(course.title, lang, isRTL ? 'دوره' : 'Course');
+  const courseDescription = getLocalizedText(course.description, lang);
+  const courseInstructor = getLocalizedText(course.instructor, lang, isRTL ? 'مدرس نامشخص' : 'Instructor not set');
+
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
@@ -437,8 +712,8 @@ export default function CourseDetailPage({ params }: { params: { locale: string;
                 {isRTL ? 'بازگشت به دوره‌ها' : 'Back to Courses'}
               </Link>
               
-              <h1 className="text-3xl font-bold">{course.title[lang]}</h1>
-              <p className="text-lg text-muted-foreground">{course.description[lang]}</p>
+              <h1 className="text-3xl font-bold">{courseTitle}</h1>
+              <p className="text-lg text-muted-foreground">{courseDescription}</p>
               {course.paid && (
                 <div className="inline-flex items-center gap-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm dark:border-amber-700 dark:bg-amber-900/20">
                   <span className="font-semibold text-amber-700 dark:text-amber-300">
@@ -459,7 +734,7 @@ export default function CourseDetailPage({ params }: { params: { locale: string;
               <div className="flex flex-wrap items-center gap-4 text-sm">
                 <div className="flex items-center gap-2">
                   <User className="h-4 w-4 text-primary" />
-                  <span>{course.instructor[lang]}</span>
+                  <span>{courseInstructor}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Clock className="h-4 w-4 text-primary" />
@@ -514,10 +789,21 @@ export default function CourseDetailPage({ params }: { params: { locale: string;
                           : 'Continue this lesson'}
                     </Link>
                     <span className="text-sm text-muted-foreground">
-                      {isRTL ? currentLesson.title.fa : currentLesson.title.en}
+                      {getLocalizedText(currentLesson.title, lang)}
                     </span>
                   </div>
                 ) : null}
+
+                <div className="mt-4 rounded-xl border border-primary/15 bg-primary/5 p-4">
+                  <p className="text-sm font-semibold text-foreground">
+                    {isRTL ? 'دسترسی به کلاس زنده فقط هنگام فعال بودن معلم نمایش داده می‌شود' : 'Live class access appears only when the teacher is actively live'}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {isRTL
+                      ? 'برای تجربه بهتر، لینک ورود کلاس زنده فقط در داشبورد و اعلان‌ها هنگام شروع جلسه نشان داده می‌شود.'
+                      : 'For a cleaner experience, the join link only appears on the dashboard and notifications when a session starts.'}
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -563,6 +849,94 @@ export default function CourseDetailPage({ params }: { params: { locale: string;
           </div>
         )}
 
+        {simulationRecommendations.length > 0 && (
+          <section className="mb-8 overflow-hidden rounded-3xl border bg-gradient-to-br from-primary/5 via-background to-primary/10 shadow-sm">
+            <div className="border-b bg-background/70 px-6 py-5 backdrop-blur">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div className="space-y-2">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    {isRTL ? 'شبیه‌سازی‌ها و آزمایشگاه‌های تعاملی' : 'Interactive simulations & labs'}
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold">
+                      {isRTL ? 'کاوش مفهومی با تجربه‌های تعاملی' : 'Concept exploration through interactive experiences'}
+                    </h2>
+                    <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+                      {isRTL
+                        ? 'برای هر درس مناسب، چند ابزار منتخب اضافه شده است تا دانش‌آموز ابتدا مفهوم را ببیند، سپس آزمایش کند و در پایان آن را به حل مسئله و پروژه وصل کند.'
+                        : 'Each relevant course now includes curated tools so learners can visualize ideas, test them actively, and transfer them into problem solving and projects.'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border bg-card/80 p-4 text-sm shadow-sm">
+                  <p className="font-semibold">{isRTL ? 'روال پیشنهادی' : 'Suggested flow'}</p>
+                  <ol className="mt-2 space-y-1 text-muted-foreground">
+                    <li>1. {isRTL ? 'قبل از درس: یک پیش‌بینی کوتاه بنویسید.' : 'Before the lesson: write one quick prediction.'}</li>
+                    <li>2. {isRTL ? 'حین کاوش: یک متغیر را تغییر دهید و نتیجه را ثبت کنید.' : 'During exploration: change one variable and record the result.'}</li>
+                    <li>3. {isRTL ? 'بعد از کار: یافته را به یک مسئله نوشتاری وصل کنید.' : 'Afterward: connect the finding to a written problem.'}</li>
+                  </ol>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-4 p-6 lg:grid-cols-2 xl:grid-cols-3">
+              {simulationRecommendations.map((resource) => {
+                const Icon = resource.icon;
+
+                return (
+                  <article
+                    key={resource.id}
+                    className={`rounded-3xl border bg-gradient-to-br ${resource.accent} p-5 shadow-sm transition-transform hover:-translate-y-1`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="rounded-2xl bg-background/85 p-3 shadow-sm">
+                          <Icon className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                            {resource.provider}
+                          </p>
+                          <h3 className="mt-1 text-lg font-semibold text-foreground">{resource.title[lang]}</h3>
+                        </div>
+                      </div>
+                    </div>
+
+                    <p className="mt-4 text-sm leading-6 text-muted-foreground">{resource.description[lang]}</p>
+
+                    <div className="mt-4 rounded-2xl bg-background/70 p-3 text-sm shadow-sm">
+                      <p className="font-medium text-foreground">{resource.bestFor[lang]}</p>
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {resource.tags[lang].map((tag) => (
+                        <span
+                          key={tag}
+                          className="inline-flex items-center rounded-full border border-border/70 bg-background/80 px-2.5 py-1 text-xs font-medium text-muted-foreground"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+
+                    <a
+                      href={resource.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-5 inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
+                    >
+                      {resource.cta[lang]}
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
         <h2 className="text-xl font-bold mb-6">{isRTL ? 'محتوای دوره' : 'Course Content'}</h2>
         
         <div className="space-y-4">
@@ -574,7 +948,7 @@ export default function CourseDetailPage({ params }: { params: { locale: string;
                   <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary">
                     {unitIndex + 1}
                   </div>
-                  <h3 className="font-semibold">{unit.title[lang]}</h3>
+                  <h3 className="font-semibold">{getLocalizedText(unit.title, lang)}</h3>
                   {(unit.goal || unit.capstone) && (
                     <div className="text-xs text-muted-foreground mt-1">
                       {unit.goal?.[lang]}
@@ -621,7 +995,7 @@ export default function CourseDetailPage({ params }: { params: { locale: string;
                     {/* Lesson Info */}
                     <div className="flex-1 min-w-0">
                       <h4 className={`font-medium truncate ${lesson.current ? 'text-primary' : ''}`}>
-                        {lesson.title[lang]}
+                        {getLocalizedText(lesson.title, lang)}
                       </h4>
                       <div className="flex items-center gap-3 text-sm text-muted-foreground">
                         <span className="flex items-center gap-1">

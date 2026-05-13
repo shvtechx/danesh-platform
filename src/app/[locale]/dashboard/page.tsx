@@ -18,6 +18,7 @@ import {
   Flame,
   Brain,
   Zap,
+  Video,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CourseCard } from '@/components/ui/card';
 import { XPProgress, StreakProgress, CircularProgress } from '@/components/ui/progress';
@@ -121,6 +122,17 @@ type SkillPreview = {
   } | null;
 };
 
+type LiveAnnouncement = {
+  id: string;
+  title: string;
+  teacherName?: string | null;
+  startedAt: string;
+  joinPath: string;
+  lessonId?: string | null;
+};
+
+const LIVE_ANNOUNCEMENT_POLL_INTERVAL_MS = 10000;
+
 const EMPTY_PROGRESS: StudentProgress = {
   xp: {
     total: 0,
@@ -170,6 +182,17 @@ function calculateStreak(activityDates: string[]) {
   return streak;
 }
 
+function formatLiveSessionTime(startedAt: string, locale: string) {
+  const isRTL = locale === 'fa';
+  const diffMinutes = Math.max(0, Math.round((Date.now() - new Date(startedAt).getTime()) / 60000));
+
+  if (diffMinutes < 1) {
+    return isRTL ? 'همین حالا شروع شد' : 'Started just now';
+  }
+
+  return isRTL ? `${diffMinutes} دقیقه پیش شروع شد` : `Started ${diffMinutes} min ago`;
+}
+
 export default function StudentDashboard({ params: { locale } }: { params: { locale: string } }) {
   const t = useTranslations();
   const router = useRouter();
@@ -184,6 +207,7 @@ export default function StudentDashboard({ params: { locale } }: { params: { loc
   const [todayLabel, setTodayLabel] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [feedback, setFeedback] = useState<{ variant: 'error' | 'info'; message: string } | null>(null);
+  const [liveSessions, setLiveSessions] = useState<LiveAnnouncement[]>([]);
 
   useEffect(() => {
     setHasMounted(true);
@@ -214,10 +238,22 @@ export default function StudentDashboard({ params: { locale } }: { params: { loc
         setFeedback(null);
 
         const headers = createUserHeaders(getStoredUserId());
-        const [coursesResponse, progressResponse, leaderboardResponse] = await Promise.all([
+        const liveSessionsPromise = fetch(`/api/v1/live/announcements?locale=${locale}`, { cache: 'no-store', headers })
+          .then(async (response) => {
+            if (!response.ok) {
+              return [] as LiveAnnouncement[];
+            }
+
+            const payload = (await response.json()) as { announcements?: LiveAnnouncement[] };
+            return payload.announcements || [];
+          })
+          .catch(() => [] as LiveAnnouncement[]);
+
+        const [coursesResponse, progressResponse, leaderboardResponse, liveAnnouncements] = await Promise.all([
           fetch('/api/v1/student/courses', { cache: 'no-store', headers }),
           fetch('/api/v1/student/progress', { cache: 'no-store', headers }),
           fetch('/api/v1/leaderboard?locale=' + locale + '&range=week', { cache: 'no-store', headers }),
+          liveSessionsPromise,
         ]);
 
         if (!coursesResponse.ok || !progressResponse.ok || !leaderboardResponse.ok) {
@@ -232,6 +268,7 @@ export default function StudentDashboard({ params: { locale } }: { params: { loc
           setCourses(coursesPayload.courses || []);
           setProgress(progressPayload);
           setLeaderboard({ rankings: leaderboardPayload.rankings?.slice(0, 3) || [] });
+          setLiveSessions(liveAnnouncements);
         }
 
         fetch('/api/v1/skills', { cache: 'no-store', headers })
@@ -256,6 +293,7 @@ export default function StudentDashboard({ params: { locale } }: { params: { loc
           setProgress(EMPTY_PROGRESS);
           setLeaderboard({ rankings: [] });
           setSkills([]);
+          setLiveSessions([]);
           setFeedback({
             variant: 'error',
             message: isRTL ? 'بارگذاری داشبورد دانش‌آموز با مشکل روبه‌رو شد.' : 'Student dashboard data could not be loaded.',
@@ -274,6 +312,41 @@ export default function StudentDashboard({ params: { locale } }: { params: { loc
       active = false;
     };
   }, [isRTL, locale]);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadLiveAnnouncements = async () => {
+      try {
+        const headers = createUserHeaders(getStoredUserId());
+        const response = await fetch(`/api/v1/live/announcements?locale=${locale}`, {
+          cache: 'no-store',
+          headers,
+        });
+
+        if (!response.ok) {
+          throw new Error('live-announcements-failed');
+        }
+
+        const payload = (await response.json()) as { announcements?: LiveAnnouncement[] };
+        if (active) {
+          setLiveSessions(payload.announcements || []);
+        }
+      } catch {
+        if (active) {
+          setLiveSessions([]);
+        }
+      }
+    };
+
+    loadLiveAnnouncements();
+    const interval = window.setInterval(loadLiveAnnouncements, LIVE_ANNOUNCEMENT_POLL_INTERVAL_MS);
+
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
+  }, [locale]);
 
   const displayName = useMemo(() => {
     const fromProfile = authUser?.profile?.displayName;
@@ -341,6 +414,8 @@ export default function StudentDashboard({ params: { locale } }: { params: { loc
 
     return null;
   }, [courses, isRTL]);
+
+  const activeLiveSession = liveSessions[0] || null;
 
   const weeklyMinutes = useMemo(() => {
     const weekStart = new Date();
@@ -534,6 +609,39 @@ export default function StudentDashboard({ params: { locale } }: { params: { loc
               )}
             </div>
           </Card>
+
+          {activeLiveSession ? (
+            <Card className="overflow-hidden border-emerald-200/70 bg-gradient-to-r from-emerald-500/10 to-cyan-500/10">
+              <CardContent className="p-6">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                      <Video className="h-3.5 w-3.5" />
+                      {isRTL ? 'کلاس زنده در حال برگزاری' : 'Live class happening now'}
+                    </div>
+                    <h3 className="mt-3 text-xl font-bold text-foreground">{activeLiveSession.title}</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {activeLiveSession.teacherName
+                        ? isRTL
+                          ? `با ${activeLiveSession.teacherName}`
+                          : `with ${activeLiveSession.teacherName}`
+                        : isRTL
+                          ? 'معلم اکنون آنلاین است'
+                          : 'Your teacher is live right now'}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">{formatLiveSessionTime(activeLiveSession.startedAt, locale)}</p>
+                  </div>
+                  <Link
+                    href={activeLiveSession.joinPath}
+                    className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 font-medium text-white transition hover:bg-emerald-700"
+                  >
+                    <Video className="h-4 w-4" />
+                    {isRTL ? 'پیوستن به کلاس زنده' : 'Join live class'}
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
+          ) : null}
 
           <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-600 shadow-sm">
             <div className="p-6 text-white">

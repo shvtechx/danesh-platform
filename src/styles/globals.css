@@ -258,6 +258,23 @@
     @apply fixed bottom-4 right-4 z-50 rounded-full bg-primary p-4 text-primary-foreground shadow-lg;
   }
 
+  .live-class-embed {
+    min-height: 72vh;
+  }
+
+  .live-class-embed,
+  .live-class-embed > div,
+  .live-class-embed iframe {
+    width: 100% !important;
+  }
+
+  .live-class-embed > div,
+  .live-class-embed iframe {
+    min-height: inherit !important;
+    height: 100% !important;
+    display: block;
+  }
+
   [dir="rtl"] .timer-widget {
     @apply right-auto left-4;
   }

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { createUserHeaders, getStoredUserId } from '@/lib/auth/demo-auth-shared';
+import { extractSafeEmbedConfig, normalizeExternalEmbedUrl } from '@/lib/content/embed-utils';
 import TeacherGamificationPanel from '@/components/gamification/TeacherGamificationPanel';
 import PublishCelebration from '@/components/gamification/PublishCelebration';
 import {
@@ -15,7 +16,7 @@ import {
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-type ContentType = 'text' | 'video' | 'image' | 'quiz' | 'activity';
+type ContentType = 'text' | 'video' | 'image' | 'quiz' | 'activity' | 'simulation';
 type WorkflowStep = 'select' | 'write' | 'preview';
 
 interface ContentBlock {
@@ -1009,6 +1010,52 @@ export default function ContentCreatorPage({ params: { locale } }: { params: { l
                           isRTL={isRTL}
                         />
                       )}
+                      {block.type === 'simulation' && (() => {
+                        const embed = extractSafeEmbedConfig(block.content);
+                        return (
+                          <div className="space-y-3">
+                            <textarea
+                              value={block.content}
+                              onChange={(e) => handleUpdateBlock(block.id, e.target.value)}
+                              placeholder={isRTL ? 'کد iframe یا لینک مستقیم شبیه‌سازی را اینجا قرار دهید...' : 'Paste iframe embed code or a direct simulation URL here...'}
+                              className="min-h-[140px] w-full rounded-lg border bg-background p-3 text-sm"
+                              dir="ltr"
+                            />
+                            <div className="rounded-lg border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                              {isRTL
+                                ? 'برای امنیت، فقط iframe یا لینک‌های قابل‌جاسازی پشتیبانی می‌شوند و اسکریپت‌های دلخواه اجرا نمی‌شوند.'
+                                : 'For safety, only iframe embed code or embeddable URLs are supported; custom scripts are not executed.'}
+                            </div>
+                            {embed.embedUrl ? (
+                              <>
+                                <div className="aspect-video overflow-hidden rounded-xl border bg-background shadow-sm">
+                                  <iframe
+                                    src={embed.embedUrl}
+                                    className="h-full w-full"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+                                    allowFullScreen
+                                    loading="lazy"
+                                    title="Simulation preview"
+                                  />
+                                </div>
+                                <a
+                                  href={normalizeExternalEmbedUrl(embed.embedUrl)}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline"
+                                >
+                                  {isRTL ? 'باز کردن در پنجره جدید' : 'Open in a new tab'}
+                                  <ExternalLink className="h-4 w-4" />
+                                </a>
+                              </>
+                            ) : block.content ? (
+                              <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/20 dark:text-amber-300">
+                                {isRTL ? 'کد یا لینک شبیه‌ساز معتبر نیست.' : 'The simulation code or URL is not valid.'}
+                              </div>
+                            ) : null}
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                 ))}
@@ -1034,7 +1081,36 @@ export default function ContentCreatorPage({ params: { locale } }: { params: { l
                                 title="Video preview"
                               />
                             </div>
-                          ) : b.type === 'image' ? (
+                          ) : b.type === 'simulation' ? (() => {
+                            const embed = extractSafeEmbedConfig(b.content);
+                            return embed.embedUrl ? (
+                              <div className="space-y-3">
+                                <div className="aspect-video overflow-hidden rounded-xl border bg-background shadow">
+                                  <iframe
+                                    src={embed.embedUrl}
+                                    className="h-full w-full"
+                                    allowFullScreen
+                                    loading="lazy"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+                                    title="Simulation preview"
+                                  />
+                                </div>
+                                <a
+                                  href={normalizeExternalEmbedUrl(embed.embedUrl)}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline"
+                                >
+                                  {isRTL ? 'باز کردن در پنجره جدید' : 'Open in a new tab'}
+                                  <ExternalLink className="h-4 w-4" />
+                                </a>
+                              </div>
+                            ) : (
+                              <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/20 dark:text-amber-300">
+                                {isRTL ? 'کد یا لینک شبیه‌ساز معتبر نیست.' : 'The simulation code or URL is not valid.'}
+                              </div>
+                            );
+                          })() : b.type === 'image' ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img src={b.content} alt="" className="max-h-64 rounded-xl object-cover" />
                           ) : (
@@ -1053,6 +1129,7 @@ export default function ContentCreatorPage({ params: { locale } }: { params: { l
                     { type: 'text' as ContentType, icon: FileText, label: isRTL ? 'متن' : 'Text' },
                     { type: 'video' as ContentType, icon: Video, label: isRTL ? 'ویدیو' : 'Video' },
                     { type: 'image' as ContentType, icon: Image, label: isRTL ? 'تصویر' : 'Image' },
+                    { type: 'simulation' as ContentType, icon: Code, label: isRTL ? 'HTML / شبیه‌سازی' : 'HTML / Simulation' },
                   ]).map(({ type, icon: Icon, label }) => (
                     <button
                       key={type}

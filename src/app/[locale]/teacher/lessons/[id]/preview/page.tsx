@@ -4,10 +4,11 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createUserHeaders, getStoredUserId } from '@/lib/auth/demo-auth-shared';
+import { extractSafeEmbedConfig, normalizeExternalEmbedUrl } from '@/lib/content/embed-utils';
 import {
   ArrowLeft, ArrowRight, CheckCircle, ChevronRight,
   Eye, FileText, Video, Image as ImageIcon, BookOpen,
-  Lightbulb, Search, PenTool, Target, Clock, X
+  Lightbulb, Search, PenTool, Target, Clock, X, Code, ExternalLink
 } from 'lucide-react';
 
 // ── Video embed helper ──────────────────────────────────────────────────────
@@ -56,7 +57,7 @@ const PHASES: Record<string, { icon: React.ElementType; badge: string; color: st
 
 interface ContentBlock {
   id: string;
-  type: 'text' | 'video' | 'image' | 'quiz' | 'activity';
+  type: 'text' | 'video' | 'image' | 'quiz' | 'activity' | 'simulation';
   title: string;
   content: string;
   sequence: number;
@@ -185,6 +186,7 @@ export default function TeacherLessonPreviewPage() {
                 {current?.type === 'video' && <Video className="h-4 w-4 text-muted-foreground" />}
                 {current?.type === 'image' && <ImageIcon className="h-4 w-4 text-muted-foreground" />}
                 {current?.type === 'text' && <FileText className="h-4 w-4 text-muted-foreground" />}
+                {current?.type === 'simulation' && <Code className="h-4 w-4 text-muted-foreground" />}
                 <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   {isRTL ? `بلوک ${currentIndex + 1} از ${total}` : `Block ${currentIndex + 1} of ${total}`}
                 </span>
@@ -223,6 +225,37 @@ export default function TeacherLessonPreviewPage() {
                   dangerouslySetInnerHTML={{ __html: markdownToHtml(current.content) }}
                 />
               )}
+
+              {current?.type === 'simulation' && (() => {
+                const embed = extractSafeEmbedConfig(current.content);
+                return embed.embedUrl ? (
+                  <div className="space-y-4">
+                    <div className="aspect-video w-full overflow-hidden rounded-xl border bg-background shadow-lg">
+                      <iframe
+                        src={embed.embedUrl}
+                        className="h-full w-full"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+                        allowFullScreen
+                        loading="lazy"
+                        title={current.title}
+                      />
+                    </div>
+                    <a
+                      href={normalizeExternalEmbedUrl(embed.embedUrl)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline"
+                    >
+                      {isRTL ? 'باز کردن در پنجره جدید' : 'Open in a new tab'}
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/20 dark:text-amber-300">
+                    {isRTL ? 'کد یا لینک شبیه‌سازی معتبر نیست.' : 'The simulation code or URL is not valid.'}
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Navigation */}

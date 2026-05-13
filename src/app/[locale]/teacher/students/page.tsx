@@ -308,7 +308,7 @@ export default function TeacherStudents({ params: { locale } }: { params: { loca
                       <p className="text-lg font-semibold">{student.courses}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-muted-foreground">{isRTL ? 'بهزیستی' : 'Wellbeing'}</p>
+                      <p className="text-xs text-muted-foreground">{isRTL ? 'سلامت روان' : 'Wellbeing'}</p>
                       <p className="text-lg font-semibold text-rose-600">{student.wellbeing.score}%</p>
                     </div>
                     <div>

@@ -447,7 +447,7 @@ export default function TeacherDashboard({ params: { locale } }: { params: { loc
                 <Heart className="h-5 w-5 text-rose-600" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">{isRTL ? 'هشدارهای بهزیستی' : 'Wellbeing Alerts'}</p>
+                <p className="text-sm text-muted-foreground">{isRTL ? 'هشدارهای سلامت روان' : 'Wellbeing Alerts'}</p>
                 <p className="text-2xl font-bold">{stats.wellbeingAlerts}</p>
               </div>
             </div>
@@ -813,7 +813,7 @@ export default function TeacherDashboard({ params: { locale } }: { params: { loc
             <div className="bg-card border rounded-xl p-4">
               <div className="mb-3 flex items-center gap-2">
                 <Heart className="h-5 w-5 text-rose-500" />
-                <h2 className="font-semibold">{isRTL ? 'پایش بهزیستی' : 'Wellbeing Watch'}</h2>
+                <h2 className="font-semibold">{isRTL ? 'پایش سلامت روان' : 'Wellbeing Watch'}</h2>
               </div>
               <div className="grid grid-cols-3 gap-3 mb-4 text-center text-sm">
                 <div className="rounded-lg bg-rose-50 p-3 dark:bg-rose-950/20">
@@ -870,7 +870,7 @@ export default function TeacherDashboard({ params: { locale } }: { params: { loc
                 </div>
               ) : (
                 <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-                  {isRTL ? 'در حال حاضر هشدار فعالی برای بهزیستی ثبت نشده است.' : 'No active wellbeing alerts right now.'}
+                  {isRTL ? 'در حال حاضر هشدار فعالی برای سلامت روان ثبت نشده است.' : 'No active wellbeing alerts right now.'}
                 </div>
               )}
             </div>

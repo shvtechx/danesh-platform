@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { FeedbackBanner } from '@/components/ui/feedback-banner';
+import { createUserHeaders, getStoredUserId } from '@/lib/auth/demo-auth-shared';
+import { extractSafeEmbedConfig, normalizeExternalEmbedUrl } from '@/lib/content/embed-utils';
 import {
   Dialog,
   DialogContent,
@@ -21,8 +23,9 @@ import {
 
 interface ContentBlock {
   id: string;
-  type: 'text' | 'video' | 'image' | 'code' | 'equation';
+  type: 'text' | 'video' | 'image' | 'simulation';
   content: string;
+  title?: string;
   aiGenerated?: boolean;
 }
 
@@ -63,6 +66,12 @@ interface CourseContext {
   gradeCode?: string;
 }
 
+function normalizeEditorBlockType(type: string): ContentBlock['type'] {
+  if (type === 'simulation' || type === 'code') return 'simulation';
+  if (type === 'video' || type === 'image') return type;
+  return 'text';
+}
+
 const TEACHER_LESSON_EDITOR_STORAGE_KEY = 'danesh.teacher.lesson-editor';
 
 export default function LessonEditor({ params }: { params: { locale: string; id: string; lessonId: string } }) {
@@ -88,6 +97,8 @@ export default function LessonEditor({ params }: { params: { locale: string; id:
   const [feedback, setFeedback] = useState<{ variant: 'success' | 'error' | 'info'; message: string } | null>(null);
   const [showPublishDialog, setShowPublishDialog] = useState(false);
   const [courseContext, setCourseContext] = useState<CourseContext | null>(null);
+  const [lessonTitleEN, setLessonTitleEN] = useState('');
+  const [lessonTitleFA, setLessonTitleFA] = useState('');
   const [showQuestionBank, setShowQuestionBank] = useState(false);
   const [bankQuestions, setBankQuestions] = useState<BankQuestion[]>([]);
   const [bankLoading, setBankLoading] = useState(false);
@@ -144,7 +155,7 @@ export default function LessonEditor({ params }: { params: { locale: string; id:
         lessonDescription?: string;
         duration?: string;
         xpReward?: string;
-        contentBlocks?: ContentBlock[];
+        contentBlocks?: Array<ContentBlock | { id: string; type: string; content: string; title?: string; aiGenerated?: boolean }>;
         quizQuestions?: QuizQuestion[];
         lastSaved?: string;
       };
@@ -153,7 +164,14 @@ export default function LessonEditor({ params }: { params: { locale: string; id:
       if (typeof parsed.lessonDescription === 'string') setLessonDescription(parsed.lessonDescription);
       if (typeof parsed.duration === 'string') setDuration(parsed.duration);
       if (typeof parsed.xpReward === 'string') setXpReward(parsed.xpReward);
-      if (Array.isArray(parsed.contentBlocks) && parsed.contentBlocks.length > 0) setContentBlocks(parsed.contentBlocks);
+      if (Array.isArray(parsed.contentBlocks) && parsed.contentBlocks.length > 0) {
+        setContentBlocks(
+          parsed.contentBlocks.map((block) => ({
+            ...block,
+            type: normalizeEditorBlockType(block.type),
+          })),
+        );
+      }
       if (Array.isArray(parsed.quizQuestions)) setQuizQuestions(parsed.quizQuestions);
       if (parsed.lastSaved) setLastSaved(new Date(parsed.lastSaved));
     } catch {
@@ -184,6 +202,57 @@ export default function LessonEditor({ params }: { params: { locale: string; id:
 
     void loadCourseContext();
   }, [courseId, locale]);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadLessonEditorData = async () => {
+      try {
+        const [lessonResponse, contentResponse] = await Promise.all([
+          fetch(`/api/v1/lessons/${lessonId}`),
+          fetch(`/api/v1/teacher/lessons/${lessonId}/content`, {
+            headers: createUserHeaders(getStoredUserId()),
+          }),
+        ]);
+
+        const lessonData = lessonResponse.ok ? await lessonResponse.json() : null;
+        const contentData = contentResponse.ok ? await contentResponse.json() : null;
+
+        if (!active) return;
+
+        if (lessonData?.lesson) {
+          const serverLesson = lessonData.lesson;
+          setLessonTitleEN(serverLesson.title || '');
+          setLessonTitleFA(serverLesson.titleFA || '');
+          setLessonTitle(isRTL ? serverLesson.titleFA || serverLesson.title || '' : serverLesson.title || serverLesson.titleFA || '');
+          setDuration(serverLesson.estimatedTime ? String(serverLesson.estimatedTime) : '20');
+        }
+
+        if (Array.isArray(contentData?.blocks)) {
+          const serverBlocks = contentData.blocks
+            .filter((block: any) => typeof block.content === 'string')
+            .map((block: any) => ({
+              id: block.id,
+              type: normalizeEditorBlockType(block.type),
+              title: block.title || '',
+              content: block.content || '',
+            }));
+
+          if (serverBlocks.length > 0) {
+            setContentBlocks(serverBlocks);
+          }
+        }
+      } catch {
+        // keep local draft fallback
+      }
+    };
+
+    void loadLessonEditorData();
+
+    return () => {
+      active = false;
+    };
+  }, [isRTL, lessonId]);
 
   useEffect(() => {
     if (!showQuestionBank) return;
@@ -409,17 +478,75 @@ export default function LessonEditor({ params }: { params: { locale: string; id:
   };
 
   const handleSave = async () => {
+    if (!lessonTitle.trim()) {
+      setFeedback({
+        variant: 'error',
+        message: isRTL ? 'لطفاً عنوان درس را وارد کنید.' : 'Please enter a lesson title.',
+      });
+      return;
+    }
+
+    const invalidSimulationBlock = contentBlocks.find(
+      (block) => block.type === 'simulation' && block.content.trim() && !extractSafeEmbedConfig(block.content).embedUrl,
+    );
+
+    if (invalidSimulationBlock) {
+      setFeedback({
+        variant: 'error',
+        message: isRTL
+          ? 'برای بلوک شبیه‌سازی، کد iframe یا لینک معتبر وارد کنید.'
+          : 'Please enter a valid iframe embed code or URL for the simulation block.',
+      });
+      return;
+    }
+
     setIsSaving(true);
     setFeedback(null);
-    await new Promise(resolve => setTimeout(resolve, 400));
-    const savedAt = new Date();
-    persistLessonDraft('draft');
-    setLastSaved(savedAt);
-    setIsSaving(false);
-    setFeedback({
-      variant: 'success',
-      message: isRTL ? 'درس ذخیره شد.' : 'Lesson saved.',
-    });
+    try {
+      const response = await fetch(`/api/v1/teacher/lessons/${lessonId}/content`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...createUserHeaders(getStoredUserId()),
+        },
+        body: JSON.stringify({
+          blocks: contentBlocks.map((block, index) => ({
+            type: block.type,
+            content: block.content,
+            title: block.title || `${block.type} block ${index + 1}`,
+          })),
+          publish: false,
+          lessonTitle: isRTL ? lessonTitleEN || lessonTitle : lessonTitle,
+          lessonTitleFA: isRTL ? lessonTitle : lessonTitleFA || null,
+          estimatedTime: Number(duration) || null,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to save lesson');
+      }
+
+      const savedAt = new Date();
+      persistLessonDraft('draft');
+      setLastSaved(savedAt);
+      if (isRTL) {
+        setLessonTitleFA(lessonTitle);
+      } else {
+        setLessonTitleEN(lessonTitle);
+      }
+      setFeedback({
+        variant: 'success',
+        message: isRTL ? 'درس ذخیره شد.' : 'Lesson saved.',
+      });
+    } catch (error) {
+      setFeedback({
+        variant: 'error',
+        message: error instanceof Error ? error.message : (isRTL ? 'ذخیره درس ممکن نبود.' : 'Could not save the lesson.'),
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handlePublish = async () => {
@@ -443,18 +570,69 @@ export default function LessonEditor({ params }: { params: { locale: string; id:
   };
 
   const confirmPublish = async () => {
+    const invalidSimulationBlock = contentBlocks.find(
+      (block) => block.type === 'simulation' && block.content.trim() && !extractSafeEmbedConfig(block.content).embedUrl,
+    );
+
+    if (invalidSimulationBlock) {
+      setFeedback({
+        variant: 'error',
+        message: isRTL
+          ? 'برای انتشار، بلوک شبیه‌سازی باید iframe یا لینک معتبر داشته باشد.'
+          : 'To publish, every simulation block must contain a valid iframe embed code or URL.',
+      });
+      setShowPublishDialog(false);
+      return;
+    }
+
     setIsPublishing(true);
     setFeedback(null);
-    await new Promise(resolve => setTimeout(resolve, 500));
-    const savedAt = new Date();
-    persistLessonDraft('published');
-    setLastSaved(savedAt);
-    setIsPublishing(false);
-    setShowPublishDialog(false);
-    setFeedback({
-      variant: 'success',
-      message: isRTL ? 'درس با موفقیت منتشر شد.' : 'Lesson published successfully.',
-    });
+    try {
+      const response = await fetch(`/api/v1/teacher/lessons/${lessonId}/content`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...createUserHeaders(getStoredUserId()),
+        },
+        body: JSON.stringify({
+          blocks: contentBlocks.map((block, index) => ({
+            type: block.type,
+            content: block.content,
+            title: block.title || `${block.type} block ${index + 1}`,
+          })),
+          publish: true,
+          lessonTitle: isRTL ? lessonTitleEN || lessonTitle : lessonTitle,
+          lessonTitleFA: isRTL ? lessonTitle : lessonTitleFA || null,
+          estimatedTime: Number(duration) || null,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to publish lesson');
+      }
+
+      const savedAt = new Date();
+      persistLessonDraft('published');
+      setLastSaved(savedAt);
+      if (isRTL) {
+        setLessonTitleFA(lessonTitle);
+      } else {
+        setLessonTitleEN(lessonTitle);
+      }
+      setShowPublishDialog(false);
+      setFeedback({
+        variant: 'success',
+        message: isRTL ? 'درس با موفقیت منتشر شد.' : 'Lesson published successfully.',
+      });
+    } catch (error) {
+      setFeedback({
+        variant: 'error',
+        message: error instanceof Error ? error.message : (isRTL ? 'انتشار درس ممکن نبود.' : 'Could not publish the lesson.'),
+      });
+    } finally {
+      setIsPublishing(false);
+    }
   };
 
   return (
@@ -617,7 +795,7 @@ export default function LessonEditor({ params }: { params: { locale: string; id:
                       {block.type === 'text' && <FileText className="h-4 w-4" />}
                       {block.type === 'video' && <Video className="h-4 w-4" />}
                       {block.type === 'image' && <Image className="h-4 w-4" />}
-                      {block.type === 'code' && <Code className="h-4 w-4" />}
+                      {block.type === 'simulation' && <Code className="h-4 w-4" />}
                       {isRTL ? `بلوک ${index + 1}` : `Block ${index + 1}`}
                       {block.aiGenerated && (
                         <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs flex items-center gap-1">
@@ -682,6 +860,55 @@ export default function LessonEditor({ params }: { params: { locale: string; id:
                         </div>
                       </div>
                     )}
+
+                    {block.type === 'simulation' && (() => {
+                      const embed = extractSafeEmbedConfig(block.content);
+                      return (
+                        <div className="space-y-3">
+                          <textarea
+                            value={block.content}
+                            onChange={(e) => handleUpdateBlock(block.id, e.target.value)}
+                            placeholder={isRTL ? 'کد iframe یا لینک شبیه‌سازی را اینجا قرار دهید...' : 'Paste iframe embed code or a simulation URL here...'}
+                            className="w-full min-h-[140px] rounded-lg border bg-background p-3 text-sm"
+                            dir="ltr"
+                          />
+                          <div className="rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground">
+                            {isRTL
+                              ? 'فقط کد iframe یا لینک مستقیم/Embed امن پشتیبانی می‌شود. اسکریپت‌های دلخواه برای امنیت اجرا نمی‌شوند.'
+                              : 'Only safe iframe embed code or direct/embed URLs are supported. Custom scripts are not executed for security.'}
+                          </div>
+                          {embed.embedUrl ? (
+                            <>
+                              <div className="aspect-video overflow-hidden rounded-xl border bg-background shadow-sm">
+                                <iframe
+                                  src={embed.embedUrl}
+                                  className="h-full w-full"
+                                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+                                  allowFullScreen
+                                  loading="lazy"
+                                  title={block.title || 'Simulation preview'}
+                                />
+                              </div>
+                              <a
+                                href={normalizeExternalEmbedUrl(embed.embedUrl)}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline"
+                              >
+                                {isRTL ? 'باز کردن در پنجره جدید' : 'Open in a new tab'}
+                                <Link2 className="h-4 w-4" />
+                              </a>
+                            </>
+                          ) : block.content.trim() ? (
+                            <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/20 dark:text-amber-300">
+                              {isRTL
+                                ? 'کد واردشده iframe معتبر یا لینک قابل‌جاسازی ندارد.'
+                                : 'The pasted content does not include a valid embeddable iframe or URL.'}
+                            </div>
+                          ) : null}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               ))}
@@ -692,7 +919,7 @@ export default function LessonEditor({ params }: { params: { locale: string; id:
                   { type: 'text' as const, icon: FileText, label: isRTL ? 'متن' : 'Text' },
                   { type: 'video' as const, icon: Video, label: isRTL ? 'ویدیو' : 'Video' },
                   { type: 'image' as const, icon: Image, label: isRTL ? 'تصویر' : 'Image' },
-                  { type: 'code' as const, icon: Code, label: isRTL ? 'کد' : 'Code' },
+                  { type: 'simulation' as const, icon: Code, label: isRTL ? 'HTML / شبیه‌سازی' : 'HTML / Simulation' },
                 ].map((item) => (
                   <button
                     key={item.type}

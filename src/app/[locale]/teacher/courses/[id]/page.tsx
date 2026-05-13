@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FeedbackBanner } from '@/components/ui/feedback-banner';
 import { createUserHeaders, getStoredUserId } from '@/lib/auth/demo-auth-shared';
+import { areLiveClassesEnabled, buildCourseLiveRoomName, buildLiveClassPath, getLiveClassProviderLabel } from '@/lib/live/provider';
 import {
   Dialog,
   DialogContent,
@@ -92,6 +93,11 @@ export default function CourseEditor({ params }: { params: { locale: string; id:
   });
 
   const [units, setUnits] = useState<Unit[]>([]);
+  const liveRoomName = buildCourseLiveRoomName(id);
+  const liveClassTitle = courseSettings.title || (isRTL ? 'کلاس زنده دوره' : 'Course live class');
+  const teacherLiveUrl = buildLiveClassPath(locale, liveRoomName, { role: 'moderator', title: liveClassTitle });
+  const studentLiveUrl = buildLiveClassPath(locale, liveRoomName, { title: liveClassTitle });
+  const liveClassesEnabled = areLiveClassesEnabled();
 
   useEffect(() => {
     const loadCourse = async () => {
@@ -722,6 +728,47 @@ export default function CourseEditor({ params }: { params: { locale: string; id:
                       {courseInfo.status === 'published' ? (isRTL ? 'منتشر شده' : 'Published') : (isRTL ? 'پیش‌نویس' : 'Draft')}
                     </span>
                   </div>
+                </div>
+              </div>
+
+              <div className="bg-card border rounded-xl p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="font-semibold">{isRTL ? 'کلاس زنده این دوره' : 'Course live class'}</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">{getLiveClassProviderLabel(locale)}</p>
+                  </div>
+                  <div className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                    {liveRoomName}
+                  </div>
+                </div>
+
+                <p className="mt-3 text-sm text-muted-foreground">
+                  {liveClassesEnabled
+                    ? isRTL
+                      ? 'جلسه زنده اختصاصی این دوره را به‌عنوان معلم شروع کنید و همان لینک را برای دانش‌آموزان به اشتراک بگذارید.'
+                      : 'Launch a dedicated live session for this course as the teacher, then share the student link with learners.'
+                    : isRTL
+                      ? 'کلاس زنده در حال حاضر با متغیر محیطی غیرفعال شده است.'
+                      : 'Live classes are currently disabled by environment configuration.'}
+                </p>
+
+                <div className="mt-4 space-y-2">
+                  <Link
+                    href={liveClassesEnabled ? teacherLiveUrl : '#'}
+                    className={`inline-flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium ${liveClassesEnabled ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'cursor-not-allowed border text-muted-foreground'}`}
+                    aria-disabled={!liveClassesEnabled}
+                  >
+                    <Video className="h-4 w-4" />
+                    {isRTL ? 'شروع جلسه معلم' : 'Launch teacher session'}
+                  </Link>
+                  <Link
+                    href={liveClassesEnabled ? studentLiveUrl : '#'}
+                    className={`inline-flex w-full items-center justify-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium ${liveClassesEnabled ? 'hover:bg-muted' : 'cursor-not-allowed text-muted-foreground'}`}
+                    aria-disabled={!liveClassesEnabled}
+                  >
+                    <Users className="h-4 w-4" />
+                    {isRTL ? 'لینک ورود دانش‌آموزان' : 'Student join link'}
+                  </Link>
                 </div>
               </div>
 

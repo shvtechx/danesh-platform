@@ -8,31 +8,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { RoleName } from '@prisma/client';
 import prisma from '@/lib/db';
 import { getDemoUserById } from '@/lib/auth/demo-users';
+import { extractSafeEmbedConfig, normalizeExternalEmbedUrl } from '@/lib/content/embed-utils';
 
 const teacherRoleNames = [RoleName.SUPPORT_TEACHER, RoleName.TUTOR, RoleName.COUNSELOR];
-
-function getVideoEmbedUrl(url: string): string {
-  try {
-    const u = new URL(url);
-    // YouTube
-    const ytId = u.searchParams.get('v') ||
-      (u.hostname === 'youtu.be' ? u.pathname.slice(1) : null) ||
-      (u.pathname.includes('/shorts/') ? u.pathname.split('/shorts/')[1] : null) ||
-      (u.pathname.includes('/embed/') ? u.pathname.split('/embed/')[1] : null);
-    if (ytId) return `https://www.youtube.com/embed/${ytId}?rel=0`;
-    // Vimeo
-    if (u.hostname.includes('vimeo.com')) {
-      const vid = u.pathname.split('/').filter(Boolean)[0];
-      if (vid) return `https://player.vimeo.com/video/${vid}`;
-    }
-    // Aparat
-    if (u.hostname.includes('aparat.com')) {
-      const hash = u.pathname.split('/v/')[1]?.split('/')[0];
-      if (hash) return `https://www.aparat.com/video/video/embed/videohash/${hash}/vt/frame`;
-    }
-  } catch { /* invalid URL */ }
-  return url;
-}
 
 async function resolveTeacher(requestUserId: string | null) {
   if (!requestUserId) return null;
@@ -74,7 +52,10 @@ export async function GET(
       blocks: lessonContent.map((lc) => ({
         id: lc.contentItem.id,
         sequence: lc.sequence,
-        type: modalityToUIType[lc.contentItem.modality ?? 'TEXT'] ?? 'text',
+        type:
+          lc.contentItem.type === 'SIMULATION'
+            ? 'simulation'
+            : modalityToUIType[lc.contentItem.modality ?? 'TEXT'] ?? 'text',
         title: lc.contentItem.title,
         content: lc.contentItem.body || '',
         contentFA: lc.contentItem.bodyFA || '',
@@ -122,6 +103,7 @@ export async function PUT(
       audio: 'AUDIO',
       activity: 'INTERACTIVE',
       quiz: 'INTERACTIVE',
+      simulation: 'INTERACTIVE',
     };
 
     // ContentType enum: TEXT | VIDEO | INTERACTIVE | SIMULATION | QUIZ | DISCUSSION | PROJECT
@@ -132,6 +114,7 @@ export async function PUT(
       audio: 'TEXT',
       activity: 'INTERACTIVE',
       quiz: 'QUIZ',
+      simulation: 'SIMULATION',
     };
 
     // Delete existing LessonContent links (replace strategy)
@@ -153,6 +136,23 @@ export async function PUT(
       const block = blocks[i];
       if (!block.content?.trim()) continue;
 
+      const simulationEmbed = block.type === 'simulation'
+        ? extractSafeEmbedConfig(block.content)
+        : null;
+
+      if (block.type === 'simulation' && !simulationEmbed?.embedUrl) {
+        return NextResponse.json(
+          {
+            error: `Simulation block ${i + 1} must contain a valid iframe embed code or URL.`,
+          },
+          { status: 400 },
+        );
+      }
+
+      const normalizedVideoUrl = block.type === 'video'
+        ? normalizeExternalEmbedUrl(block.content)
+        : null;
+
       const contentItem = await prisma.contentItem.create({
         data: {
           type: contentTypeMap[block.type] ?? 'TEXT',
@@ -160,11 +160,18 @@ export async function PUT(
           language: 'EN',
           modality: modalityMap[block.type] ?? 'TEXT',
           body: block.content,
-          // For video blocks, store the URL in metadata so the student player can find it
           metadata: block.type === 'video'
-            ? { url: block.content, embedUrl: getVideoEmbedUrl(block.content) }
+            ? { url: block.content, embedUrl: normalizedVideoUrl || block.content }
             : block.type === 'image'
             ? { imageUrl: block.content }
+            : block.type === 'simulation'
+            ? {
+                embedUrl: simulationEmbed?.embedUrl,
+                embedHtml: simulationEmbed?.normalizedHtml,
+                provider: simulationEmbed?.provider,
+                sourceType: simulationEmbed?.sourceType,
+                title: simulationEmbed?.title || block.title || `Simulation ${i + 1}`,
+              }
             : undefined,
         },
       });

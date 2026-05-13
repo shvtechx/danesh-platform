@@ -6,6 +6,7 @@ import { useLocale } from 'next-intl';
 import Link from 'next/link';
 import { FeedbackBanner } from '@/components/ui/feedback-banner';
 import { createUserHeaders, getStoredUserId } from '@/lib/auth/demo-auth-shared';
+import { extractSafeEmbedConfig, normalizeExternalEmbedUrl } from '@/lib/content/embed-utils';
 import {
   Play,
   CheckCircle,
@@ -24,6 +25,7 @@ import {
   FileText,
   Video,
   Image as ImageIcon,
+  ExternalLink,
 } from 'lucide-react';
 
 // 5E Phase definitions
@@ -469,27 +471,6 @@ function ContentRenderer({
   const title = isRTL && content.titleFA ? content.titleFA : content.title;
   const body = isRTL && content.bodyFA ? content.bodyFA : content.body;
 
-  // Resolve video embed URL from metadata or body
-  const getVideoEmbedUrl = (url: string): string => {
-    try {
-      const u = new URL(url);
-      const ytId = u.searchParams.get('v') ||
-        (u.hostname === 'youtu.be' ? u.pathname.slice(1) : null) ||
-        (u.pathname.includes('/shorts/') ? u.pathname.split('/shorts/')[1] : null) ||
-        (u.pathname.includes('/embed/') ? u.pathname.split('/embed/')[1] : null);
-      if (ytId) return `https://www.youtube.com/embed/${ytId}?rel=0`;
-      if (u.hostname.includes('vimeo.com')) {
-        const vid = u.pathname.split('/').filter(Boolean)[0];
-        if (vid) return `https://player.vimeo.com/video/${vid}`;
-      }
-      if (u.hostname.includes('aparat.com')) {
-        const hash = u.pathname.split('/v/')[1]?.split('/')[0];
-        if (hash) return `https://www.aparat.com/video/video/embed/videohash/${hash}/vt/frame`;
-      }
-    } catch { /* invalid URL */ }
-    return url;
-  };
-
   // Simple markdown-to-html renderer for TEXT content
   const markdownToHtml = (md: string): string => {
     if (!md) return '';
@@ -511,8 +492,25 @@ function ContentRenderer({
     (content as any).modality === 'VIDEO' ||
     (content.metadata as any)?.url;
 
+  const isSimulationContent = content.type === 'SIMULATION';
+  const rawImageUrl =
+    typeof (content.metadata as any)?.imageUrl === 'string'
+      ? (content.metadata as any).imageUrl
+      : content.type === 'IMAGE'
+        ? body
+        : null;
+  const imageUrl = rawImageUrl?.trim() || null;
+  const isImageContent = Boolean(imageUrl);
+  const imageCaption =
+    typeof (content.metadata as any)?.caption === 'string' && (content.metadata as any).caption.trim()
+      ? (content.metadata as any).caption.trim()
+      : null;
+
   const rawVideoUrl = (content.metadata as any)?.url || (isVideoContent ? body : null);
-  const embedUrl = rawVideoUrl ? getVideoEmbedUrl(rawVideoUrl) : null;
+  const embedUrl = rawVideoUrl ? normalizeExternalEmbedUrl(rawVideoUrl) : null;
+  const simulationEmbed = isSimulationContent
+    ? extractSafeEmbedConfig(((content.metadata as any)?.embedUrl as string) || body || '')
+    : null;
 
   return (
     <div>
@@ -574,8 +572,62 @@ function ContentRenderer({
         </div>
       )}
 
+      {isSimulationContent && (
+        <div className="mb-6 rounded-2xl border bg-card p-4 shadow-sm">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <h3 className="text-xl font-semibold text-gray-900">{isRTL ? 'شبیه‌سازی تعاملی' : 'Interactive simulation'}</h3>
+              <p className="text-sm text-gray-600">
+                {isRTL
+                  ? 'با این شبیه‌ساز مفهوم را به‌صورت تعاملی بررسی کنید و سپس نتیجه را به مسئله‌های درس وصل کنید.'
+                  : 'Use this simulation to explore the concept actively, then connect what you notice to the lesson problems.'}
+              </p>
+            </div>
+            {simulationEmbed?.embedUrl ? (
+              <a
+                href={normalizeExternalEmbedUrl(simulationEmbed.embedUrl)}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium text-primary hover:bg-muted"
+              >
+                {isRTL ? 'باز کردن در پنجره جدید' : 'Open in new tab'}
+                <ExternalLink className="h-4 w-4" />
+              </a>
+            ) : null}
+          </div>
+
+          {simulationEmbed?.embedUrl ? (
+            <div className="aspect-video overflow-hidden rounded-xl border bg-background shadow-sm">
+              <iframe
+                src={simulationEmbed.embedUrl}
+                className="h-full w-full"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+                allowFullScreen
+                loading="lazy"
+                title={title}
+              />
+            </div>
+          ) : (
+            <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/20 dark:text-amber-300">
+              {isRTL
+                ? 'این شبیه‌سازی در حال حاضر لینک قابل‌جاسازی معتبری ندارد.'
+                : 'This simulation does not currently have a valid embeddable link.'}
+            </div>
+          )}
+        </div>
+      )}
+
+      {isImageContent && imageUrl ? (
+        <figure className="mb-6 overflow-hidden rounded-2xl border bg-card shadow-sm">
+          <div className="bg-muted/30 p-3 sm:p-4">
+            <img src={imageUrl} alt={title} className="max-h-[32rem] w-full rounded-xl object-contain" loading="lazy" />
+          </div>
+          {imageCaption ? <figcaption className="px-4 pb-4 text-sm text-muted-foreground">{imageCaption}</figcaption> : null}
+        </figure>
+      ) : null}
+
       {/* Text / body content - render as markdown */}
-      {body && !isVideoContent && (
+      {body && !isVideoContent && !isSimulationContent && !isImageContent && (
         <div className="prose max-w-none">
           <div
             dangerouslySetInnerHTML={{ __html: markdownToHtml(body) }}
